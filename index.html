@@ -1,1 +1,1204 @@
 <!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="햇배달">
+  <meta name="theme-color" content="#FF6B00">
+  <title>햇배달</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#f4f6fb}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+    #app{max-width:440px;margin:0 auto;min-height:100vh;background:#f4f6fb;position:relative}
+    .screen{display:none;padding:16px 16px 80px}
+    .screen.active{display:block}
+    .card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:14px}
+    .btn{display:block;width:100%;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;text-decoration:none;transition:opacity .15s}
+    .btn:active{opacity:.8}
+    .btn-dark{background:#1a1a2e;color:#fff}
+    .btn-blue{background:#4A90D9;color:#fff}
+    .btn-green{background:#4CAF50;color:#fff}
+    .btn-orange{background:#FF7043;color:#fff}
+    .btn-outline{background:#fff;color:#4A90D9;border:1.5px solid #4A90D9}
+    .divider{border:none;border-top:1px solid #f0f0f0;margin:14px 0}
+    .row-btns{display:flex;gap:8px}
+    .row-btns .btn{flex:1}
+
+    /* ── 탭 네비게이션 ── */
+    .tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:#fff;border-top:1px solid #eee;display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.1)}
+    .tab-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:11px 4px 9px;cursor:pointer;transition:color .15s;color:#bbb;font-size:11px;font-weight:700;gap:3px;border:none;background:none;font-family:inherit}
+    .tab-item.active{color:#FF6B00}
+    .tab-icon{font-size:24px;line-height:1}
+
+    /* ── 앱 헤더 ── */
+    .app-header{background:linear-gradient(135deg,#FF6B00,#FFa040);padding:20px 16px 16px;margin:-16px -16px 16px;color:#fff;border-radius:0 0 20px 20px;box-shadow:0 4px 16px rgba(255,107,0,.25)}
+    .app-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .app-logo{font-size:24px;font-weight:900;letter-spacing:-0.5px}
+    .app-logo span{font-size:20px}
+    .app-date{font-size:12px;opacity:.85;font-weight:600}
+    .progress-strip{background:rgba(255,255,255,.25);border-radius:20px;height:8px;overflow:hidden;margin-bottom:6px}
+    .progress-fill{height:100%;background:#fff;border-radius:20px;transition:width .4s}
+    .progress-label{font-size:13px;font-weight:700;opacity:.95}
+
+    /* ── 홈(배송목록) ── */
+    #home{padding-top:16px}
+    .delivery-item{background:#fff;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+    .delivery-item.done{opacity:.55}
+    .di-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+    .order-num{width:38px;height:38px;border-radius:50%;background:#FF6B00;color:#fff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .delivery-item.done .order-num{background:#4CAF50}
+    .di-info{flex:1;min-width:0}
+    .di-name{font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:2px}
+    .di-addr{font-size:13px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+    .di-phone{font-size:12px;color:#999;margin-top:2px}
+    .di-btns{display:flex;gap:8px;align-items:center}
+    .btn-nav{flex:1;border:none;border-radius:10px;padding:11px 8px;background:#1976D2;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+    .btn-done{flex:1;border:none;border-radius:10px;padding:11px 8px;background:#e8f5e9;color:#2e7d32;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+    .btn-done.completed{background:#f5f5f5;color:#aaa}
+    .empty-state{text-align:center;padding:60px 20px;color:#ccc}
+    .empty-icon{font-size:56px;margin-bottom:14px}
+    .empty-text{font-size:16px;font-weight:700;color:#bbb;margin-bottom:6px}
+    .empty-sub{font-size:13px}
+
+    /* ── 경로 최적화 배너 ── */
+    .optimize-banner{background:linear-gradient(135deg,#1a1a2e,#2d4a7a);border-radius:16px;padding:18px 16px;margin-bottom:14px;color:#fff;display:flex;align-items:center;justify-content:space-between;cursor:pointer;box-shadow:0 4px 16px rgba(26,26,46,.25)}
+    .ob-left .ob-title{font-size:16px;font-weight:800;margin-bottom:3px}
+    .ob-left .ob-sub{font-size:12px;opacity:.75}
+    .ob-btn{background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:10px;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+    /* ── 스캔 화면 ── */
+    #scan{padding-top:16px}
+    .scan-big-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#FF6B00,#FFa040);border-radius:20px;padding:40px 20px;cursor:pointer;margin-bottom:14px;box-shadow:0 6px 20px rgba(255,107,0,.3);border:none;width:100%;font-family:inherit}
+    .scan-big-btn:active{opacity:.9;transform:scale(.98)}
+    .scan-big-icon{font-size:56px;margin-bottom:12px;line-height:1}
+    .scan-big-main{font-size:20px;font-weight:900;color:#fff;margin-bottom:4px}
+    .scan-big-sub{font-size:14px;color:rgba(255,255,255,.85);font-weight:600}
+    .upload-box{border:2px dashed #4A90D9;border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;background:#f0f7ff}
+    .upload-box:active{background:#dceefb}
+    .u-icon{font-size:40px;margin-bottom:10px}
+    .u-main{font-size:16px;font-weight:700;color:#2c5282;margin-bottom:4px}
+    .u-sub{font-size:13px;color:#718096}
+    .manual-form .form-row{margin-bottom:12px}
+    .form-label{font-size:12px;color:#888;font-weight:600;margin-bottom:4px}
+    .form-input{width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;outline:none;transition:border .2s}
+    .form-input:focus{border-color:#4A90D9}
+
+    /* ── 스캔 중 ── */
+    #scanning{padding-top:30px;text-align:center}
+    .receipt-frame{position:relative;width:190px;height:268px;margin:0 auto 20px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+    .receipt-frame img{width:100%;height:100%;object-fit:cover}
+    .receipt-placeholder{display:flex;flex-direction:column;justify-content:center;gap:10px;padding:20px;height:100%}
+    .fake-line{height:8px;background:#e0e0e0;border-radius:4px}
+    .scan-beam{position:absolute;top:0;left:0;right:0;height:3px;background:#4A90D9;box-shadow:0 0 8px #4A90D9;animation:scanMove 1.5s linear infinite}
+    @keyframes scanMove{0%,100%{top:0}50%{top:calc(100% - 3px)}}
+    .scan-title{font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:6px}
+    .scan-sub{font-size:14px;color:#666;margin-bottom:18px}
+    .progress-wrap{width:75%;margin:0 auto 8px;height:6px;background:#e8e8e8;border-radius:3px;overflow:hidden}
+    .progress-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,#4A90D9,#63b3ff);transition:width .2s}
+    .progress-pct{font-size:13px;color:#888;margin-bottom:18px}
+    .scan-steps{display:inline-flex;flex-direction:column;gap:8px;text-align:left}
+    .scan-step{display:flex;gap:10px;align-items:center}
+    .step-done .step-icon{color:#4CAF50}
+    .step-done .step-label{color:#222;font-weight:600}
+    .step-pending .step-icon{color:#ccc}
+    .step-pending .step-label{color:#aaa}
+    #ocr-status{font-size:12px;color:#aaa;margin-top:12px;min-height:18px}
+
+    /* ── 결과 확인 ── */
+    #result{padding-top:10px}
+    .result-top{text-align:center;margin-bottom:16px}
+    .success-badge{display:inline-block;background:#e8f5e9;color:#2e7d32;padding:4px 14px;border-radius:12px;font-size:13px;font-weight:700}
+    .ocr-badge{display:inline-block;background:#e3f2fd;color:#1565c0;padding:4px 14px;border-radius:12px;font-size:13px;font-weight:700;margin-left:6px}
+    .result-heading{font-size:20px;font-weight:700;color:#1a1a2e;margin-top:8px}
+    .info-row{padding:11px 0;border-bottom:1px solid #f5f5f5}
+    .info-row:last-child{border-bottom:none}
+    .info-label-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+    .info-label-text{font-size:12px;color:#999;font-weight:600}
+    .info-value{font-size:16px;font-weight:700;color:#1a1a2e;padding-left:24px;word-break:keep-all}
+    .info-value.empty{color:#bbb;font-style:italic;font-weight:400;font-size:14px}
+    .info-input{width:100%;font-size:15px;padding:7px 10px;margin-top:2px;border:1.5px solid #4A90D9;border-radius:8px;font-family:inherit;outline:none}
+    textarea.info-input{resize:none}
+    .edit-btn{width:100%;background:#f0f7ff;color:#4A90D9;border:1.5px solid #4A90D9;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px}
+    .nav-grid{display:flex;gap:8px;margin-bottom:12px}
+    .nav-btn{flex:1;border:none;border-radius:12px;padding:14px 4px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+    .nav-kakao{background:#FFDE00;color:#3C1E1E}
+    .nav-naver{background:#03C75A;color:#fff}
+    .call-btn{display:block;text-align:center;text-decoration:none;background:#4CAF50;color:#fff;border-radius:12px;padding:14px;font-size:16px;font-weight:700;margin-bottom:12px}
+    .warn-box{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 14px;font-size:13px;color:#795548;margin-bottom:14px}
+
+    /* ── 지도 화면 ── */
+    #mapview{padding:16px 16px 80px}
+    .svg-map-wrap{background:#e8f0fe;border-radius:16px;overflow:hidden;margin-bottom:14px;position:relative}
+    .svg-map-wrap svg{display:block;width:100%;height:260px}
+    .map-open-btn{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.9);border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;color:#4A90D9;cursor:pointer;font-family:inherit}
+    .map-title{font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+    .route-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
+    .route-item:last-child{border-bottom:none}
+    .route-num{width:32px;height:32px;border-radius:50%;color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .route-body{flex:1;min-width:0}
+    .route-name{font-size:14px;font-weight:700;color:#1a1a2e}
+    .route-addr{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .route-dist{font-size:11px;color:#aaa;margin-top:1px}
+    .route-nav{border:none;border-radius:8px;padding:7px 10px;background:#4A90D9;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0}
+    .route-check{border:none;border-radius:8px;padding:7px 10px;background:#f0f0f0;color:#666;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;margin-left:4px}
+    .route-check.done{background:#4CAF50;color:#fff}
+    .route-item.done-route{opacity:.5}
+
+    /* ── 네비 선택 모달 ── */
+    #nav-modal{display:none;position:fixed;inset:0;z-index:200;align-items:flex-end;justify-content:center}
+    #nav-modal.open{display:flex}
+    .nav-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+    .nav-sheet{position:relative;width:100%;max-width:440px;background:#fff;border-radius:24px 24px 0 0;padding:20px 20px 36px;z-index:1;animation:slideUp .25s ease}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .nav-sheet-title{font-size:13px;color:#aaa;font-weight:600;text-align:center;margin-bottom:4px}
+    .nav-sheet-addr{font-size:15px;font-weight:700;color:#1a1a2e;text-align:center;margin-bottom:20px;word-break:keep-all;line-height:1.4}
+    .nav-options{display:flex;flex-direction:column;gap:10px}
+    .nav-option{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;border:none;cursor:pointer;font-family:inherit;text-align:left;transition:opacity .15s}
+    .nav-option:active{opacity:.8}
+    .nav-option .no-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .nav-option .no-body .no-name{font-size:15px;font-weight:700}
+    .nav-option .no-body .no-desc{font-size:12px;margin-top:2px;opacity:.75}
+    .no-kakao{background:#FFFDE7}.no-kakao .no-icon{background:#FFDE00}
+    .no-naver{background:#E8F5E9}.no-naver .no-icon{background:#03C75A}
+
+    /* ── 사진 썸네일 & 카메라 버튼 ── */
+    .photo-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid #4CAF50;flex-shrink:0;display:block}
+    .photo-cam-btn{width:40px;height:40px;border-radius:8px;background:#f5f5f5;border:1.5px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;flex-shrink:0;color:#aaa;transition:background .15s}
+    .photo-cam-btn:active{background:#e8f5e9}
+    .route-photo-btn{border:none;background:#f5f5f5;border-radius:8px;padding:6px 9px;font-size:15px;cursor:pointer;flex-shrink:0;margin-left:4px}
+    .route-photo-btn.has-photo{background:#e8f5e9}
+
+    /* ── 사진 전체보기 모달 ── */
+    #photo-viewer{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:400;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+    #photo-viewer.open{display:flex}
+    #photo-viewer-img{max-width:100%;max-height:75vh;border-radius:10px;object-fit:contain}
+    .pv-label{color:#fff;font-size:13px;margin-top:12px;opacity:.7}
+    .pv-actions{display:flex;gap:12px;margin-top:16px}
+    .pv-close{padding:12px 32px;border:2px solid rgba(255,255,255,.6);color:#fff;background:transparent;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+    .pv-del{padding:12px 24px;background:#e53935;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+
+    /* ── 토스트 ── */
+    #toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(0,0,0,.78);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:999}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── 홈: 배송 목록 ── -->
+  <div id="home" class="screen active">
+
+    <!-- 앱 헤더 -->
+    <div class="app-header">
+      <div class="app-header-top">
+        <div class="app-logo">☀️ <span>햇배달</span></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="app-date" id="today-date"></div>
+          <button onclick="resetAll()" style="background:rgba(255,255,255,.25);border:none;border-radius:8px;padding:5px 10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑 초기화</button>
+        </div>
+      </div>
+      <div class="progress-strip"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">배송 건을 추가해 주세요</div>
+    </div>
+
+    <div class="optimize-banner" id="optimize-btn" onclick="optimizeRoute()" style="display:none">
+      <div class="ob-left">
+        <div class="ob-title">🗺️ 최적 경로 보기</div>
+        <div class="ob-sub">가장 빠른 순서로 자동 정렬</div>
+      </div>
+      <button class="ob-btn">경로 최적화 →</button>
+    </div>
+
+    <div id="delivery-list"></div>
+    <div id="empty-state" class="empty-state">
+      <div class="empty-icon">☀️</div>
+      <div class="empty-text">오늘 배송 건이 없습니다</div>
+      <div class="empty-sub">스캔 탭에서 영수증을 찍어 추가하세요</div>
+    </div>
+  </div>
+
+  <!-- ── 스캔 ── -->
+  <div id="scan" class="screen">
+
+    <!-- 큰 스캔 버튼 -->
+    <button class="scan-big-btn" onclick="document.getElementById('fileInput').click()">
+      <div class="scan-big-icon">📷</div>
+      <div class="scan-big-main">영수증 촬영</div>
+      <div class="scan-big-sub">탭하여 카메라로 영수증 찍기</div>
+    </button>
+    <input id="fileInput" type="file" accept="image/*" style="display:none" onchange="handleFile(event)">
+
+    <!-- 직접 입력 -->
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;color:#444;margin-bottom:14px">✏️ 직접 입력</div>
+      <div class="manual-form">
+        <div class="form-row">
+          <div class="form-label">고객명</div>
+          <input class="form-input" id="m-name" type="text" placeholder="예) 홍길동">
+        </div>
+        <div class="form-row">
+          <div class="form-label">배송 주소</div>
+          <input class="form-input" id="m-addr" type="text" placeholder="예) 경기도 남양주시 화도읍…">
+        </div>
+        <div class="form-row">
+          <div class="form-label">연락처</div>
+          <input class="form-input" id="m-phone" type="tel" placeholder="예) 010-1234-5678">
+        </div>
+        <button class="btn btn-dark" onclick="addManual()">+ 배송 목록에 추가</button>
+      </div>
+    </div>
+
+    <!-- 샘플 데이터 버튼 -->
+    <div class="card" style="padding:16px 20px">
+      <div style="font-size:12px;color:#bbb;margin-bottom:10px;text-align:center">— 테스트용 샘플 데이터 —</div>
+      <button class="btn btn-outline" onclick="loadSamples()">🧾 샘플 배송 5건 불러오기</button>
+    </div>
+  </div>
+
+  <!-- ── OCR 스캔 중 ── -->
+  <div id="scanning" class="screen">
+    <div class="receipt-frame">
+      <img id="scan-preview" src="" style="display:none">
+      <div class="receipt-placeholder" id="scan-placeholder">
+        <div class="fake-line" style="width:85%"></div>
+        <div class="fake-line" style="width:65%"></div>
+        <div class="fake-line" style="width:90%"></div>
+        <div class="fake-line" style="width:55%"></div>
+        <div class="fake-line" style="width:78%"></div>
+        <div class="fake-line" style="width:50%"></div>
+        <div class="fake-line" style="width:70%"></div>
+      </div>
+      <div class="scan-beam"></div>
+    </div>
+    <div class="scan-title">영수증 분석 중…</div>
+    <div class="scan-sub">고객 정보를 자동으로 추출하고 있습니다</div>
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+    <div class="progress-pct" id="progress-pct">0%</div>
+    <div class="scan-steps">
+      <div class="scan-step step-pending" data-step="0"><span class="step-icon">○</span><span class="step-label">이미지 로드</span></div>
+      <div class="scan-step step-pending" data-step="1"><span class="step-icon">○</span><span class="step-label">OCR 엔진 초기화</span></div>
+      <div class="scan-step step-pending" data-step="2"><span class="step-icon">○</span><span class="step-label">텍스트 인식 중</span></div>
+      <div class="scan-step step-pending" data-step="3"><span class="step-icon">○</span><span class="step-label">고객 정보 추출</span></div>
+    </div>
+    <div id="ocr-status"></div>
+  </div>
+
+  <!-- ── 결과 확인 ── -->
+  <div id="result" class="screen">
+    <div class="result-top">
+      <div><span class="success-badge">✓ 정보 추출 완료</span><span class="ocr-badge" id="ocr-badge" style="display:none">📷 OCR</span></div>
+      <div class="result-heading">고객 정보 확인</div>
+    </div>
+    <div id="warn-partial" class="warn-box" style="display:none">⚠️ 일부 정보를 인식하지 못했습니다. 직접 수정해 주세요.</div>
+    <div class="card">
+      <div class="info-row">
+        <div class="info-label-row"><span>👤</span><span class="info-label-text">고객명</span></div>
+        <div class="info-value" id="disp-name"></div>
+        <input class="info-input" id="edit-name" type="text" style="display:none" placeholder="고객명">
+      </div>
+      <div class="info-row">
+        <div class="info-label-row"><span>📍</span><span class="info-label-text">배송 주소</span></div>
+        <div class="info-value" id="disp-addr"></div>
+        <textarea class="info-input" id="edit-addr" rows="2" style="display:none" placeholder="배송 주소"></textarea>
+      </div>
+      <div class="info-row">
+        <div class="info-label-row"><span>📞</span><span class="info-label-text">연락처</span></div>
+        <div class="info-value" id="disp-phone"></div>
+        <input class="info-input" id="edit-phone" type="tel" style="display:none" placeholder="연락처">
+      </div>
+    </div>
+    <button class="edit-btn" id="edit-btn" onclick="toggleEdit()">✏️ 정보 수정하기</button>
+    <div class="row-btns">
+      <button class="btn btn-dark" onclick="confirmAdd()">+ 배송 목록에 추가</button>
+      <button class="btn btn-blue" onclick="goTab('scan')">📷 다음 영수증</button>
+    </div>
+  </div>
+
+  <!-- ── 지도 최적 경로 ── -->
+  <div id="mapview" class="screen">
+    <div class="page-title">최적 배송 순서</div>
+    <div class="page-sub" id="map-sub">가장 빠른 순서로 정렬됐습니다</div>
+
+    <!-- SVG 미니맵 -->
+    <div class="svg-map-wrap">
+      <svg id="route-svg" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg"></svg>
+      <button class="map-open-btn" onclick="openAllNavModal()">🚀 전체 경로 시작</button>
+    </div>
+
+    <!-- 배송 순서 목록 -->
+    <div class="card" style="padding:8px 16px">
+      <div class="map-title">
+        <span>배송 순서 목록</span>
+        <span id="route-count" style="font-size:13px;color:#888"></span>
+      </div>
+      <div id="route-list"></div>
+    </div>
+  </div>
+
+  <!-- ── 탭바 ── -->
+  <div class="tab-bar">
+    <button class="tab-item active" id="tab-home" onclick="goTab('home')">
+      <span class="tab-icon">📦</span>배송목록
+    </button>
+    <button class="tab-item" id="tab-scan" onclick="goTab('scan')">
+      <span class="tab-icon">📷</span>영수증 추가
+    </button>
+    <button class="tab-item" id="tab-mapview" onclick="optimizeRoute()">
+      <span class="tab-icon">🗺️</span>경로 최적화
+    </button>
+  </div>
+
+  <!-- ── 네비 선택 모달 ── -->
+  <div id="nav-modal">
+    <div class="nav-backdrop" onclick="closeNavModal()"></div>
+    <div class="nav-sheet">
+      <div class="nav-sheet-title" id="nav-modal-title">📍 목적지</div>
+      <div class="nav-sheet-addr" id="nav-addr-text"></div>
+      <div class="nav-options">
+
+        <button class="nav-option no-kakao" onclick="launchNav('kakao')">
+          <div class="no-icon">🟡</div>
+          <div class="no-body">
+            <div class="no-name" style="color:#3C1E1E">카카오내비</div>
+            <div class="no-desc" style="color:#3C1E1E" id="desc-kakao">목적지 자동 입력 후 안내 시작</div>
+          </div>
+        </button>
+
+        <button class="nav-option no-naver" onclick="launchNav('naver')">
+          <div class="no-icon" style="color:white">🟢</div>
+          <div class="no-body">
+            <div class="no-name" style="color:#1B5E20">네이버 내비</div>
+            <div class="no-desc" style="color:#1B5E20" id="desc-naver">목적지 자동 입력 후 안내 시작</div>
+          </div>
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 배송 완료 사진 전체보기 ── -->
+  <div id="photo-viewer">
+    <img id="photo-viewer-img" src="" alt="배송 완료 사진">
+    <div class="pv-label" id="photo-viewer-label"></div>
+    <div class="pv-actions">
+      <button class="pv-close" onclick="closePhotoViewer()">닫기</button>
+      <button class="pv-del" onclick="deletePhotoConfirm()">🗑 삭제</button>
+    </div>
+  </div>
+
+  <!-- 카메라 input (숨김) -->
+  <input type="file" id="photo-input" accept="image/*"
+    style="display:none" onchange="onPhotoSelected(event)">
+
+  <div id="toast"></div>
+</div>
+
+<script>
+// ── 샘플 데이터 (남양주/마석 주변 실제 좌표) ─────────────────────────────
+const SAMPLE_DELIVERIES = [
+  { customerName:'박지수', address:'경기도 남양주시 화도읍 묵현리 240-5', phone:'010-4567-8901', lat:37.6412, lng:127.3245 },
+  { customerName:'이동현', address:'경기도 남양주시 화도읍 마석우리 525', phone:'010-2345-6789', lat:37.6380, lng:127.3189 },
+  { customerName:'김소연', address:'경기도 남양주시 화도읍 가곡리 167', phone:'010-3456-7890', lat:37.6451, lng:127.3312 },
+  { customerName:'최민준', address:'경기도 남양주시 화도읍 월산리 384', phone:'010-5678-9012', lat:37.6335, lng:127.3156 },
+  { customerName:'정유진', address:'경기도 남양주시 화도읍 구암리 88-3', phone:'010-6789-0123', lat:37.6498, lng:127.3278 },
+];
+
+// ── 상태 ──────────────────────────────────────────────────────────────
+const state = {
+  deliveries: JSON.parse(localStorage.getItem('deliveries_v2') || '[]'),
+  current: null,
+  editing: false,
+  ocrRawText: '',
+  optimizedOrder: [],
+};
+
+// ── 탭 전환 ──────────────────────────────────────────────────────────
+function goTab(tabId) {
+  ['home','scan','scanning','result','mapview'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+  ['home','scan','mapview'].forEach(id => {
+    const btn = document.getElementById('tab-' + id);
+    if(btn) btn.classList.remove('active');
+  });
+  const screen = document.getElementById(tabId);
+  if(screen) screen.classList.add('active');
+  const tabBtn = document.getElementById('tab-' + tabId);
+  if(tabBtn) tabBtn.classList.add('active');
+  window.scrollTo(0, 0);
+
+  if(tabId === 'home') renderHome();
+  if(tabId === 'mapview') renderMap();
+}
+
+// ── 홈 렌더링 ─────────────────────────────────────────────────────────
+function renderHome() {
+  const pending   = state.deliveries.filter(d => d.status === 'pending');
+  const completed = state.deliveries.filter(d => d.status === 'completed');
+  const total     = state.deliveries.length;
+
+  // 헤더 진행 표시
+  const pct = total > 0 ? Math.round(completed.length / total * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent =
+    total === 0 ? '배송 건을 추가해 주세요'
+    : pending.length === 0 ? '🎉 오늘 배송을 모두 완료했습니다!'
+    : `${pending.length}건 남음 · 완료 ${completed.length}/${total}건`;
+
+  const optBtn = document.getElementById('optimize-btn');
+  optBtn.style.display = state.deliveries.length >= 2 ? 'flex' : 'none';
+
+  const list  = document.getElementById('delivery-list');
+  const empty = document.getElementById('empty-state');
+
+  if(total === 0){
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // 대기 먼저, 완료 나중
+  const sorted = [...pending, ...completed];
+  let orderNum = 1;
+  list.innerHTML = sorted.map(d => {
+    const isDone = d.status === 'completed';
+    const num    = isDone ? '✓' : orderNum++;
+    return `
+    <div class="delivery-item ${isDone?'done':''}">
+      <div class="di-top">
+        <div class="order-num">${num}</div>
+        <div class="di-info">
+          <div class="di-name">${d.customerName || '(이름 없음)'}</div>
+          <div class="di-addr">${d.address || '(주소 없음)'}</div>
+          ${d.phone ? `<div class="di-phone">📞 ${d.phone}</div>` : ''}
+        </div>
+        <div id="photo-slot-${d.id}" onclick="event.stopPropagation()">
+          <div class="photo-cam-btn" onclick="capturePhoto('${d.id}')" title="완료 사진">📷</div>
+        </div>
+      </div>
+      <div class="di-btns">
+        <button class="btn-nav" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
+        <button class="btn-done ${isDone?'completed':''}" onclick="toggleDone('${d.id}')">
+          ${isDone ? '✓ 완료됨' : '완료 체크'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 사진 썸네일 비동기 로드
+  sorted.forEach(d => {
+    getPhoto(d.id).then(dataUrl => {
+      const slot = document.getElementById('photo-slot-' + d.id);
+      if(!slot) return;
+      if(dataUrl) slot.innerHTML =
+        `<img class="photo-thumb" src="${dataUrl}" onclick="viewPhoto('${d.id}')" title="완료 사진 보기">`;
+    });
+  });
+}
+
+// ── 샘플 데이터 로드 ──────────────────────────────────────────────────
+function loadSamples() {
+  const existing = state.deliveries.map(d=>d.customerName);
+  let added = 0;
+  SAMPLE_DELIVERIES.forEach(s => {
+    if(!existing.includes(s.customerName)){
+      state.deliveries.push({
+        ...s, id: 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
+        status: 'pending', addedAt: Date.now()
+      });
+      added++;
+    }
+  });
+  saveDeliveries();
+  renderHome();
+  goTab('home');
+  showToast(`✅ 샘플 ${added}건이 추가됐습니다`);
+}
+
+// ── 파일 업로드 → OCR ────────────────────────────────────────────────
+function handleFile(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => startOCR(ev.target.result);
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function startOCR(imgSrc) {
+  const preview = document.getElementById('scan-preview');
+  const placeholder = document.getElementById('scan-placeholder');
+  preview.src = imgSrc; preview.style.display = 'block';
+  placeholder.style.display = 'none';
+  setProgress(0); resetSteps();
+  document.getElementById('ocr-status').textContent = '';
+  goTab('scanning'); runOCR(imgSrc);
+}
+
+async function runOCR(imgSrc) {
+  try {
+    document.getElementById('ocr-status').textContent = 'OCR 엔진 준비 중… (최초 실행 시 20~30초 소요)';
+    setStep(0); setProgress(10);
+    const worker = await Tesseract.createWorker('kor+eng', 1, { logger: m => handleOcrLog(m) });
+    setStep(1); setProgress(30);
+    const { data: { text } } = await worker.recognize(imgSrc);
+    await worker.terminate();
+    state.ocrRawText = text;
+    setStep(2); setProgress(85);
+    await sleep(300);
+    const parsed = parseReceiptText(text);
+    setStep(3); setProgress(100);
+    await sleep(300);
+    state.current = { ...parsed, id: 'id_' + Date.now(), status: 'pending', addedAt: Date.now() };
+    showResult(state.current, true);
+  } catch(err) {
+    state.current = { id:'id_'+Date.now(), customerName:'', address:'', phone:'', status:'pending', addedAt:Date.now() };
+    showResult(state.current, true);
+  }
+}
+
+function handleOcrLog(m) {
+  if(m.status === 'recognizing text') {
+    setProgress(30 + m.progress * 50);
+    document.getElementById('ocr-status').textContent = `텍스트 인식 중… ${Math.round(m.progress*100)}%`;
+  }
+}
+
+// ── 텍스트 파싱 ───────────────────────────────────────────────────────
+function parseReceiptText(raw) {
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l.length>1);
+  let customerName='', address='', phone='';
+  const phoneRe = /(?:01[016789]|02|0[3-9]\d)\s*[-–]?\s*\d{3,4}\s*[-–]?\s*\d{4}/;
+  const nameKws = ['고객명','받는분','성함','수령인','주문자'];
+  const addrKws = ['배송지','배송주소','받는곳','배달지','주소','수령지'];
+  const addrRe  = /^(서울|경기|인천|부산|대구|대전|광주|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)/;
+  lines.forEach((line, i) => {
+    const next = lines[i+1]||'';
+    const pm = line.match(phoneRe);
+    if(pm && !phone) phone = pm[0].replace(/\s/g,'').replace(/(\d{3})(\d{3,4})(\d{4})/,'$1-$2-$3');
+    if(!customerName) for(const kw of nameKws) {
+      if(line.includes(kw)) {
+        const a = line.replace(kw,'').replace(/^[:\s：]+/,'').trim();
+        customerName = (a.length>=2&&a.length<=10) ? a : (next.length>=2&&next.length<=10?next:'');
+        break;
+      }
+    }
+    if(!address) for(const kw of addrKws) {
+      if(line.includes(kw)) {
+        const a = line.replace(kw,'').replace(/^[:\s：]+/,'').trim();
+        address = a.length>5 ? a : (next.length>5?next+(lines[i+2]?' '+lines[i+2]:''):'');
+        break;
+      }
+    }
+    if(!address && addrRe.test(line) && line.length>8) {
+      address = line + (/[\d동호층]/.test(next)&&next.length<30 ? ' '+next : '');
+    }
+  });
+  return { customerName: cleanName(customerName), address: cleanAddr(address), phone };
+}
+function cleanName(s){ if(!s)return''; const m=s.replace(/[^가-힣a-zA-Z\s]/g,'').trim().match(/[가-힣]{2,5}/); return m?m[0]:s.trim().slice(0,10); }
+function cleanAddr(s){ return s?s.replace(/^[:\s：]+/,'').replace(/\s{2,}/g,' ').trim():''; }
+
+// ── 직접 입력 ─────────────────────────────────────────────────────────
+function addManual() {
+  const name  = document.getElementById('m-name').value.trim();
+  const addr  = document.getElementById('m-addr').value.trim();
+  const phone = document.getElementById('m-phone').value.trim();
+  if(!name && !addr){ showToast('고객명 또는 주소를 입력해 주세요'); return; }
+  const d = { id:'id_'+Date.now(), customerName:name, address:addr, phone, status:'pending', addedAt:Date.now() };
+  geocodeAndAdd(d);
+  document.getElementById('m-name').value='';
+  document.getElementById('m-addr').value='';
+  document.getElementById('m-phone').value='';
+}
+
+// ── 결과 화면 ────────────────────────────────────────────────────────
+function showResult(d, isOcr) {
+  const partial = isOcr && (!d.customerName||!d.address||!d.phone);
+  document.getElementById('ocr-badge').style.display = isOcr ? 'inline-block' : 'none';
+  document.getElementById('warn-partial').style.display = partial ? 'block' : 'none';
+  const sv = (id,val) => {
+    const el = document.getElementById(id);
+    el.textContent = val||'(미인식 — 직접 입력)';
+    el.className = 'info-value'+(val?'':' empty');
+  };
+  sv('disp-name', d.customerName); sv('disp-addr', d.address); sv('disp-phone', d.phone);
+  document.getElementById('edit-name').value  = d.customerName||'';
+  document.getElementById('edit-addr').value  = d.address||'';
+  document.getElementById('edit-phone').value = d.phone||'';
+  state.editing = false; setEditMode(false);
+  goTab('result');
+}
+
+function toggleEdit() {
+  state.editing = !state.editing; setEditMode(state.editing);
+  if(!state.editing){
+    state.current.customerName = document.getElementById('edit-name').value;
+    state.current.address      = document.getElementById('edit-addr').value;
+    state.current.phone        = document.getElementById('edit-phone').value;
+    showResult(state.current, false);
+    showToast('✓ 수정됐습니다');
+  }
+}
+function setEditMode(on){
+  ['name','addr','phone'].forEach(k=>{
+    document.getElementById('disp-'+k).style.display = on?'none':'block';
+    document.getElementById('edit-'+k).style.display = on?'block':'none';
+  });
+  document.getElementById('edit-btn').textContent = on?'✓ 수정 완료':'✏️ 정보 수정하기';
+}
+
+function confirmAdd() {
+  if(!state.current) return;
+  geocodeAndAdd(state.current);
+  goTab('home');
+}
+
+// ── 좌표 변환 (주소 → lat/lng) ────────────────────────────────────────
+function geocodeAndAdd(d) {
+  // 샘플 데이터는 실제 좌표 사용
+  const found = SAMPLE_DELIVERIES.find(s => s.customerName === d.customerName);
+  if(found) {
+    d.lat = found.lat;
+    d.lng = found.lng;
+    d.fakeCoords = false;
+  } else if(!d.lat) {
+    // 실제 좌표 없음 — 지도 시각화용 임시 좌표만 사용 (내비에는 주소 텍스트 직접 사용)
+    const base = { lat: 37.6360, lng: 127.3200 };
+    const seed = d.address ? d.address.charCodeAt(0) : 0;
+    d.lat = base.lat + (seed % 20 - 10) * 0.003;
+    d.lng = base.lng + (seed % 17 - 8)  * 0.003;
+    d.fakeCoords = true; // ← 이 표시가 있으면 내비에 좌표 대신 주소 텍스트 사용
+  }
+  const exists = state.deliveries.find(x => x.id === d.id);
+  if(!exists) state.deliveries.push(d);
+  saveDeliveries();
+  renderHome();
+  showToast('📋 배송 목록에 추가됐습니다');
+}
+
+// ── 경로 최적화 (Nearest Neighbor) ───────────────────────────────────
+function optimizeRoute() {
+  const pending = state.deliveries.filter(d => d.status === 'pending' && d.lat);
+  if(pending.length === 0){ showToast('배송 대기 건이 없습니다'); return; }
+  if(pending.length === 1){ state.optimizedOrder = pending; goTab('mapview'); return; }
+
+  // 현재 위치 or 기본 출발점
+  const tryOptimize = (startLat, startLng) => {
+    let remaining = [...pending];
+    let ordered = [];
+    let curLat = startLat, curLng = startLng;
+    while(remaining.length > 0) {
+      let nearest = null, minDist = Infinity;
+      remaining.forEach(d => {
+        const dist = Math.hypot(d.lat - curLat, d.lng - curLng);
+        if(dist < minDist){ minDist = dist; nearest = d; }
+      });
+      ordered.push(nearest);
+      curLat = nearest.lat; curLng = nearest.lng;
+      remaining = remaining.filter(d => d.id !== nearest.id);
+    }
+    state.optimizedOrder = ordered;
+    goTab('mapview');
+  };
+
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos => tryOptimize(pos.coords.latitude, pos.coords.longitude),
+      ()  => tryOptimize(37.6360, 127.3200)
+    );
+  } else {
+    tryOptimize(37.6360, 127.3200);
+  }
+}
+
+// ── 지도 렌더링 (SVG 자체 구현 - 외부 라이브러리 불필요) ──────────────
+function renderMap() {
+  const orders = state.optimizedOrder.length
+    ? state.optimizedOrder
+    : state.deliveries.filter(d => d.lat);
+
+  if(orders.length === 0){ showToast('배송 건을 먼저 추가해 주세요'); goTab('home'); return; }
+
+  const colors = ['#e53935','#FF7043','#FFC107','#43A047','#1E88E5','#8E24AA','#00ACC1','#F06292'];
+
+  // ── SVG 미니맵 그리기 ──
+  const svg = document.getElementById('route-svg');
+  svg.innerHTML = '';
+  const W = 400, H = 260, PAD = 36;
+
+  const lats = orders.map(d=>d.lat), lngs = orders.map(d=>d.lng);
+  const minLat=Math.min(...lats), maxLat=Math.max(...lats);
+  const minLng=Math.min(...lngs), maxLng=Math.max(...lngs);
+  const dLat = maxLat-minLat || 0.01, dLng = maxLng-minLng || 0.01;
+
+  const toX = lng => PAD + (lng-minLng)/dLng*(W-PAD*2);
+  const toY = lat => H-PAD - (lat-minLat)/dLat*(H-PAD*2);
+
+  // 배경
+  const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  bg.setAttribute('width',W); bg.setAttribute('height',H);
+  bg.setAttribute('fill','#dce8f7'); svg.appendChild(bg);
+
+  // 격자선
+  for(let i=1;i<4;i++){
+    const gl = document.createElementNS('http://www.w3.org/2000/svg','line');
+    gl.setAttribute('x1',PAD+(W-PAD*2)*i/4); gl.setAttribute('y1',PAD);
+    gl.setAttribute('x2',PAD+(W-PAD*2)*i/4); gl.setAttribute('y2',H-PAD);
+    gl.setAttribute('stroke','#c5d8ef'); gl.setAttribute('stroke-width','1');
+    svg.appendChild(gl);
+    const gh = document.createElementNS('http://www.w3.org/2000/svg','line');
+    gh.setAttribute('x1',PAD); gh.setAttribute('y1',PAD+(H-PAD*2)*i/4);
+    gh.setAttribute('x2',W-PAD); gh.setAttribute('y2',PAD+(H-PAD*2)*i/4);
+    gh.setAttribute('stroke','#c5d8ef'); gh.setAttribute('stroke-width','1');
+    svg.appendChild(gh);
+  }
+
+  // 경로 선
+  for(let i=0;i<orders.length-1;i++){
+    const a=orders[i], b=orders[i+1];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',toX(a.lng)); line.setAttribute('y1',toY(a.lat));
+    line.setAttribute('x2',toX(b.lng)); line.setAttribute('y2',toY(b.lat));
+    line.setAttribute('stroke','#4A90D9'); line.setAttribute('stroke-width','2.5');
+    line.setAttribute('stroke-dasharray','6,5'); line.setAttribute('opacity','0.7');
+    svg.appendChild(line);
+  }
+
+  // 마커
+  orders.forEach((d,i)=>{
+    const isDone = d.status==='completed';
+    const cx = toX(d.lng), cy = toY(d.lat);
+    const c = isDone ? '#aaa' : colors[i%colors.length];
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx',cx); circle.setAttribute('cy',cy);
+    circle.setAttribute('r','16'); circle.setAttribute('fill',c);
+    circle.setAttribute('stroke','white'); circle.setAttribute('stroke-width','3');
+    circle.setAttribute('filter','drop-shadow(0 2px 4px rgba(0,0,0,0.25))');
+    svg.appendChild(circle);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x',cx); text.setAttribute('y',cy+5);
+    text.setAttribute('text-anchor','middle');
+    text.setAttribute('fill','white'); text.setAttribute('font-size','13');
+    text.setAttribute('font-weight','bold'); text.setAttribute('font-family','sans-serif');
+    text.textContent = isDone ? '✓' : (i+1);
+    svg.appendChild(text);
+
+    // 이름 라벨
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x',cx); label.setAttribute('y',cy+30);
+    label.setAttribute('text-anchor','middle');
+    label.setAttribute('fill','#333'); label.setAttribute('font-size','10');
+    label.setAttribute('font-family','sans-serif');
+    label.textContent = d.customerName||'';
+    svg.appendChild(label);
+  });
+
+  // ── 거리 계산 ──
+  const distKm = (a,b) => {
+    const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
+    const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+  };
+
+  // ── 순서 목록 렌더링 ──
+  const pending = orders.filter(d=>d.status==='pending');
+  document.getElementById('route-count').textContent = `총 ${orders.length}건 (대기 ${pending.length})`;
+  document.getElementById('map-sub').textContent = `출발지 기준 최단 경로로 정렬됐습니다`;
+
+  document.getElementById('route-list').innerHTML = orders.map((d,i)=>{
+    const isDone = d.status==='completed';
+    const c = isDone ? '#aaa' : colors[i%colors.length];
+    const dist = i>0 ? (distKm(orders[i-1],d)*1000).toFixed(0)+'m' : '출발지';
+    return `
+    <div class="route-item ${isDone?'done-route':''}">
+      <div class="route-num" style="background:${c}">${isDone?'✓':(i+1)}</div>
+      <div class="route-body">
+        <div class="route-name">${d.customerName||'(이름없음)'}</div>
+        <div class="route-addr">${d.address||'(주소없음)'}</div>
+        <div class="route-dist">↑ 이전 배송지에서 약 ${dist}</div>
+      </div>
+      ${isDone ? '' : `<button class="route-nav" onclick="quickNav('${d.id}')">길찾기</button>`}
+      <button class="route-check ${isDone?'done':''}" onclick="toggleDone('${d.id}', true)">
+        ${isDone?'완료됨':'✓ 완료'}
+      </button>
+      <button class="route-photo-btn" id="rphoto-${d.id}" onclick="capturePhoto('${d.id}')" title="완료 사진">📷</button>
+    </div>`;
+  }).join('');
+  // 사진 있으면 버튼 색 변경
+  orders.forEach(d => {
+    getPhoto(d.id).then(dataUrl => {
+      const btn = document.getElementById('rphoto-' + d.id);
+      if(btn && dataUrl) {
+        btn.classList.add('has-photo');
+        btn.title = '완료 사진 보기';
+        btn.onclick = () => viewPhoto(d.id);
+      }
+    });
+  });
+}
+
+// ── 네비게이션 모달 ───────────────────────────────────────────────────
+let _navTarget  = null;  // 단일 배송지
+let _navAllMode = false; // 전체 경로 모드
+
+// 단일 건 길찾기
+function quickNav(id) {
+  const d = state.deliveries.find(x => x.id === id);
+  if(!d || !d.address){ showToast('주소가 없습니다'); return; }
+  _navTarget  = d;
+  _navAllMode = false;
+  document.getElementById('nav-modal-title').textContent = '📍 목적지';
+  document.getElementById('nav-addr-text').textContent   = d.address;
+  const desc = d.fakeCoords
+    ? '지도앱에서 주소 검색 → 길찾기 탭'
+    : '목적지 자동 입력 후 안내 시작';
+  ['kakao','naver'].forEach(k =>
+    document.getElementById('desc-'+k).textContent = desc
+  );
+  document.getElementById('nav-modal').classList.add('open');
+}
+
+// 전체 경로: 첫 번째 배송지로 안내 + 전체 순서 목록 표시
+function openAllNavModal() {
+  const orders = (state.optimizedOrder.length
+    ? state.optimizedOrder
+    : state.deliveries
+  ).filter(d => d.status === 'pending');
+
+  if(orders.length === 0){ showToast('대기 중인 배송이 없습니다'); return; }
+
+  // 첫 번째 배송지를 목적지로
+  _navAllMode = false;
+  _navTarget  = orders[0];
+
+  const addrEl = document.getElementById('nav-addr-text');
+
+  // 첫 번째 목적지 표시 + 전체 순서 목록
+  document.getElementById('nav-modal-title').textContent =
+    `🚀 다음 배송지 (${orders.length}개 남음)`;
+
+  // 전체 순서를 목록으로 표시 (첫 번째 강조)
+  addrEl.innerHTML = orders.map((d,i) =>
+    `<div style="padding:4px 0;${i===0?'font-weight:700;color:#1a1a2e;font-size:14px;':'color:#888;font-size:12px;'}">`+
+    `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${i===0?'#4A90D9':'#ddd'};color:${i===0?'#fff':'#666'};font-size:11px;font-weight:700;text-align:center;line-height:20px;margin-right:6px">${i+1}</span>`+
+    `${d.customerName||''} · ${d.address}</div>`
+  ).join('');
+  addrEl.style.textAlign  = 'left';
+  addrEl.style.fontSize   = '13px';
+  addrEl.style.whiteSpace = 'normal';
+  addrEl.style.maxHeight  = '140px';
+  addrEl.style.overflowY  = 'auto';
+
+  ['kakao','naver'].forEach(k =>
+    document.getElementById('desc-'+k).textContent = `1번 · ${orders[0].customerName||orders[0].address} 안내 시작`
+  );
+  document.getElementById('nav-modal').classList.add('open');
+}
+
+function closeNavModal() {
+  document.getElementById('nav-modal').classList.remove('open');
+  _navTarget  = null;
+  _navAllMode = false;
+  // 스타일 초기화
+  const addrEl = document.getElementById('nav-addr-text');
+  addrEl.style.textAlign  = 'center';
+  addrEl.style.fontSize   = '15px';
+  addrEl.style.whiteSpace = 'normal';
+  addrEl.style.maxHeight  = 'none';
+}
+
+function launchNav(type) {
+  if(_navTarget) {
+    launchNavSingle(type, _navTarget);
+  }
+  closeNavModal();
+}
+
+// ── 단일 목적지 ────────────────────────────────────────────────────────
+function launchNavSingle(type, d) {
+  const name    = encodeURIComponent(d.customerName || '배송지');
+  const addr    = d.address || d.customerName || '배송지';
+  const addrEnc = encodeURIComponent(addr);
+  const useCoords = d.lat && d.lng && !d.fakeCoords; // 실제 좌표인지 확인
+  let appUrl = '', webUrl = '';
+
+  if(type === 'kakao') {
+    if(useCoords) {
+      // 실제 좌표 → 바로 경로 안내
+      appUrl = `kakaomap://route?ep=${d.lat},${d.lng}&by=CAR`;
+      webUrl = `https://map.kakao.com/link/to/${name},${d.lat},${d.lng}`;
+    } else {
+      // 좌표 없음 → 주소로 검색 (지도앱에서 검색 결과 확인 후 길찾기 탭)
+      appUrl = `kakaomap://search?q=${addrEnc}`;
+      webUrl = `https://map.kakao.com/?q=${addrEnc}`;
+    }
+  } else if(type === 'naver') {
+    if(useCoords) {
+      // 실제 좌표 → 바로 경로 안내
+      appUrl = `nmap://route/car?dlat=${d.lat}&dlng=${d.lng}&dname=${name}&appname=kr.co.maseok.delivery`;
+    } else {
+      // 좌표 없음 → 주소로 검색
+      appUrl = `nmap://search?query=${addrEnc}&appname=kr.co.maseok.delivery`;
+    }
+    webUrl = `https://map.naver.com/v5/search/${addrEnc}`;
+  }
+  tryOpenApp(appUrl, webUrl);
+}
+
+// ── 앱 딥링크 시도 → 없으면 웹 fallback ──────────────────────────────
+// iframe 방식은 모바일 브라우저에서 신뢰성이 낮으므로 anchor 클릭 방식으로 교체
+function tryOpenApp(appUrl, webUrl) {
+  let appOpened = false;
+
+  // 앱으로 전환되면 blur 이벤트 발생
+  const onBlur = () => {
+    appOpened = true;
+    clearTimeout(timer);
+    window.removeEventListener('blur', onBlur);
+  };
+  window.addEventListener('blur', onBlur);
+
+  // 1500ms 안에 blur 없으면 → 앱 미설치로 판단 → 웹 fallback
+  const timer = setTimeout(() => {
+    window.removeEventListener('blur', onBlur);
+    if(!appOpened) window.open(webUrl, '_blank');
+  }, 1500);
+
+  // anchor 클릭 방식 (iOS/Android 모두 호환)
+  const a = document.createElement('a');
+  a.href = appUrl;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { if(document.body.contains(a)) document.body.removeChild(a); }, 500);
+}
+
+function showDetail(id) {
+  const d = state.deliveries.find(x => x.id === id);
+  if(!d) return;
+  state.current = d;
+  showResult(d, false);
+}
+
+// ── 완료 토글 ─────────────────────────────────────────────────────────
+function toggleDone(id, fromMap) {
+  const d = state.deliveries.find(x => x.id === id);
+  if(!d) return;
+  const completing = d.status !== 'completed';
+  d.status = completing ? 'completed' : 'pending';
+  saveDeliveries();
+  renderHome();
+  if(fromMap) renderMap(); // 지도 화면에서 완료 체크 시 지도도 갱신
+
+  if(completing) {
+    // 다음 배송지 찾기 (최적화 순서 우선)
+    const allOrders = state.optimizedOrder.length ? state.optimizedOrder : state.deliveries;
+    const next = allOrders.find(x => x.id !== id && x.status === 'pending');
+    if(next) {
+      setTimeout(() => openNextNav(next), 400);
+    } else {
+      showToast('🎉 모든 배송 완료!');
+    }
+  } else {
+    showToast('↩ 대기 상태로 변경됐습니다');
+  }
+}
+
+// 완료 후 다음 배송지 안내 팝업
+function openNextNav(d) {
+  _navTarget  = d;
+  _navAllMode = false;
+  const addrEl = document.getElementById('nav-addr-text');
+  document.getElementById('nav-modal-title').textContent = '✅ 완료! 다음 배송지 안내';
+  addrEl.style.textAlign  = 'center';
+  addrEl.style.fontSize   = '14px';
+  addrEl.style.whiteSpace = 'normal';
+  addrEl.style.maxHeight  = 'none';
+  addrEl.innerHTML =
+    `<div style="font-weight:700;color:#1a1a2e;margin-bottom:4px">${d.customerName||'다음 배송지'}</div>`+
+    `<div style="color:#555;font-size:13px">${d.address}</div>`;
+  ['kakao','naver'].forEach(k =>
+    document.getElementById('desc-'+k).textContent = `${d.customerName||'다음 배송지'} · 목적지 자동 입력`
+  );
+  document.getElementById('nav-modal').classList.add('open');
+}
+
+// ── 진행 상태 UI ──────────────────────────────────────────────────────
+function setProgress(pct){
+  document.getElementById('progress-bar').style.width = pct+'%';
+  document.getElementById('progress-pct').textContent = Math.round(pct)+'%';
+}
+function setStep(idx){
+  for(let i=0;i<=idx;i++){
+    const el=document.querySelector(`.scan-step[data-step="${i}"]`);
+    if(el){el.className='scan-step step-done';el.querySelector('.step-icon').textContent='✓';}
+  }
+}
+function resetSteps(){
+  document.querySelectorAll('.scan-step').forEach(el=>{
+    el.className='scan-step step-pending';el.querySelector('.step-icon').textContent='○';
+  });
+}
+
+// ── 전체 초기화 ────────────────────────────────────────────────────────
+function resetAll() {
+  if(!confirm('오늘 배송 목록과 완료 사진을 모두 삭제할까요?\n(되돌릴 수 없습니다)')) return;
+  state.deliveries = [];
+  state.optimizedOrder = [];
+  localStorage.removeItem('deliveries_v2');
+  // IndexedDB 사진 전체 삭제
+  if(photoDB) {
+    const tx = photoDB.transaction('photos', 'readwrite');
+    tx.objectStore('photos').clear();
+  }
+  renderHome();
+  goTab('home');
+  showToast('✅ 초기화 완료');
+}
+
+// ── 유틸 ──────────────────────────────────────────────────────────────
+function saveDeliveries(){ localStorage.setItem('deliveries_v2', JSON.stringify(state.deliveries)); }
+let toastTm=null;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  if(toastTm) clearTimeout(toastTm);
+  toastTm=setTimeout(()=>el.classList.remove('show'),2200);
+}
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// ── IndexedDB 사진 저장소 ────────────────────────────────────────────
+let photoDB = null;
+
+function initPhotoDB() {
+  return new Promise((resolve) => {
+    const req = indexedDB.open('DeliveryPhotoDB', 1);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore('photos', { keyPath: 'id' });
+    };
+    req.onsuccess = e => { photoDB = e.target.result; resolve(); };
+    req.onerror   = () => resolve(); // 실패해도 앱은 동작
+  });
+}
+
+function savePhoto(deliveryId, dataUrl) {
+  if(!photoDB) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const tx = photoDB.transaction('photos', 'readwrite');
+    tx.objectStore('photos').put({ id: deliveryId, dataUrl, savedAt: Date.now() });
+    tx.oncomplete = resolve;
+    tx.onerror    = reject;
+  });
+}
+
+function getPhoto(deliveryId) {
+  return new Promise(resolve => {
+    if(!photoDB) { resolve(null); return; }
+    const tx  = photoDB.transaction('photos', 'readonly');
+    const req = tx.objectStore('photos').get(deliveryId);
+    req.onsuccess = () => resolve(req.result ? req.result.dataUrl : null);
+    req.onerror   = () => resolve(null);
+  });
+}
+
+function removePhoto(deliveryId) {
+  if(!photoDB) return;
+  const tx = photoDB.transaction('photos', 'readwrite');
+  tx.objectStore('photos').delete(deliveryId);
+}
+
+// ── 사진 압축 (Canvas) ───────────────────────────────────────────────
+function compressPhoto(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1080;
+      let w = img.width, h = img.height;
+      if(w > MAX || h > MAX) {
+        if(w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.78));
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// ── 사진 촬영 ───────────────────────────────────────────────────────
+let _photoTargetId = null;
+
+function capturePhoto(id) {
+  _photoTargetId = id;
+  const input = document.getElementById('photo-input');
+  input.value = '';
+  input.click();
+}
+
+async function onPhotoSelected(e) {
+  const file = e.target.files[0];
+  if(!file || !_photoTargetId) return;
+  try {
+    showToast('📸 사진 저장 중...');
+    const dataUrl = await compressPhoto(file);
+    if(!dataUrl) throw new Error('압축 실패');
+    await savePhoto(_photoTargetId, dataUrl);
+    renderHome();
+    if(document.getElementById('mapview').classList.contains('active')) renderMap();
+    showToast('📸 완료 사진이 저장됐습니다');
+  } catch(err) {
+    showToast('사진 저장에 실패했습니다');
+  }
+  _photoTargetId = null;
+}
+
+// ── 사진 전체보기 ────────────────────────────────────────────────────
+let _viewingPhotoId = null;
+
+async function viewPhoto(id) {
+  const dataUrl = await getPhoto(id);
+  if(!dataUrl) { showToast('저장된 사진이 없습니다'); return; }
+  _viewingPhotoId = id;
+  const d = state.deliveries.find(x => x.id === id);
+  document.getElementById('photo-viewer-img').src   = dataUrl;
+  document.getElementById('photo-viewer-label').textContent =
+    d ? `${d.customerName||''} · ${d.address||''}` : '';
+  document.getElementById('photo-viewer').classList.add('open');
+}
+
+function closePhotoViewer() {
+  document.getElementById('photo-viewer').classList.remove('open');
+  document.getElementById('photo-viewer-img').src = '';
+  _viewingPhotoId = null;
+}
+
+function deletePhotoConfirm() {
+  if(!_viewingPhotoId) return;
+  if(!confirm('사진을 삭제하시겠습니까?')) return;
+  removePhoto(_viewingPhotoId);
+  closePhotoViewer();
+  renderHome();
+  if(document.getElementById('mapview').classList.contains('active')) renderMap();
+  showToast('사진이 삭제됐습니다');
+}
+
+// ── 초기화 ────────────────────────────────────────────────────────────
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+initPhotoDB().then(() => renderHome());
+</script>
+</body>
+</html>
