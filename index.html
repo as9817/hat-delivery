@@ -934,8 +934,8 @@ function launchNavSingle(type, d) {
   if(type === 'kakao') {
     if(useCoords) {
       // 실제 좌표 → 바로 경로 안내
-      appUrl = `kakaomap://route?ep=${d.lat},${d.lng}&ename=${addrEnc}&by=CAR`;
-      webUrl = `https://map.kakao.com/link/to/${addrEnc},${d.lat},${d.lng}`;
+      appUrl = `kakaomap://search?q=${addrEnc}`;
+      webUrl = `https://map.kakao.com/?q=${addrEnc}`;
     } else {
       // 좌표 없음 → 주소로 검색 (지도앱에서 검색 결과 확인 후 길찾기 탭)
       appUrl = `kakaomap://search?q=${addrEnc}`;
