@@ -3,180 +3,567 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>웰빙마트 배달</title>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="햇배달">
+  <meta name="theme-color" content="#FF6B00">
+  <title>햇배달</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; background: #f0f4f0; }
-    #loginScreen {
-      min-height: 100vh; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      background: linear-gradient(160deg, #155d30 0%, #22a65a 100%); padding: 24px;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #F4F6F9; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
     }
-    .login-logo { font-size: 60px; margin-bottom: 12px; }
-    .login-title { color: white; font-size: 26px; font-weight: 800; margin-bottom: 6px; }
-    .login-sub { color: rgba(255,255,255,0.75); font-size: 14px; margin-bottom: 40px; }
-    .login-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; max-width: 300px; }
+
+    /* ── 로그인 화면 ── */
+    #login-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100vh;
+      background: linear-gradient(135deg, #FF6B00, #FF9040);
+      padding: 32px 24px;
+    }
+    .login-logo { font-size: 64px; margin-bottom: 8px; }
+    .login-title { font-size: 28px; font-weight: 900; color: #fff; margin-bottom: 4px; letter-spacing: -1px; }
+    .login-sub { font-size: 14px; color: rgba(255,255,255,0.8); margin-bottom: 40px; }
+    .login-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 14px; }
+    .driver-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 320px; }
     .driver-btn {
-      background: white; border: none; border-radius: 18px; padding: 24px 12px; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; gap: 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.2); transition: transform 0.12s;
+      background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 16px; padding: 24px 16px; color: #fff; font-size: 22px;
+      font-weight: 900; cursor: pointer; font-family: inherit;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: background 0.15s, transform 0.1s;
     }
-    .driver-btn:active { transform: scale(0.93); }
-    .driver-btn .d-icon { font-size: 30px; }
-    .driver-btn .d-name { font-size: 15px; font-weight: 700; color: #155d30; }
-    #appScreen { display: none; flex-direction: column; min-height: 100vh; }
-    #fbBar { background: #f59e0b; color: white; text-align: center; font-size: 11px; padding: 4px; font-weight: 600; }
-    #fbBar.online { background: #16a34a; }
+    .driver-btn:active { transform: scale(0.96); }
+    .driver-btn:hover { background: rgba(255,255,255,0.32); }
+    .driver-btn span { font-size: 12px; font-weight: 600; opacity: 0.85; }
+    .driver-colors { display: flex; gap: 6px; margin-top: 6px; }
+    .dc { width: 12px; height: 12px; border-radius: 50%; }
+
+    /* ── 기사 배지 ── */
+    .driver-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.2); border-radius: 20px;
+      padding: 4px 10px; font-size: 12px; font-weight: 700; color: #fff;
+      cursor: pointer;
+    }
+
+    #app { max-width: 440px; margin: 0 auto; min-height: 100vh; background: #F4F4FB; position: relative; }
+
+    /* ── 스크린 ── */
+    .screen { display: none; padding: 16px 16px 80px; }
+    .screen.active { display: block; }
+
+    /* ── 카드 ── */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+    }
+
+    /* ── 버튼 ── */
+    .btn {
+      display: block; width: 100%; border: none; border-radius: 12px;
+      padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: inherit; text-align: center; text-decoration: none;
+      transition: opacity .15s;
+    }
+    .btn:active { opacity: .8; }
+    .btn-dark  { background: #1a1a2e; color: #fff; }
+    .btn-blue  { background: #4A90E2; color: #fff; }
+    .btn-green { background: #4CAF30; color: #fff; }
+    .btn-orange{ background: #FF6B00; color: #fff; }
+    .btn-outline{ background: #fff; color: #4A9009; border: 1.5px solid #4A9009; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .row-btns  { display: flex; gap: 8px; }
+    .row-btns .btn { flex: 1; }
+
+    /* ── 앱 헤더 ── */
     .app-header {
-      background: #155d30; color: white; padding: 10px 14px;
-      display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 100; box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+      background: linear-gradient(135deg, #FF6B00, #FF9040);
+      padding: 20px 16px 16px;
+      margin: -16px -16px 14px;
+      color: #fff;
+      border-radius: 0 0 20px 20px;
+      box-shadow: 0 4px 16px rgba(255,107,0,.25);
     }
-    .hd-left { display: flex; align-items: center; gap: 10px; }
-    .hd-logo { font-size: 22px; }
-    .hd-info h3 { font-size: 14px; font-weight: 700; }
-    .hd-info p { font-size: 10px; opacity: 0.75; }
-    .hd-right { display: flex; align-items: center; gap: 8px; }
-    .gps-pill { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 20px; font-size: 11px; }
-    .gps-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; }
-    .gps-dot.on { background: #4ade80; animation: blink 2s infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    .logout-btn { background: rgba(255,255,255,0.18); border: none; color: white; padding: 5px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 600; }
-    .tab-bar { display: flex; background: white; border-bottom: 2px solid #e5e7eb; position: sticky; top: 53px; z-index: 99; }
-    .tab-btn { flex: 1; padding: 11px 4px; border: none; background: none; font-size: 13px; font-weight: 600; color: #9ca3af; cursor: pointer; position: relative; }
-    .tab-btn.active { color: #155d30; }
-    .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: #155d30; border-radius: 2px 2px 0 0; }
-    .badge { display: inline-block; background: #ef4444; color: white; font-size: 10px; padding: 1px 5px; border-radius: 10px; margin-left: 4px; }
-    .tab-pane { display: none; padding: 12px; }
-    .tab-pane.active { display: block; }
-    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-    .stat-box { background: white; border-radius: 12px; padding: 12px 8px; text-align: center; box-shadow: 0 1px 5px rgba(0,0,0,0.07); }
-    .stat-n { font-size: 26px; font-weight: 800; color: #155d30; line-height: 1; }
-    .stat-l { font-size: 10px; color: #9ca3af; margin-top: 4px; }
-    .d-card { background: white; border-radius: 14px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); border-left: 4px solid #e5e7eb; }
-    .d-card.pending { border-left-color: #f59e0b; }
-    .d-card.delivering { border-left-color: #3b82f6; }
-    .d-card.completed { border-left-color: #16a34a; opacity: 0.85; }
-    .d-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-    .d-customer { font-size: 16px; font-weight: 700; color: #111; }
-    .st-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-    .st-pending   { background: #fef3c7; color: #b45309; }
-    .st-delivering { background: #dbeafe; color: #1d4ed8; }
-    .st-completed  { background: #dcfce7; color: #15803d; }
-    .d-addr { font-size: 13px; color: #555; margin-bottom: 2px; }
-    .d-phone { font-size: 12px; color: #888; }
-    .d-note { font-size: 12px; color: #666; font-style: italic; margin-top: 4px; }
-    .d-meta { font-size: 11px; color: #bbb; margin-top: 5px; display: flex; flex-wrap: wrap; gap: 8px; }
-    .has-photo { color: #16a34a; font-weight: 600; }
-    .d-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .act-btn { flex: 1; min-width: 72px; padding: 8px 6px; border: none; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; }
-    .act-btn:active { filter: brightness(0.88); }
-    .btn-start   { background: #3b82f6; color: white; }
-    .btn-receipt { background: #f59e0b; color: white; }
-    .btn-done    { background: #155d30; color: white; }
-    .btn-call    { background: #6b7280; color: white; }
-    .btn-view    { background: #8b5cf6; color: white; }
-    .sec-head { font-size: 12px; color: #9ca3af; font-weight: 700; padding: 6px 2px; margin-top: 4px; }
-    .empty { text-align: center; padding: 50px 20px; color: #bbb; }
-    .empty .ei { font-size: 50px; margin-bottom: 12px; }
-    .empty p { font-size: 13px; line-height: 1.6; }
-    .form-grp { margin-bottom: 14px; }
-    .form-lbl { display: block; font-size: 12px; font-weight: 700; color: #444; margin-bottom: 5px; }
-    .form-inp { width: 100%; padding: 12px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white; font-family: inherit; }
-    .form-inp:focus { outline: none; border-color: #155d30; }
-    textarea.form-inp { resize: vertical; min-height: 70px; }
-    .submit-btn { width: 100%; padding: 14px; background: #155d30; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 6px; }
-    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+    .app-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+    .app-logo { font-size: 24px; font-weight: 900; letter-spacing: -.5px; }
+    .app-logo span { font-size: 20px; }
+    .app-date { font-size: 12px; opacity: .85; font-weight: 600; }
+    .btn-reset {
+      background: rgba(255,255,255,.22); color: #fff; border: none;
+      border-radius: 8px; padding: 5px 10px; font-size: 12px;
+      font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .progress-strip {
+      background: rgba(255,255,255,.35); border-radius: 20px;
+      height: 8px; overflow: hidden; margin-bottom: 5px;
+    }
+    .progress-fill { height: 100%; background: #fff; border-radius: 20px; transition: width .4s; }
+    .progress-label { font-size: 13px; font-weight: 700; opacity: .95; }
+
+    /* ── GPS 상태 표시 ── */
+    .gps-bar {
+      background: rgba(255,255,255,0.15); border-radius: 8px;
+      padding: 5px 10px; font-size: 11px; color: rgba(255,255,255,0.9);
+      display: flex; align-items: center; gap: 6px; margin-top: 8px;
+    }
+    .gps-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+    /* ── 배달 목록 ── */
+    #none { padding: 16px 0; }
+    .delivery-item {
+      background: #fff; border-radius: 16px; padding: 16px;
+      margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
+    }
+    .delivery-item.done { opacity: .55; }
+    .delivery-item.delivering { border-left: 4px solid #4A90E2; }
+    .dl-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .dl-num {
+      background: #FF6B00; color: #fff; border-radius: 50%;
+      width: 28px; height: 28px; display: flex; align-items: center;
+      justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .delivery-item.done .dl-num { background: #4CAF50; }
+    .delivery-item.delivering .dl-num { background: #4A90E2; }
+    .dl-name { font-size: 16px; font-weight: 700; }
+    .dl-addr { font-size: 13px; color: #555; margin-bottom: 4px; }
+    .dl-phone { font-size: 12px; color: #888; }
+    .dl-photo-thumb {
+      width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
+      cursor: pointer; margin-left: auto; border: 1.5px solid #eee;
+    }
+    .status-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 700; margin-left: 6px;
+    }
+    .badge-pending   { background: #fff3e0; color: #FF6B00; }
+    .badge-delivering{ background: #e3f2fd; color: #1976D2; }
+    .badge-done      { background: #e8f5e9; color: #388E3C; }
+
+    /* ── 탭바 ── */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 440px; background: #fff;
+      border-top: 1px solid #E8E8F0; display: flex; z-index: 100;
+      box-shadow: 0 -2px 12px rgba(0,0,0,.08);
+    }
+    .tab-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 11px 4px 9px; cursor: pointer; transition: color .15s;
+      color: #bbb; font-size: 11px; font-weight: 700;
+      gap: 3px; border: none; background: none; font-family: inherit;
+    }
+    .tab-item.active { color: #FF6B00; }
+    .tab-icon { font-size: 24px; line-height: 1; }
+
+    /* ── 섹션 구분선 ── */
+    .divider { border: none; border-top: 1px solid #F0F0F0; margin: 14px 0; }
+
+    /* ── 입력 폼 ── */
+    .form-label { font-size: 13px; font-weight: 700; color: #444; margin-bottom: 5px; display: block; }
+    .form-input {
+      width: 100%; border: 1.5px solid #E5E5EA; border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; font-family: inherit;
+      outline: none; margin-bottom: 12px;
+    }
+    .form-input:focus { border-color: #FF6B00; }
+
+    /* ── OCR 스캐너 ── */
+    #scan-btn {
+      width: 100%; background: #fff; border: 2px dashed #FF6B00;
+      border-radius: 20px; padding: 36px 20px; text-align: center;
+      cursor: pointer; margin-bottom: 16px;
+    }
+    #scan-btn .scan-icon { font-size: 48px; margin-bottom: 8px; }
+    #scan-btn .scan-title { font-size: 16px; font-weight: 700; color: #333; }
+    #scan-btn .scan-sub { font-size: 12px; color: #999; margin-top: 4px; }
+    #file-input { display: none; }
+
+    /* ── OCR 진행 ── */
+    .ocr-step { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: #aaa; font-size: 14px; }
+    .ocr-step.done { color: #4CAF50; }
+    .ocr-step.active { color: #FF6B00; font-weight: 700; }
+    .step-dot {
+      width: 20px; height: 20px; border-radius: 50%; background: #eee;
+      display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0;
+    }
+    .ocr-step.done .step-dot { background: #4CAF50; color: #fff; }
+    .ocr-step.active .step-dot { background: #FF6B00; color: #fff; }
+
+    /* ── 경로 최적화 화면 ── */
+    .route-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid #F5F5F5;
+    }
+    .route-num {
+      background: #FF6B00; color: #fff; border-radius: 50%;
+      width: 26px; height: 26px; display: flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .route-info { flex: 1; }
+    .route-name { font-size: 14px; font-weight: 700; }
+    .route-addr { font-size: 12px; color: #777; }
+
+    /* ── 지도 화면 ── */
+    #mapzone {
+      padding: 0; overflow: hidden; position: relative;
+      height: 100vh;
+    }
+    #map-container { height: calc(100vh - 56px); width: 100%; background: #e8e8e8; }
+    .map-controls {
+      position: absolute; top: 10px; right: 10px; z-index: 1000;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .map-btn {
+      border: none; border-radius: 10px; padding: 9px 13px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: inherit; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+      white-space: nowrap; color: #fff;
+    }
+    .map-btn.orange { background: #FF6B00; }
+    .map-btn.blue   { background: #1976D2; }
+    .map-btn.green  { background: #388E3C; }
+    .map-btn.purple { background: #7B1FA2; }
+    .map-btn.red    { background: #C62828; animation: pulse 1s infinite; }
+    .map-btn.grey   { background: #616161; }
+    .map-result {
+      position: absolute; bottom: 70px; left: 10px; right: 10px;
+      z-index: 1000; background: #fff; border-radius: 14px;
+      padding: 12px 14px; box-shadow: 0 4px 16px rgba(0,0,0,.18);
+      display: none; max-height: 200px; overflow-y: auto;
+    }
+    .map-result h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #222; }
+    .zone-row { margin: 5px 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .zbadge {
+      display: inline-block; padding: 3px 9px; border-radius: 20px;
+      font-size: 11px; font-weight: 700;
+    }
+    .map-legend {
+      position: absolute; bottom: 70px; left: 10px; z-index: 1000;
+      background: rgba(255,255,255,.9); border-radius: 12px;
+      padding: 8px 12px; font-size: 11px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15); pointer-events: none;
+    }
+    .leg-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; color: #555; }
+    .leg-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .leg-line { width: 18px; height: 3px; flex-shrink: 0; border-radius: 2px; }
+    .map-mode-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 1000;
+      background: #fff; display: flex; border-top: 1px solid #eee;
+      box-shadow: 0 -2px 8px rgba(0,0,0,.08);
+    }
+    .mode-btn {
+      flex: 1; padding: 10px 4px; border: none; background: none;
+      font-family: inherit; font-size: 11px; font-weight: 700;
+      color: #bbb; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; gap: 2px;
+    }
+    .mode-btn.active { color: #FF6B00; }
+    .mode-btn .mode-icon { font-size: 18px; }
+    .map-hint {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      background: rgba(0,0,0,.7); color: #fff; border-radius: 12px;
+      padding: 10px 20px; font-size: 13px; font-weight: 700;
+      pointer-events: none; z-index: 1001; white-space: nowrap; display: none;
+    }
+
+    /* ── 내비 모달 ── */
+    .modal-bg {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 200; align-items: flex-end; justify-content: center;
+    }
     .modal-bg.open { display: flex; }
-    .cam-wrap { width: 100%; max-width: 480px; padding: 0 12px; }
-    .cam-title { color: white; text-align: center; font-size: 15px; font-weight: 700; padding: 12px 0; }
-    #camVideo { width: 100%; max-height: 56vh; background: #111; display: block; border-radius: 10px; object-fit: cover; }
-    .cam-btns { display: flex; justify-content: center; gap: 14px; padding: 16px 0; }
-    .cbtn { padding: 11px 22px; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
-    .cbtn-cancel { background: rgba(255,255,255,0.18); color: white; }
-    .cbtn-file   { background: #f59e0b; color: white; }
-    .cbtn-shoot  { background: white; color: #155d30; }
-    #camCanvas { display: none; }
-    .prev-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.93); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
-    .prev-bg.open { display: flex; }
-    .prev-img { max-width: 92vw; max-height: 78vh; border-radius: 10px; object-fit: contain; }
-    .prev-close { margin-top: 14px; padding: 10px 28px; background: rgba(255,255,255,0.18); border: none; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; }
-    .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.82); color: white; padding: 10px 22px; border-radius: 22px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.28s; pointer-events: none; white-space: nowrap; }
+    .modal-box {
+      background: #fff; border-radius: 20px 20px 0 0;
+      padding: 20px; width: 100%; max-width: 440px;
+    }
+    .modal-title { font-size: 14px; color: #888; margin-bottom: 14px; }
+    .modal-addr { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #222; }
+    .nav-btn {
+      width: 100%; border: none; border-radius: 14px; padding: 16px;
+      font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+      margin-bottom: 10px; text-align: center;
+    }
+    .nav-kakao { background: #FEE500; color: #3A1D1D; }
+    .nav-naver { background: #03C75A; color: #fff; }
+    .nav-cancel { background: #F2F2F7; color: #888; }
+
+    /* ── 사진 뷰어 ── */
+    .photo-viewer {
+      display: none; position: fixed; inset: 0; background: #000;
+      z-index: 300; flex-direction: column;
+    }
+    .photo-viewer.open { display: flex; }
+    .photo-viewer img { flex: 1; width: 100%; object-fit: contain; }
+    .photo-viewer-btns {
+      display: flex; gap: 12px; padding: 16px;
+      background: rgba(0,0,0,.7);
+    }
+
+    /* ── 토스트 ── */
+    .toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #1a1a2e; color: #fff; border-radius: 20px;
+      padding: 10px 20px; font-size: 13px; font-weight: 700;
+      opacity: 0; transition: opacity .3s; z-index: 500; white-space: nowrap;
+      pointer-events: none;
+    }
     .toast.show { opacity: 1; }
+
+    /* ── Leaflet 커스텀 ── */
+    .leaflet-popup-content { font-size: 13px; line-height: 1.6; }
+    .zone-label-tooltip {
+      background: transparent !important; border: none !important;
+      box-shadow: none !important; font-weight: 700; font-size: 12px; color: #333;
+    }
   </style>
 </head>
 <body>
 
-<div id="loginScreen">
-  <div class="login-logo">🛒</div>
-  <div class="login-title">웰빙마트 배달</div>
-  <div class="login-sub">기사를 선택하세요</div>
-  <div class="login-grid">
-    <button class="driver-btn" onclick="login('A')"><span class="d-icon">🚚</span><span class="d-name">기사 A</span></button>
-    <button class="driver-btn" onclick="login('B')"><span class="d-icon">🚚</span><span class="d-name">기사 B</span></button>
-    <button class="driver-btn" onclick="login('C')"><span class="d-icon">🚚</span><span class="d-name">기사 C</span></button>
-    <button class="driver-btn" onclick="login('D')"><span class="d-icon">🚚</span><span class="d-name">기사 D</span></button>
+<!-- ══════════════ 로그인 화면 ══════════════ -->
+<div id="login-wrap">
+  <div class="login-logo">🌞</div>
+  <div class="login-title">햇배달</div>
+  <div class="login-sub">웰빙마트 배달 관리 시스템</div>
+  <div class="login-label">기사를 선택하세요</div>
+  <div class="driver-btns">
+    <button class="driver-btn" onclick="doLogin('A')">
+      🚗
+      <span>기사 A</span>
+    </button>
+    <button class="driver-btn" onclick="doLogin('B')">
+      🚙
+      <span>기사 B</span>
+    </button>
+    <button class="driver-btn" onclick="doLogin('C')">
+      🚕
+      <span>기사 C</span>
+    </button>
+    <button class="driver-btn" onclick="doLogin('D')">
+      🛻
+      <span>기사 D</span>
+    </button>
   </div>
 </div>
 
-<div id="appScreen">
-  <div id="fbBar">🔄 Firebase 연결 중...</div>
-  <div class="app-header">
-    <div class="hd-left">
-      <div class="hd-logo">🛒</div>
-      <div class="hd-info"><h3 id="hdrName">기사 A</h3><p>웰빙마트 배달 앱</p></div>
+<!-- ══════════════ 메인 앱 ══════════════ -->
+<div id="app" style="display:none">
+
+  <!-- ══════════════ 홈: 배송 목록 ══════════════ -->
+  <div id="home" class="screen active">
+    <div class="app-header">
+      <div class="app-header-top">
+        <div>
+          <div class="app-logo">🌞 햇배달</div>
+          <div class="app-date" id="today-date"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="driver-badge" id="driver-badge" onclick="logoutConfirm()">기사 ?  ↩</div>
+          <button class="btn-reset" onclick="resetAll()">🗑 초기화</button>
+        </div>
+      </div>
+      <div id="progress-label" class="progress-label">5건 남음 · 완료 0/5건</div>
+      <div class="progress-strip" style="margin-top:6px">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <div class="gps-bar">
+        <div class="gps-dot" id="gps-dot"></div>
+        <span id="gps-status">GPS 연결 중...</span>
+      </div>
     </div>
-    <div class="hd-right">
-      <div class="gps-pill"><div id="gpsDot" class="gps-dot"></div><span id="gpsTxt">GPS</span></div>
-      <button class="logout-btn" onclick="doLogout()">로그아웃</button>
+
+    <!-- 최적 경로 카드 -->
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <div style="font-weight:700;font-size:15px">🗺️ 최적 경로 보기</div>
+        <div style="font-size:12px;color:#999;margin-top:2px">가장 빠른 순서로 자동 정렬</div>
+      </div>
+      <button class="btn btn-dark" style="width:auto;padding:10px 16px;font-size:13px" onclick="goTab('mapview')">경로 최적화 →</button>
+    </div>
+
+    <!-- 배송 목록 -->
+    <div id="delivery-list"></div>
+    <div id="none" style="display:none" class="card">
+      <div style="text-align:center;color:#bbb;padding:20px 0">
+        <div style="font-size:40px;margin-bottom:8px">📦</div>
+        <div style="font-weight:700">오늘 배송 건이 없습니다</div>
+        <div style="font-size:12px;margin-top:4px">스캔 탭에서 영수증을 찍어 추가하세요</div>
+      </div>
     </div>
   </div>
+
+  <!-- ══════════════ 스캔: 영수증 OCR ══════════════ -->
+  <div id="scan" class="screen">
+    <div style="font-size:18px;font-weight:800;margin-bottom:16px">📷 영수증 추가</div>
+
+    <div id="scan-btn" onclick="document.getElementById('file-input').click()">
+      <div class="scan-icon">📷</div>
+      <div class="scan-title">탭하여 카메라로 영수증 찍기</div>
+      <div class="scan-sub">영수증 촬영</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(event)">
+
+    <hr class="divider">
+
+    <div style="font-weight:700;font-size:14px;margin-bottom:12px">✏️ 직접 입력</div>
+    <label class="form-label">고객명</label>
+    <input class="form-input" id="inp-name" type="text" placeholder="예) 홍길동">
+    <label class="form-label">배송 주소</label>
+    <input class="form-input" id="inp-addr" type="text" placeholder="예) 경기도 남양주시 화도읍…">
+    <label class="form-label">연락처</label>
+    <input class="form-input" id="inp-phone" type="tel" placeholder="예) 010-1234-5678">
+    <label class="form-label">메모 (선택)</label>
+    <input class="form-input" id="inp-note" type="text" placeholder="예) 문 앞 놓아주세요">
+    <button class="btn btn-orange" onclick="addManual()">+ 배송 목록에 추가</button>
+
+    <hr class="divider">
+    <div style="text-align:center;font-size:12px;color:#bbb;margin-bottom:10px">— 테스트용 샘플 데이터 —</div>
+    <button class="btn btn-outline" onclick="loadSamples()">🧾 샘플 배송 5건 불러오기</button>
+  </div>
+
+  <!-- ══════════════ OCR 진행 중 ══════════════ -->
+  <div id="scanning" class="screen">
+    <div class="card">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:36px;margin-bottom:8px">🔍</div>
+        <div style="font-weight:700;font-size:16px">영수증 분석 중…</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">고객 정보를 자동으로 추출하고 있습니다</div>
+      </div>
+      <div id="step-load"  class="ocr-step"><div class="step-dot">1</div>이미지 로드</div>
+      <div id="step-init"  class="ocr-step"><div class="step-dot">2</div>OCR 엔진 초기화</div>
+      <div id="step-ocr"   class="ocr-step"><div class="step-dot">3</div>텍스트 인식 중</div>
+      <div id="step-parse" class="ocr-step"><div class="step-dot">4</div>고객 정보 추출</div>
+      <div id="step-done"  class="ocr-step"><div class="step-dot">5</div>✓ 정보 추출 완료</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ OCR 결과 ══════════════ -->
+  <div id="result" class="screen">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="font-size:28px">📷</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">고객 정보 확인</div>
+          <div style="font-size:12px;color:#f39c12" id="ocr-warn">⚠️ 일부 정보를 인식하지 못했습니다. 직접 수정해 주세요.</div>
+        </div>
+      </div>
+      <label class="form-label">고객명</label>
+      <input class="form-input" id="res-name" type="text" placeholder="고객명">
+      <label class="form-label">배송 주소</label>
+      <input class="form-input" id="res-addr" placeholder="배송 주소">
+      <label class="form-label">연락처</label>
+      <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
+      <div class="row-btns" style="margin-top:4px">
+        <button class="btn btn-outline" onclick="toggleEdit()">✏️ 정보 수정하기</button>
+        <button class="btn btn-orange" onclick="confirmAdd()">+ 배송 목록에 추가</button>
+      </div>
+      <button class="btn" style="background:#F2F2F7;color:#888;margin-top:10px" onclick="goTab('scan')">📷 다음 영수증</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ 경로 최적화 ══════════════ -->
+  <div id="mapview" class="screen">
+    <div class="card">
+      <div style="font-weight:800;font-size:16px;margin-bottom:4px">최적 배송 순서</div>
+      <div style="font-size:12px;color:#999;margin-bottom:14px">가장 빠른 순서로 정렬됐습니다</div>
+      <div class="row-btns" style="margin-bottom:14px">
+        <button class="btn btn-orange" onclick="openAllNavModal()">🚀 전체 경로 시작</button>
+        <button class="btn btn-blue" onclick="goTab('mapzone'); mapZone.showMode('route')">🗺️ 지도로 보기</button>
+      </div>
+      <div id="route-list"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ 배송 지도 ══════════════ -->
+  <div id="mapzone" class="screen" style="padding:0;height:100vh;overflow:hidden;position:relative">
+    <div id="map-container" style="height:calc(100vh - 56px);width:100%"></div>
+    <div class="map-controls">
+      <button class="map-btn orange" id="btn-mode-route"  onclick="mapZone.showMode('route')">📍 배송 순서</button>
+      <button class="map-btn blue"   id="btn-mode-zone"   onclick="mapZone.showMode('zone')">🗾 구역 관리</button>
+      <button class="map-btn green"  id="btn-draw-zone"   onclick="mapZone.startDraw()" style="display:none">✏️ 구역 그리기</button>
+      <button class="map-btn grey"   id="btn-clear-zones" onclick="mapZone.clearZones()" style="display:none">🗑 구역 삭제</button>
+      <button class="map-btn purple" id="btn-check-pip"   onclick="mapZone.checkPIP()" style="display:none">✅ 구역 배정 확인</button>
+      <button class="map-btn" id="btn-auto-cluster" onclick="mapZone.autoCluster()" style="display:none;background:#E65100">🤖 기사 자동 배분</button>
+    </div>
+    <div class="map-result" id="map-result"></div>
+    <div class="map-hint" id="map-hint">클릭으로 꼭짓점 추가 · 더블클릭으로 완료</div>
+    <div class="map-legend" id="map-legend">
+      <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
+    </div>
+    <div class="map-mode-bar">
+      <button class="mode-btn active" id="modeBtn-route" onclick="mapZone.showMode('route')">
+        <div class="mode-icon">🛣️</div>최적경로
+      </button>
+      <button class="mode-btn" id="modeBtn-all" onclick="mapZone.showMode('all')">
+        <div class="mode-icon">📍</div>전체보기
+      </button>
+      <button class="mode-btn" id="modeBtn-zone" onclick="mapZone.showMode('zone')">
+        <div class="mode-icon">🗾</div>구역설정
+      </button>
+      <button class="mode-btn" id="modeBtn-back" onclick="goTab('home')">
+        <div class="mode-icon">◀</div>뒤로
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════ 탭바 ══════════════ -->
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-list" onclick="showTab('list')">배송 목록 <span id="pendBadge" class="badge" style="display:none">0</span></button>
-    <button class="tab-btn" id="tab-add" onclick="showTab('add')">+ 배송 추가</button>
+    <button class="tab-item active" id="tab-home"    onclick="goTab('home')">
+      <div class="tab-icon">📦</div><div>배송목록</div>
+    </button>
+    <button class="tab-item"        id="tab-scan"    onclick="goTab('scan')">
+      <div class="tab-icon">📷</div><div>영수증 추가</div>
+    </button>
+    <button class="tab-item"        id="tab-mapview" onclick="optimizeRoute()">
+      <div class="tab-icon">🗺️</div><div>경로 최적화</div>
+    </button>
+    <button class="tab-item"        id="tab-mapzone" onclick="goTab('mapzone')">
+      <div class="tab-icon">📍</div><div>배송지도</div>
+    </button>
   </div>
-  <div id="pane-list" class="tab-pane active">
-    <div class="stats-row">
-      <div class="stat-box"><div id="sTotal" class="stat-n">0</div><div class="stat-l">전체</div></div>
-      <div class="stat-box"><div id="sDoing" class="stat-n">0</div><div class="stat-l">배송중</div></div>
-      <div class="stat-box"><div id="sDone" class="stat-n">0</div><div class="stat-l">완료</div></div>
-    </div>
-    <div id="activeList"></div>
-    <div id="doneList"></div>
-  </div>
-  <div id="pane-add" class="tab-pane">
-    <div class="form-grp"><label class="form-lbl">고객명 *</label><input type="text" class="form-inp" id="fName" placeholder="홍길동"></div>
-    <div class="form-grp"><label class="form-lbl">주소 *</label><input type="text" class="form-inp" id="fAddr" placeholder="서울시 강남구 역삼동 123"></div>
-    <div class="form-grp"><label class="form-lbl">전화번호</label><input type="tel" class="form-inp" id="fPhone" placeholder="010-0000-0000"></div>
-    <div class="form-grp"><label class="form-lbl">메모</label><textarea class="form-inp" id="fNote" placeholder="배송 시 유의사항..."></textarea></div>
-    <button class="submit-btn" onclick="addDelivery()">✅ 배송 등록</button>
-  </div>
-</div>
 
-<div id="camModal" class="modal-bg">
-  <div class="cam-wrap">
-    <div class="cam-title" id="camTitle">📷 사진 촬영</div>
-    <video id="camVideo" autoplay playsinline muted></video>
-    <canvas id="camCanvas"></canvas>
-    <div class="cam-btns">
-      <button class="cbtn cbtn-cancel" onclick="closeCamera()">취소</button>
-      <button class="cbtn cbtn-file"   onclick="triggerFile()">📁 갤러리</button>
-      <button class="cbtn cbtn-shoot"  onclick="shootPhoto()">📸 촬영</button>
+  <!-- ══════════════ 내비게이션 모달 ══════════════ -->
+  <div class="modal-bg" id="nav-modal" onclick="closeNavModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">목적지</div>
+      <div class="modal-addr" id="modal-addr"></div>
+      <button class="nav-btn nav-kakao" onclick="launchNav('kakao')">🚕 카카오내비</button>
+      <button class="nav-btn nav-naver" onclick="launchNav('naver')">🧭 네이버 내비</button>
+      <button class="nav-btn nav-cancel" onclick="closeNavModal()">취셬</button>
     </div>
   </div>
-  <input type="file" id="fileInp" accept="image/*" style="display:none" onchange="onFileChosen(event)">
-</div>
 
-<div id="prevModal" class="prev-bg">
-  <img id="prevImg" class="prev-img" src="" alt="photo">
-  <button class="prev-close" onclick="closePreview()">닫기</button>
-</div>
+  <!-- ══════════════ 사진 뷰어 모달 ══════════════ -->
+  <div class="photo-viewer" id="photo-viewer">
+    <img id="photo-viewer-img" src="" alt="배송 완료 사진">
+    <div class="photo-viewer-btns">
+      <button class="btn btn-dark" style="flex:1" onclick="closePhotoViewer()">닫기</button>
+      <button class="btn" style="flex:1;background:#e53935;color:#fff" id="btn-delete-photo" onclick="deletePhotoConfirm()">🗑 삭제</button>
+    </div>
+  </div>
 
-<div id="toast" class="toast"></div>
+  <!-- 토스트 -->
+  <div class="toast" id="toast"></div>
+
+</div><!-- #app -->
 
 <script>
+// ══════════════════════════════════════════════════════
+// Firebase 초기화
+// ══════════════════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyB5Go7l-xjB6XOegGPGYwXuCOaypz6cj-o",
   authDomain: "wellbingmart-d5ee1.firebaseapp.com",
@@ -189,212 +576,1039 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-db.ref('.info/connected').on('value', snap => {
-  const bar = document.getElementById('fbBar');
-  if (snap.val()) {
-    bar.textContent = '🟢 실시간 연결됨';
-    bar.className = 'online';
-    setTimeout(() => { bar.style.display = 'none'; }, 2500);
-  } else {
-    bar.textContent = '🔴 오프라인 — 연결 복구 중...';
-    bar.className = '';
-    bar.style.display = 'block';
-  }
-});
+// ══════════════════════════════════════════════════════
+// 드라이버 세션
+// ══════════════════════════════════════════════════════
+let currentDriver = null;
+let gpsTimer = null;
+const DRIVER_COLORS = { A: '#ef4444', B: '#3b82f6', C: '#f59e0b', D: '#8b5cf6' };
 
-let driver = null, gpsTimer = null, delivListener = null, camStream = null, photoJob = null;
+function doLogin(id) {
+  currentDriver = id;
+  localStorage.setItem('currentDriver', id);
+  document.getElementById('login-wrap').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('driver-badge').textContent = '기사 ' + id + '  ↩';
+  markOnline(id);
+  startGPS(id);
+  initApp();
+}
 
-function login(id) {
-  driver = id;
-  localStorage.setItem('wb_driver', id);
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appScreen').style.display = 'flex';
-  document.getElementById('hdrName').textContent = '기사 ' + id;
-  db.ref('drivers/' + id).update({ name: '기사 ' + id, online: true, lastSeen: Date.now() });
-  startGPS();
-  listenDeliveries();
+function logoutConfirm() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  doLogout();
 }
 
 function doLogout() {
-  if (!confirm('로그아웃 하시겠습니까?')) return;
-  stopGPS();
-  if (driver) db.ref('drivers/' + driver).update({ online: false });
-  if (delivListener) db.ref('deliveries').off('value', delivListener);
-  driver = null;
-  localStorage.removeItem('wb_driver');
-  document.getElementById('appScreen').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-}
-
-window.addEventListener('load', () => { const s = localStorage.getItem('wb_driver'); if (s) login(s); });
-
-function startGPS() {
-  function upd() {
-    navigator.geolocation.getCurrentPosition(pos => {
-      db.ref('drivers/' + driver + '/location').set({ lat: pos.coords.latitude, lng: pos.coords.longitude, updatedAt: Date.now() });
-      document.getElementById('gpsDot').className = 'gps-dot on';
-      document.getElementById('gpsTxt').textContent = 'GPS ✓';
-    }, () => {
-      document.getElementById('gpsDot').className = 'gps-dot';
-      document.getElementById('gpsTxt').textContent = 'GPS ✗';
-    }, { enableHighAccuracy: true, timeout: 10000 });
+  if (currentDriver) {
+    db.ref('drivers/' + currentDriver + '/online').set(false);
+    if (gpsTimer) clearInterval(gpsTimer);
   }
-  upd();
-  gpsTimer = setInterval(upd, 30000);
+  currentDriver = null;
+  localStorage.removeItem('currentDriver');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-wrap').style.display = 'flex';
 }
 
-function stopGPS() { if (gpsTimer) { clearInterval(gpsTimer); gpsTimer = null; } }
+function markOnline(id) {
+  db.ref('drivers/' + id).update({
+    name: '기사 ' + id,
+    online: true,
+    lastSeen: Date.now()
+  });
+  window.addEventListener('beforeunload', () => {
+    db.ref('drivers/' + id + '/online').set(false);
+  });
+}
 
-function listenDeliveries() {
-  delivListener = db.ref('deliveries').orderByChild('driverId').equalTo(driver)
-    .on('value', snap => {
-      const list = [];
-      snap.forEach(c => list.push({ id: c.key, ...c.val() }));
-      renderAll(list);
+// ══════════════════════════════════════════════════════
+// GPS 추적
+// ══════════════════════════════════════════════════════
+function startGPS(id) {
+  const gpsDot = document.getElementById('gps-dot');
+  const gpsStatus = document.getElementById('gps-status');
+
+  function updateGPS() {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        db.ref('drivers/' + id + '/location').set({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          updatedAt: Date.now()
+        });
+        if (gpsDot) gpsDot.style.background = '#4ade80';
+        if (gpsStatus) gpsStatus.textContent = '위치 전송됨 · ' + new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
+      },
+      err => {
+        if (gpsDot) gpsDot.style.background = '#f87171';
+        if (gpsStatus) gpsStatus.textContent = 'GPS 오류 - 위치 권한을 허용해주세요';
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
+  updateGPS();
+  gpsTimer = setInterval(updateGPS, 30000);
+}
+
+// ══════════════════════════════════════════════════════
+// 상태 & 유틸
+// ══════════════════════════════════════════════════════
+let deliveries = [];
+let currentNavId = null;
+let currentPhotoId = null;
+let routeOrder = [];
+
+const STORAGE_KEY = 'deliveries_v2';
+
+function uid() {
+  return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showToast(msg, duration = 2000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ══════════════════════════════════════════════════════
+// 저장/로드 (localStorage + Firebase 동기화)
+// ══════════════════════════════════════════════════════
+function saveDeliveries() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(deliveries));
+  // Firebase 동기화
+  if (currentDriver) {
+    deliveries.forEach(d => {
+      db.ref('deliveries/' + d.id).update({
+        customerName: d.customerName,
+        address: d.address,
+        phone: d.phone || '-',
+        note: d.note || '',
+        status: fbStatus(d.status),
+        driverId: currentDriver,
+        createdAt: d.addedAt || Date.now()
+      });
     });
-}
-
-function renderAll(list) {
-  const active    = list.filter(d => d.status !== 'completed');
-  const done      = list.filter(d => d.status === 'completed');
-  const delivering = list.filter(d => d.status === 'delivering');
-  document.getElementById('sTotal').textContent = list.length;
-  document.getElementById('sDoing').textContent = delivering.length;
-  document.getElementById('sDone').textContent  = done.length;
-  const badge = document.getElementById('pendBadge');
-  if (active.length) { badge.textContent = active.length; badge.style.display = 'inline'; } else badge.style.display = 'none';
-  const activeEl = document.getElementById('activeList');
-  activeEl.innerHTML = active.length ? active.map(cardHtml).join('') : (done.length === 0 ? '<div class="empty"><div class="ei">📦</div><p>배송 목록이 없습니다.<br>＋ 배송 추가 탭에서 등록해 주세요.</p></div>' : '');
-  const doneEl = document.getElementById('doneList');
-  doneEl.innerHTML = done.length ? '<div class="sec-head">✅ 완료된 배송 (' + done.length + '건)</div>' + done.map(cardHtml).join('') : '';
-}
-
-function cardHtml(d) {
-  const sc = {pending:'pending',delivering:'delivering',completed:'completed'}[d.status]||'pending';
-  const st = {pending:'대기중',delivering:'배송중',completed:'완료'}[d.status]||'대기중';
-  const ct = d.createdAt   ? fmtTime(d.createdAt)   : '';
-  const ft = d.completedAt ? fmtTime(d.completedAt) : '';
-  let actions = '';
-  if (d.status === 'pending') {
-    actions = '<button class="act-btn btn-start" onclick="startDelivery(\''+d.id+'\')">🚗 출발</button>'
-            + '<button class="act-btn btn-receipt" onclick="openCam(\''+d.id+'\',\'receipt\')">📷 영수증</button>'
-            + '<button class="act-btn btn-call" onclick="callNum(\''+d.phone+'\')">📞 전화</button>';
-  } else if (d.status === 'delivering') {
-    actions = '<button class="act-btn btn-receipt" onclick="openCam(\''+d.id+'\',\'receipt\')">📷 영수증</button>'
-            + '<button class="act-btn btn-done" onclick="openCam(\''+d.id+'\',\'completion\')">✅ 완료촬영</button>'
-            + '<button class="act-btn btn-call" onclick="callNum(\''+d.phone+'\')">📞 전화</button>';
-  } else {
-    if (d.receiptPhoto)    actions += '<button class="act-btn btn-view" onclick="viewPhoto(\''+d.id+'\',\'receipt\')">🧾 영수증</button>';
-    if (d.completionPhoto) actions += '<button class="act-btn btn-view" onclick="viewPhoto(\''+d.id+'\',\'completion\')">📸 완료사진</button>';
   }
-  return '<div class="d-card ' + sc + '">'
-    + '<div class="d-card-top"><span class="d-customer">' + esc(d.customerName||'고객') + '</span><span class="st-badge st-' + sc + '">' + st + '</span></div>'
-    + '<div class="d-addr">📍 ' + esc(d.address||'-') + '</div>'
-    + (d.phone ? '<div class="d-phone">📞 ' + esc(d.phone) + '</div>' : '')
-    + (d.note  ? '<div class="d-note">💬 ' + esc(d.note)  + '</div>' : '')
-    + '<div class="d-meta">'
-    + (ct ? '<span>등록 ' + ct + '</span>' : '')
-    + (ft ? '<span>완료 ' + ft + '</span>' : '')
-    + (d.receiptPhoto    ? '<span class="has-photo">🧾 영수증</span>' : '')
-    + (d.completionPhoto ? '<span class="has-photo">📸 완료사진</span>' : '')
-    + '</div>'
-    + '<div class="d-actions">' + actions + '</div>'
-    + '</div>';
 }
 
-function startDelivery(id) {
-  db.ref('deliveries/' + id).update({ status: 'delivering', startedAt: Date.now() });
-  toast('배송을 시작합니다 🚗');
+function fbStatus(s) {
+  if (s === 'done') return 'completed';
+  if (s === 'delivering') return 'delivering';
+  return 'pending';
 }
 
-async function addDelivery() {
-  const name  = document.getElementById('fName').value.trim();
-  const addr  = document.getElementById('fAddr').value.trim();
-  const phone = document.getElementById('fPhone').value.trim();
-  const note  = document.getElementById('fNote').value.trim();
-  if (!name || !addr) { toast('고객명과 주소를 입력해 주세요'); return; }
-  await db.ref('deliveries').push({ driverId: driver, customerName: name, address: addr, phone: phone||'', note: note||'', status: 'pending', createdAt: Date.now(), receiptPhoto: null, completionPhoto: null });
-  ['fName','fAddr','fPhone','fNote'].forEach(id => document.getElementById(id).value = '');
-  toast('배송 등록 완료 ✅');
-  showTab('list');
+function loadDeliveries() {
+  try {
+    deliveries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch(e) { deliveries = []; }
 }
 
-function callNum(phone) { if (phone) window.location.href = 'tel:' + phone; }
+// ══════════════════════════════════════════════════════
+// 탭 전환
+// ══════════════════════════════════════════════════════
+function goTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.getElementById(tab).classList.add('active');
+  const tabEl = document.getElementById('tab-' + tab);
+  if (tabEl) tabEl.classList.add('active');
 
-function viewPhoto(id, type) {
-  db.ref('deliveries/' + id).once('value').then(snap => {
-    const d = snap.val();
-    const src = type === 'receipt' ? d.receiptPhoto : d.completionPhoto;
-    if (src) { document.getElementById('prevImg').src = src; document.getElementById('prevModal').classList.add('open'); }
-    else toast('사진이 없습니다');
+  if (tab === 'home') renderHome();
+  if (tab === 'mapzone') setTimeout(() => mapZone.init(), 80);
+}
+
+// ══════════════════════════════════════════════════════
+// 홈 렌더링
+// ══════════════════════════════════════════════════════
+function renderHome() {
+  loadDeliveries();
+  const list = document.getElementById('delivery-list');
+  const none = document.getElementById('none');
+  const done = deliveries.filter(d => d.status === 'done').length;
+  const delivering = deliveries.filter(d => d.status === 'delivering').length;
+  const total = deliveries.length;
+
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent =
+    `${total - done}건 남음 · 배송중 ${delivering}건 · 완료 ${done}/${total}건`;
+
+  if (!total) { list.innerHTML = ''; none.style.display = 'block'; return; }
+  none.style.display = 'none';
+
+  list.innerHTML = deliveries.map((d, i) => {
+    const statusLabel = d.status === 'done' ? '완료' : d.status === 'delivering' ? '배송중' : '대기중';
+    const statusClass = d.status === 'done' ? 'badge-done' : d.status === 'delivering' ? 'badge-delivering' : 'badge-pending';
+    const itemClass = d.status === 'done' ? 'done' : d.status === 'delivering' ? 'delivering' : '';
+    return `
+    <div class="delivery-item ${itemClass}" id="item-${d.id}">
+      <div class="dl-top">
+        <div class="dl-num">${i+1}</div>
+        <div style="flex:1">
+          <div class="dl-name">${d.customerName}<span class="status-badge ${statusClass}">${statusLabel}</span></div>
+          <div class="dl-addr">${d.address}</div>
+          <div class="dl-phone">📞 ${d.phone}${d.note ? ' · ' + d.note : ''}</div>
+        </div>
+        ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : ''}
+      </div>
+      <div class="row-btns">
+        <button class="btn btn-blue" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
+        ${d.status === 'pending' ? `<button class="btn btn-orange" onclick="startDelivering('${d.id}')">🚗 출발</button>` : ''}
+        ${d.status === 'delivering' ? `<button class="btn btn-green" onclick="toggleDone('${d.id}')">✅ 완료</button>` : ''}
+        ${d.status === 'done' ? `<button class="btn btn-outline" onclick="toggleDone('${d.id}')">↩ 되돌리기</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  deliveries.filter(d => d.photoId).forEach(d => {
+    getPhoto(d.id).then(url => {
+      const img = document.getElementById('thumb-' + d.id);
+      if (img && url) img.src = url;
+    });
   });
 }
 
-function closePreview() { document.getElementById('prevModal').classList.remove('open'); }
-
-function openCam(id, type) {
-  photoJob = { id, type };
-  document.getElementById('camTitle').textContent = type === 'receipt' ? '📷 영수증 사진 촬영' : '📸 완료 사진 촬영';
-  document.getElementById('camModal').classList.add('open');
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-    .then(stream => { camStream = stream; const v = document.getElementById('camVideo'); v.srcObject = stream; v.style.display = 'block'; })
-    .catch(() => { document.getElementById('camVideo').style.display = 'none'; });
+// ══════════════════════════════════════════════════════
+// 배달 상태 관리
+// ══════════════════════════════════════════════════════
+function startDelivering(id) {
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  d.status = 'delivering';
+  d.startedAt = Date.now();
+  saveDeliveries();
+  // Firebase 업데이트
+  if (currentDriver) {
+    db.ref('deliveries/' + id).update({ status: 'delivering', startedAt: d.startedAt });
+  }
+  renderHome();
+  showToast('🚗 배송 출발!');
 }
 
-function closeCamera() {
-  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-  const v = document.getElementById('camVideo'); v.srcObject = null; v.style.display = 'block';
-  document.getElementById('camModal').classList.remove('open');
-  photoJob = null;
+function toggleDone(id) {
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  if (d.status === 'done') {
+    d.status = 'pending';
+    delete d.completedAt;
+    saveDeliveries();
+    if (currentDriver) db.ref('deliveries/' + id).update({ status: 'pending', completedAt: null });
+    renderHome();
+    return;
+  }
+  d.status = 'done';
+  d.completedAt = Date.now();
+  saveDeliveries();
+  if (currentDriver) db.ref('deliveries/' + id).update({ status: 'completed', completedAt: d.completedAt });
+  capturePhoto(id);
+  renderHome();
+  showToast('✅ 배송 완료!');
 }
 
-function shootPhoto() {
-  const video = document.getElementById('camVideo');
-  if (!camStream || !video.videoWidth) { triggerFile(); return; }
-  savePhoto(compress(video));
+// ══════════════════════════════════════════════════════
+// 직접 입력으로 추가
+// ══════════════════════════════════════════════════════
+function addManual() {
+  const name  = document.getElementById('inp-name').value.trim();
+  const addr  = document.getElementById('inp-addr').value.trim();
+  const phone = document.getElementById('inp-phone').value.trim();
+  const note  = document.getElementById('inp-note').value.trim();
+  if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
+  geocodeAndAdd({ customerName: name, address: addr, phone: phone || '-', note });
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-addr').value = '';
+  document.getElementById('inp-phone').value = '';
+  document.getElementById('inp-note').value = '';
 }
 
-function triggerFile() { document.getElementById('fileInp').click(); }
-
-function onFileChosen(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const img = new Image(); const url = URL.createObjectURL(file);
-  img.onload = () => { savePhoto(compress(img)); URL.revokeObjectURL(url); };
-  img.src = url; e.target.value = '';
+// ══════════════════════════════════════════════════════
+// 지오코딩 → 배달 추가
+// ══════════════════════════════════════════════════════
+async function geocodeAndAdd(info) {
+  let lat = null, lng = null;
+  try {
+    const q = encodeURIComponent(info.address + ', 대한민국');
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
+    const data = await res.json();
+    if (data.length) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); }
+  } catch(e) {}
+  const item = {
+    id: uid(), customerName: info.customerName, address: info.address,
+    phone: info.phone || '-', note: info.note || '', lat, lng,
+    status: 'pending', addedAt: Date.now()
+  };
+  loadDeliveries();
+  deliveries.push(item);
+  saveDeliveries();
+  // Firebase에 추가
+  if (currentDriver) {
+    db.ref('deliveries/' + item.id).set({
+      customerName: item.customerName, address: item.address,
+      phone: item.phone, note: item.note,
+      status: 'pending', driverId: currentDriver, createdAt: item.addedAt
+    });
+  }
+  renderHome();
+  goTab('home');
+  showToast(`✅ ${info.customerName} 추가 완료`);
 }
 
-function compress(el) {
-  const MAX = 800;
-  let w = el.videoWidth||el.naturalWidth||el.width, h = el.videoHeight||el.naturalHeight||el.height;
-  if (w > h && w > MAX) { h = Math.round(h*MAX/w); w = MAX; } else if (h > MAX) { w = Math.round(w*MAX/h); h = MAX; }
-  const c = document.getElementById('camCanvas'); c.width = w; c.height = h;
-  c.getContext('2d').drawImage(el, 0, 0, w, h);
-  return c.toDataURL('image/jpeg', 0.62);
+// ══════════════════════════════════════════════════════
+// 샘플 데이터
+// ══════════════════════════════════════════════════════
+function loadSamples() {
+  if (deliveries.length && !confirm('기존 목록을 지우고 샘플 10건을 불러올까요?')) return;
+  const now = Date.now();
+  deliveries = [
+    { id: uid(), customerName: '박지수', address: '경기도 남양주시 화도읍 묵현리 240-5',  phone: '010-4567-8901', lat: 37.6412, lng: 127.3245, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '김소연', address: '경기도 남양주시 화도읍 가곡리 167',    phone: '010-3456-7890', lat: 37.6451, lng: 127.3312, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '정유진', address: '경기도 남양주시 화도읍 구암리 88-3',   phone: '010-6789-0123', lat: 37.6498, lng: 127.3278, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '오세훈', address: '경기도 남양주시 화도읍 녹촌리 312',    phone: '010-2222-3333', lat: 37.6532, lng: 127.3195, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '한미경', address: '경기도 남양주시 화도읍 답내리 76',     phone: '010-5555-6666', lat: 37.6370, lng: 127.3380, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '이동현', address: '경기도 남양주시 화도읍 마석우리 525',  phone: '010-2345-6789', lat: 37.6380, lng: 127.3189, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '최민준', address: '경기도 남양주시 화도읍 월산리 384',    phone: '010-5678-9012', lat: 37.6335, lng: 127.3156, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '윤상철', address: '경기도 남양주시 화도읍 금남리 105',    phone: '010-7777-8888', lat: 37.6288, lng: 127.3098, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '장보람', address: '경기도 남양주시 화도읍 시우리 230',    phone: '010-9999-0000', lat: 37.6440, lng: 127.3082, status: 'pending', addedAt: now },
+    { id: uid(), customerName: '임태양', address: '경기도 남양주시 화도읍 차산리 48',     phone: '010-1111-2222', lat: 37.6310, lng: 127.3225, status: 'pending', addedAt: now },
+  ];
+  saveDeliveries();
+  renderHome();
+  goTab('home');
+  showToast('✅ 샘플 10건 불러오기 완료');
 }
 
-function savePhoto(base64) {
-  if (!photoJob) return;
-  const { id, type } = photoJob;
-  const upd = type === 'receipt' ? { receiptPhoto: base64 } : { completionPhoto: base64, status: 'completed', completedAt: Date.now() };
-  db.ref('deliveries/' + id).update(upd)
-    .then(() => { toast(type==='receipt'?'영수증 저장 완료 ✅':'배송 완료! 🎉'); closeCamera(); })
-    .catch(err => toast('저장 실패: ' + err.message));
+// ══════════════════════════════════════════════════════
+// 경로 최적화 (Nearest Neighbor TSP)
+// ══════════════════════════════════════════════════════
+function optimizeRoute() {
+  loadDeliveries();
+  goTab('mapview');
+  const pending = deliveries.filter(d => d.lat && d.lng && d.status !== 'done');
+  if (!pending.length) {
+    document.getElementById('route-list').innerHTML = '<div style="color:#999;text-align:center;padding:20px">배송 예정 건이 없습니다</div>';
+    return;
+  }
+  function dist(a, b) {
+    const R = 6371, dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
+    const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+  }
+  const start = { lat: 37.641, lng: 127.322 };
+  let remain = [...pending], ordered = [];
+  let cur = start;
+  while (remain.length) {
+    remain.sort((a, b) => dist(cur, a) - dist(cur, b));
+    cur = remain.shift();
+    ordered.push(cur);
+  }
+  routeOrder = ordered;
+
+  const list = document.getElementById('route-list');
+  list.innerHTML = ordered.map((d, i) => `
+    <div class="route-item">
+      <div class="route-num">${i+1}</div>
+      <div class="route-info">
+        <div class="route-name">${d.customerName}</div>
+        <div class="route-addr">${d.address}</div>
+      </div>
+      <button class="btn btn-blue" style="width:auto;padding:8px 12px;font-size:12px" onclick="launchNavSingle('${d.id}')">길찾기</button>
+    </div>
+  `).join('');
+}
+function renderMap() { optimizeRoute(); }
+
+// ══════════════════════════════════════════════════════
+// 내비게이션
+// ══════════════════════════════════════════════════════
+function quickNav(id) {
+  currentNavId = id;
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('modal-addr').textContent = d.address;
+  document.getElementById('nav-modal').classList.add('open');
 }
 
-function showTab(name) {
-  ['list','add'].forEach(n => {
-    document.getElementById('tab-'+n).classList.toggle('active', n===name);
-    document.getElementById('pane-'+n).classList.toggle('active', n===name);
+function openAllNavModal() {
+  if (!routeOrder.length) { showToast('먼저 경로를 최적화하세요'); return; }
+  currentNavId = routeOrder[0].id;
+  document.getElementById('modal-addr').textContent = routeOrder[0].address;
+  document.getElementById('nav-modal').classList.add('open');
+}
+
+function closeNavModal() {
+  document.getElementById('nav-modal').classList.remove('open');
+}
+
+function launchNavSingle(id) {
+  currentNavId = id;
+  const d = deliveries.find(x => x.id === id);
+  if (d) {
+    document.getElementById('modal-addr').textContent = d.address;
+    document.getElementById('nav-modal').classList.add('open');
+  }
+}
+
+function launchNav(app) {
+  const d = deliveries.find(x => x.id === currentNavId);
+  if (!d) return;
+  closeNavModal();
+  tryOpenApp(app, d.address, d.lat, d.lng);
+}
+
+function tryOpenApp(app, address, lat, lng) {
+  if (app === 'kakao') {
+    const url = lat && lng
+      ? `kakaomap://route?ep=${lat},${lng}&by=CAR`
+      : `kakaomap://search?q=${encodeURIComponent(address)}`;
+    const web = lat && lng
+      ? `https://map.kakao.com/link/to/${encodeURIComponent(address)},${lat},${lng}`
+      : `https://map.kakao.com/link/search/${encodeURIComponent(address)}`;
+    window.location.href = url;
+    setTimeout(() => window.open(web, '_blank'), 1500);
+  } else {
+    const url = lat && lng
+      ? `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encodeURIComponent(address)}&appname=hatdelivery`
+      : `nmap://search?query=${encodeURIComponent(address)}&appname=hatdelivery`;
+    const web = `https://map.naver.com/v5/search/${encodeURIComponent(address)}`;
+    window.location.href = url;
+    setTimeout(() => window.open(web, '_blank'), 1500);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// 전체 초기화
+// ══════════════════════════════════════════════════════
+function resetAll() {
+  if (!confirm('모든 배송 데이터를 초기화하시겠습니까?')) return;
+  deliveries = [];
+  saveDeliveries();
+  routeOrder = [];
+  renderHome();
+  showToast('🗑 초기화 완료');
+}
+
+// ══════════════════════════════════════════════════════
+// OCR (Tesseract.js)
+// ══════════════════════════════════════════════════════
+let ocrImageFile = null;
+
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  ocrImageFile = file;
+  goTab('scanning');
+  resetSteps();
+  startOCR(file);
+  event.target.value = '';
+}
+
+function resetSteps() {
+  ['step-load','step-init','step-ocr','step-parse','step-done'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('done','active');
   });
 }
 
-function toast(msg) {
-  const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2600);
+function setStep(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('done','active');
+  if (state) el.classList.add(state);
 }
 
-function fmtTime(ts) { return new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}); }
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+async function startOCR(file) {
+  setStep('step-load', 'active');
+  await sleep(300);
+  setStep('step-load', 'done');
+  setStep('step-init', 'active');
+  try {
+    const worker = await Tesseract.createWorker('kor+eng');
+    setStep('step-init', 'done');
+    setStep('step-ocr', 'active');
+    const { data: { text } } = await worker.recognize(file);
+    await worker.terminate();
+    setStep('step-ocr', 'done');
+    setStep('step-parse', 'active');
+    await sleep(200);
+    const parsed = parseReceiptText(text);
+    setStep('step-parse', 'done');
+    setStep('step-done', 'active');
+    await sleep(300);
+    showResult(parsed);
+  } catch(e) {
+    showResult({ name: '', addr: '', phone: '' });
+  }
+}
+
+function parseReceiptText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  let name = '', addr = '', phone = '';
+  for (const line of lines) {
+    const phoneMatch = line.match(/0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/);
+    if (phoneMatch && !phone) phone = phoneMatch[0].replace(/\s/g, '-');
+    if (!addr && /서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주/.test(line)) {
+      addr = line.trim();
+    }
+    if (!name && /^[가-힣]{2,4}$/.test(line.replace(/\s/g,''))) {
+      name = line.trim();
+    }
+  }
+  return { name, addr, phone };
+}
+
+function showResult(parsed) {
+  document.getElementById('res-name').value  = parsed.name  || '';
+  document.getElementById('res-addr').value  = parsed.addr  || '';
+  document.getElementById('res-phone').value = parsed.phone || '';
+  const warn = document.getElementById('ocr-warn');
+  warn.style.display = (!parsed.name || !parsed.addr) ? 'block' : 'none';
+  goTab('result');
+}
+
+function toggleEdit() {
+  const inputs = ['res-name','res-addr','res-phone'].map(id => document.getElementById(id));
+  const readOnly = inputs[0].readOnly;
+  inputs.forEach(inp => inp.readOnly = !readOnly);
+  if (!readOnly) inputs[0].focus();
+}
+
+function confirmAdd() {
+  const name  = document.getElementById('res-name').value.trim();
+  const addr  = document.getElementById('res-addr').value.trim();
+  const phone = document.getElementById('res-phone').value.trim();
+  if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
+  geocodeAndAdd({ customerName: name, address: addr, phone: phone || '-' });
+}
+
+// ══════════════════════════════════════════════════════
+// 사진 (IndexedDB 로컬 + Firebase 원격)
+// ══════════════════════════════════════════════════════
+let photoDB = null;
+
+async function initPhotoDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('hat-photos', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('photos', { keyPath: 'id' });
+    req.onsuccess = e => { photoDB = e.target.result; resolve(); };
+    req.onerror   = e => reject(e);
+  });
+}
+
+async function savePhoto(deliveryId, dataUrl) {
+  if (!photoDB) await initPhotoDB();
+  return new Promise(resolve => {
+    const tx = photoDB.transaction('photos', 'readwrite');
+    tx.objectStore('photos').put({ id: deliveryId, url: dataUrl });
+    tx.oncomplete = resolve;
+  });
+}
+
+async function getPhoto(deliveryId) {
+  if (!photoDB) await initPhotoDB();
+  return new Promise(resolve => {
+    const tx = photoDB.transaction('photos', 'readonly');
+    const req = tx.objectStore('photos').get(deliveryId);
+    req.onsuccess = () => resolve(req.result?.url || null);
+    req.onerror   = () => resolve(null);
+  });
+}
+
+async function removePhoto(deliveryId) {
+  if (!photoDB) await initPhotoDB();
+  return new Promise(resolve => {
+    const tx = photoDB.transaction('photos', 'readwrite');
+    tx.objectStore('photos').delete(deliveryId);
+    tx.oncomplete = resolve;
+  });
+}
+
+async function compressPhoto(dataUrl, maxW = 800) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.width  * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.62));
+    };
+    img.src = dataUrl;
+  });
+}
+
+function capturePhoto(deliveryId) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const compressed = await compressPhoto(ev.target.result);
+      // 로컬 IndexedDB 저장
+      await savePhoto(deliveryId, compressed);
+      const d = deliveries.find(x => x.id === deliveryId);
+      if (d) { d.photoId = deliveryId; saveDeliveries(); }
+      // Firebase 업로드 (대시보드 조회용)
+      if (currentDriver) {
+        db.ref('deliveries/' + deliveryId).update({
+          completionPhoto: compressed,
+          completedAt: Date.now()
+        });
+      }
+      renderHome();
+      showToast('📸 사진 저장 완료');
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+async function viewPhoto(deliveryId) {
+  currentPhotoId = deliveryId;
+  const url = await getPhoto(deliveryId);
+  if (!url) { showToast('사진이 없습니다'); return; }
+  document.getElementById('photo-viewer-img').src = url;
+  document.getElementById('photo-viewer').classList.add('open');
+}
+
+function closePhotoViewer() {
+  document.getElementById('photo-viewer').classList.remove('open');
+  document.getElementById('photo-viewer-img').src = '';
+}
+
+async function deletePhotoConfirm() {
+  if (!confirm('사진을 삭제하시겠습니까?')) return;
+  await removePhoto(currentPhotoId);
+  const d = deliveries.find(x => x.id === currentPhotoId);
+  if (d) { delete d.photoId; saveDeliveries(); }
+  if (currentDriver) db.ref('deliveries/' + currentPhotoId).update({ completionPhoto: null });
+  closePhotoViewer();
+  renderHome();
+  showToast('🗑 사진 삭제 완료');
+}
+
+// ══════════════════════════════════════════════════════
+// K-Means 클러스터링
+// ══════════════════════════════════════════════════════
+function haversine(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
+function kMeans(points, k, maxIter = 100) {
+  if (points.length <= k) return points.map((_, i) => i % k);
+  const centroids = [];
+  centroids.push({ lat: points[0].lat, lng: points[0].lng });
+  for (let c = 1; c < k; c++) {
+    const dists = points.map(p => Math.min(...centroids.map(c => haversine(p, c))) ** 2);
+    const total = dists.reduce((s, d) => s + d, 0);
+    let r = Math.random() * total, acc = 0, chosen = points.length - 1;
+    for (let i = 0; i < points.length; i++) {
+      acc += dists[i];
+      if (acc >= r) { chosen = i; break; }
+    }
+    centroids.push({ lat: points[chosen].lat, lng: points[chosen].lng });
+  }
+  let labels = new Array(points.length).fill(0);
+  for (let iter = 0; iter < maxIter; iter++) {
+    const newLabels = points.map(p => {
+      let minDist = Infinity, minIdx = 0;
+      centroids.forEach((c, i) => { const d = haversine(p, c); if (d < minDist) { minDist = d; minIdx = i; } });
+      return minIdx;
+    });
+    if (newLabels.every((l, i) => l === labels[i])) break;
+    labels = newLabels;
+    for (let c = 0; c < k; c++) {
+      const group = points.filter((_, i) => labels[i] === c);
+      if (group.length) {
+        centroids[c] = {
+          lat: group.reduce((s, p) => s + p.lat, 0) / group.length,
+          lng: group.reduce((s, p) => s + p.lng, 0) / group.length,
+        };
+      }
+    }
+  }
+  return labels;
+}
+
+function convexHull(pts) {
+  if (pts.length < 3) return pts;
+  const base = pts.reduce((b, p) => p.lat < b.lat || (p.lat === b.lat && p.lng < b.lng) ? p : b);
+  const sorted = pts.filter(p => p !== base).sort((a, b) => {
+    const angA = Math.atan2(a.lat - base.lat, a.lng - base.lng);
+    const angB = Math.atan2(b.lat - base.lat, b.lng - base.lng);
+    return angA - angB;
+  });
+  const cross = (O, A, B) => (A.lng - O.lng) * (B.lat - O.lat) - (A.lat - O.lat) * (B.lng - O.lng);
+  const hull = [base];
+  for (const p of sorted) {
+    while (hull.length >= 2 && cross(hull[hull.length-2], hull[hull.length-1], p) <= 0) hull.pop();
+    hull.push(p);
+  }
+  return hull;
+}
+
+function expandHull(hull, margin = 0.003) {
+  const cLat = hull.reduce((s, p) => s + p.lat, 0) / hull.length;
+  const cLng = hull.reduce((s, p) => s + p.lng, 0) / hull.length;
+  return hull.map(p => ({
+    lat: p.lat + (p.lat - cLat) * (margin / Math.max(Math.abs(p.lat - cLat), 0.0001)),
+    lng: p.lng + (p.lng - cLng) * (margin / Math.max(Math.abs(p.lng - cLng), 0.0001)),
+  }));
+}
+
+// ══════════════════════════════════════════════════════
+// 지도 모듈 (mapZone)
+// ══════════════════════════════════════════════════════
+const mapZone = (() => {
+  let map = null;
+  let deliveryMarkers = [];
+  let routePolyline = null;
+  let routeMarkers  = [];
+  let zones = [];
+  let drawing = false;
+  let drawPoints = [];
+  let drawLine   = null;
+  let drawDots   = [];
+  let lastClick  = 0;
+  let currentMode = 'route';
+  const ZONE_COLORS = ['#2196F3','#9C27B0','#F44336','#009688','#FF9800','#795548'];
+
+  function makeMarkerIcon(color, label, size = 32) {
+    return L.divIcon({
+      html: `<div style="background:${color};color:#fff;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.38)}px;font-weight:800;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);font-family:-apple-system,sans-serif;">${label}</div>`,
+      className: '', iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2-4]
+    });
+  }
+
+  function makeStoreIcon() {
+    return L.divIcon({
+      html: `<div style="background:#1a1a2e;color:#fff;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);">🏪</div>`,
+      className: '', iconSize: [40, 40], iconAnchor: [20, 20]
+    });
+  }
+
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+  }
+
+  function clearMap() {
+    deliveryMarkers.forEach(m => m.remove());
+    routeMarkers.forEach(m => m.remove());
+    if (routePolyline) { routePolyline.remove(); routePolyline = null; }
+    deliveryMarkers = [];
+    routeMarkers = [];
+  }
+
+  async function init() {
+    const container = document.getElementById('map-container');
+    if (!container) return;
+    if (typeof L === 'undefined') {
+      container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;gap:12px"><div style="font-size:40px">🗺️</div><div style="font-weight:700">지도 로딩 중…</div></div>';
+      for (let i = 0; i < 50; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        if (typeof L !== 'undefined') { container.innerHTML = ''; break; }
+      }
+      if (typeof L === 'undefined') return;
+    }
+    const data = loadData();
+    if (map) { map.remove(); map = null; }
+    const withCoords = data.filter(d => d.lat && d.lng);
+    let cLat = 37.641, cLng = 127.322, zoom = 13;
+    if (withCoords.length) {
+      cLat = withCoords.reduce((s, d) => s + d.lat, 0) / withCoords.length;
+      cLng = withCoords.reduce((s, d) => s + d.lng, 0) / withCoords.length;
+    }
+    map = L.map('map-container', { zoomControl: true, doubleClickZoom: false }).setView([cLat, cLng], zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
+    }).addTo(map);
+    map.on('click', e => {
+      if (!drawing) return;
+      const now = Date.now();
+      if (now - lastClick < 350) return;
+      lastClick = now;
+      const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
+      drawPoints.push(pt);
+      const dot = L.circleMarker([pt.lat, pt.lng], { radius: 6, color: '#e53935', fillColor: '#e53935', fillOpacity: 1, weight: 2 }).addTo(map);
+      drawDots.push(dot);
+      if (drawPoints.length >= 2) {
+        if (drawLine) drawLine.remove();
+        drawLine = L.polyline(drawPoints.map(p => [p.lat, p.lng]), { color: '#e53935', dashArray: '6,5', weight: 2.5 }).addTo(map);
+      }
+    });
+    map.on('dblclick', e => { if (!drawing || drawPoints.length < 3) return; finishDraw(); });
+    zones.forEach(z => { if (z.polygon) z.polygon.addTo(map); });
+    showMode(currentMode);
+  }
+
+  function showMode(mode) {
+    currentMode = mode;
+    if (!map) { init(); return; }
+    ['route','all','zone'].forEach(m => {
+      const btn = document.getElementById('modeBtn-' + m);
+      if (btn) btn.classList.toggle('active', m === mode);
+    });
+    const isZone = mode === 'zone';
+    document.getElementById('btn-mode-route').style.display    = isZone ? 'none' : 'flex';
+    document.getElementById('btn-mode-zone').style.display     = isZone ? 'none' : 'flex';
+    document.getElementById('btn-draw-zone').style.display     = isZone ? 'flex' : 'none';
+    document.getElementById('btn-clear-zones').style.display   = isZone ? 'flex' : 'none';
+    document.getElementById('btn-check-pip').style.display     = isZone ? 'flex' : 'none';
+    document.getElementById('btn-auto-cluster').style.display  = isZone ? 'flex' : 'none';
+    const result = document.getElementById('map-result');
+    if (result) result.style.display = 'none';
+    const legend = document.getElementById('map-legend');
+    clearMap();
+    const data = loadData();
+    if (mode === 'route') showRouteMode(data, legend);
+    else if (mode === 'all') showAllMode(data, legend);
+    else if (mode === 'zone') showZoneMode(data, legend);
+  }
+
+  function showRouteMode(data, legend) {
+    const pending = data.filter(d => d.lat && d.lng && d.status !== 'done');
+    const done    = data.filter(d => d.lat && d.lng && d.status === 'done');
+    if (!pending.length) {
+      if (legend) legend.innerHTML = `<div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>`;
+      done.forEach(d => {
+        const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓') }).bindPopup(`<b>${d.customerName}</b><br>${d.address}`).addTo(map);
+        deliveryMarkers.push(m);
+      });
+      return;
+    }
+    function dist(a, b) {
+      const dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
+      const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+      return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+    }
+    const start = { lat: 37.641, lng: 127.322 };
+    let remain = [...pending], ordered = [], cur = start;
+    while (remain.length) {
+      remain.sort((a, b) => dist(cur, a) - dist(cur, b));
+      cur = remain.shift();
+      ordered.push(cur);
+    }
+    const storeM = L.marker([start.lat, start.lng], { icon: makeStoreIcon() }).bindPopup('<b>🏪 출발점 (마트)</b>').addTo(map);
+    routeMarkers.push(storeM);
+    const latlngs = [[start.lat, start.lng]];
+    ordered.forEach((d, i) => {
+      const color = d.status === 'delivering' ? '#4A90E2' : '#FF6B00';
+      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1, 34) })
+        .bindPopup(`<b>${i+1}번째 · ${d.customerName}</b><br><span style="color:#666">${d.address}</span><br><span style="color:#888;font-size:11px">📞 ${d.phone}</span>`)
+        .addTo(map);
+      routeMarkers.push(m);
+      latlngs.push([d.lat, d.lng]);
+    });
+    done.forEach(d => {
+      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓', 28) }).bindPopup(`<b>✅ ${d.customerName}</b><br>${d.address}`).addTo(map);
+      deliveryMarkers.push(m);
+    });
+    routePolyline = L.polyline(latlngs, { color: '#FF6B00', weight: 3.5, opacity: .85 }).addTo(map);
+    for (let i = 0; i < latlngs.length - 1; i++) {
+      const a = latlngs[i], b = latlngs[i+1];
+      const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
+      const angle = Math.atan2(b[1]-a[1], b[0]-a[0]) * 180/Math.PI;
+      const arrow = L.divIcon({ html: `<div style="transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1">➤</div>`, className: '', iconSize: [20,20], iconAnchor: [10,10] });
+      routeMarkers.push(L.marker(mid, { icon: arrow, interactive: false }).addTo(map));
+    }
+    if (legend) legend.innerHTML = `
+      <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4A90E2"></div> 배송중</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
+    `;
+    if (latlngs.length > 1) map.fitBounds(latlngs, { padding: [40, 40] });
+  }
+
+  function showAllMode(data, legend) {
+    const all = data.filter(d => d.lat && d.lng);
+    if (!all.length) return;
+    all.forEach((d, i) => {
+      const color = d.status === 'done' ? '#4CAF50' : d.status === 'delivering' ? '#4A90E2' : '#FF6B00';
+      const label = d.status === 'done' ? '✓' : (i+1);
+      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, label) }).bindPopup(`<b>${d.customerName}</b><br>${d.address}<br><small>${d.phone}</small>`).addTo(map);
+      deliveryMarkers.push(m);
+    });
+    if (legend) legend.innerHTML = `
+      <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4A90E2"></div> 배송중</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
+    `;
+    const bounds = all.map(d => [d.lat, d.lng]);
+    if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+  }
+
+  function showZoneMode(data, legend) {
+    data.filter(d => d.lat && d.lng).forEach((d, i) => {
+      const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
+      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1) }).bindPopup(`<b>${d.customerName}</b><br>${d.address}`).addTo(map);
+      deliveryMarkers.push(m);
+    });
+    if (legend) legend.innerHTML = `
+      <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
+      <div class="leg-row"><div class="leg-line" style="background:#2196F3;height:4px;border-radius:2px;opacity:.6"></div> 배송 구역</div>
+    `;
+  }
+
+  function startDraw() {
+    if (!map) return;
+    drawing = !drawing;
+    const btn = document.getElementById('btn-draw-zone');
+    const hint = document.getElementById('map-hint');
+    if (drawing) {
+      drawPoints = []; drawDots = [];
+      if (drawLine) { drawLine.remove(); drawLine = null; }
+      if (btn) { btn.textContent = '⏹ 취소'; btn.classList.add('red'); btn.classList.remove('green'); }
+      if (hint) hint.style.display = 'block';
+      map.getContainer().style.cursor = 'crosshair';
+    } else {
+      cancelDraw();
+    }
+  }
+
+  function cancelDraw() {
+    drawing = false; drawPoints = [];
+    drawDots.forEach(d => d.remove()); drawDots = [];
+    if (drawLine) { drawLine.remove(); drawLine = null; }
+    const btn = document.getElementById('btn-draw-zone');
+    const hint = document.getElementById('map-hint');
+    if (btn) { btn.textContent = '✏️ 구역 그리기'; btn.classList.remove('red'); btn.classList.add('green'); }
+    if (hint) hint.style.display = 'none';
+    if (map) map.getContainer().style.cursor = '';
+  }
+
+  function finishDraw() {
+    if (drawPoints.length < 3) return;
+    const colorIdx = zones.length % ZONE_COLORS.length;
+    const color = ZONE_COLORS[colorIdx];
+    const num = zones.length + 1;
+    const poly = L.polygon(drawPoints.map(p => [p.lat, p.lng]), { color, fillColor: color, fillOpacity: 0.15, weight: 2.5 })
+      .bindTooltip(`구역 ${num}`, { permanent: true, direction: 'center', className: 'zone-label-tooltip' })
+      .addTo(map);
+    zones.push({ id: num, points: [...drawPoints], polygon: poly, color });
+    cancelDraw();
+    showToast(`✅ 구역 ${num} 생성 완료`);
+  }
+
+  function clearZones() {
+    zones.forEach(z => { if (z.polygon) z.polygon.remove(); });
+    zones = [];
+    const panel = document.getElementById('map-result');
+    if (panel) panel.style.display = 'none';
+    showToast('🗑 구역 삭제 완료');
+  }
+
+  function pointInPolygon(pt, polygon) {
+    let inside = false;
+    const px = pt.lng, py = pt.lat;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].lng, yi = polygon[i].lat;
+      const xj = polygon[j].lng, yj = polygon[j].lat;
+      if (((yi > py) !== (yj > py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  function checkPIP() {
+    if (!zones.length) { alert('먼저 구역을 그려주세요!'); return; }
+    const data = loadData();
+    const assigned = new Set();
+    const results = zones.map(z => {
+      const inZone = data.filter(d => {
+        if (!d.lat || !d.lng) return false;
+        return pointInPolygon({ lat: d.lat, lng: d.lng }, z.points);
+      });
+      inZone.forEach(d => assigned.add(d.id));
+      return { ...z, items: inZone };
+    });
+    const unassigned = data.filter(d => !assigned.has(d.id));
+    let html = '<h4>📍 구역별 배송 배정</h4>';
+    results.forEach(r => {
+      html += `<div class="zone-row"><span class="zbadge" style="background:${r.color};color:#fff">구역 ${r.id}</span>`;
+      if (!r.items.length) html += `<span style="color:#bbb;font-size:11px">없음</span>`;
+      else r.items.forEach(d => { html += `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`; });
+      html += `<span style="color:#aaa;font-size:11px;margin-left:4px">${r.items.length}건</span></div>`;
+    });
+    if (unassigned.length) {
+      html += `<div class="zone-row"><span class="zbadge" style="background:#9E9E9E;color:#fff">미배정</span>`;
+      unassigned.forEach(d => { html += `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`; });
+      html += '</div>';
+    }
+    const panel = document.getElementById('map-result');
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+  }
+
+  const DRIVER_NAMES  = ['A기사', 'B기사', 'C기사', 'D기사', 'E기사'];
+  const DRIVER_EMOJIS = ['🔵', '🔴', '🟢', '🟡', '🟣'];
+
+  function autoCluster(k = 2) {
+    const data = loadData().filter(d => d.lat && d.lng);
+    if (data.length < k) { alert(`배송지가 최소 ${k}건 이상 있어야 합니다.`); return; }
+    zones = zones.filter(z => { if (z.auto) { z.polygon.remove(); return false; } return true; });
+    const labels = kMeans(data, k);
+    const numStr = prompt(`몇 명의 기사로 배분할까요? (현재 ${data.length}건)\n예) 2 또는 3`, String(k));
+    const actualK = parseInt(numStr);
+    if (!actualK || actualK < 1 || actualK > 5) { showToast('1~5 사이 숫자를 입력하세요'); return; }
+    const finalLabels = actualK === k ? labels : kMeans(data, actualK);
+    const clusterColors = ['#2196F3','#F44336','#4CAF50','#FF9800','#9C27B0'];
+    let resultHtml = `<h4>🤖 K-Means 자동 배분 결과 (${actualK}명)</h4>`;
+    for (let c = 0; c < actualK; c++) {
+      const group = data.filter((_, i) => finalLabels[i] === c);
+      if (!group.length) continue;
+      const color = clusterColors[c % clusterColors.length];
+      const emoji = DRIVER_EMOJIS[c];
+      const name  = DRIVER_NAMES[c];
+      const hull = convexHull(group);
+      const expanded = hull.length >= 3 ? expandHull(hull, 0.004) : hull;
+      const poly = L.polygon(expanded.map(p => [p.lat, p.lng]), { color, fillColor: color, fillOpacity: 0.18, weight: 2.5, dashArray: '6,4' })
+        .bindTooltip(`${emoji} ${name} (${group.length}건)`, { permanent: true, direction: 'center', className: 'zone-label-tooltip' })
+        .addTo(map);
+      zones.push({ id: `auto_${c}`, points: expanded, polygon: poly, color, auto: true });
+      resultHtml += `<div class="zone-row"><span class="zbadge" style="background:${color};color:#fff">${emoji} ${name}</span><span style="color:#aaa;font-size:11px">${group.length}건</span>${group.map(d => `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`).join('')}</div>`;
+    }
+    const panel = document.getElementById('map-result');
+    panel.innerHTML = resultHtml;
+    panel.style.display = 'block';
+    const allCoords = data.map(d => [d.lat, d.lng]);
+    if (allCoords.length > 1) map.fitBounds(allCoords, { padding: [50, 50] });
+    showToast(`✅ ${actualK}명 기사 구역 자동 배분 완료`);
+  }
+
+  return { init, showMode, startDraw, finishDraw, cancelDraw, clearZones, checkPIP, autoCluster };
+})();
+
+// ══════════════════════════════════════════════════════
+// 앱 시작
+// ══════════════════════════════════════════════════════
+function initApp() {
+  // 날짜 표시
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  const dateEl = document.getElementById('today-date');
+  if (dateEl) dateEl.textContent = `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  loadDeliveries();
+  renderHome();
+}
+
+(async function boot() {
+  await initPhotoDB();
+  const saved = localStorage.getItem('currentDriver');
+  if (saved) {
+    doLogin(saved);
+  }
+  // 로그인 화면은 기본으로 표시됨
+})();
 </script>
 </body>
 </html>
