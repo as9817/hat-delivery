@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>웰빙마트 배달 관리 대시보드</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; background: #0f1117; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Header ── */
+    .hdr {
+      background: linear-gradient(135deg, #155d30 0%, #1a8040 100%);
+      padding: 10px 20px; display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+    }
+    .hdr-brand { display: flex; align-items: center; gap: 12px; }
+    .hdr-logo { font-size: 26px; }
+    .hdr-title h1 { font-size: 17px; font-weight: 800; color: white; }
+    .hdr-title p  { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 1px; }
+    .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; margin-right: 5px; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .hdr-stats { display: flex; gap: 10px; }
+    .hstat { background: rgba(255,255,255,0.14); border-radius: 10px; padding: 7px 16px; text-align: center; }
+    .hstat-n { font-size: 22px; font-weight: 800; color: white; line-height: 1; }
+    .hstat-l { font-size: 10px; color: rgba(255,255,255,0.65); margin-top: 3px; }
+    .hdr-link { background: rgba(255,255,255,0.15); border: none; color: white; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; }
+
+    /* ── Layout ── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 360px; background: #161b27; border-right: 1px solid rgba(255,255,255,0.07); overflow-y: auto; flex-shrink: 0; }
+    #map { flex: 1; }
+
+    /* ── Driver Sections ── */
+    .drv-section { border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .drv-head {
+      padding: 11px 14px; display: flex; align-items: center; gap: 10px;
+      cursor: pointer; border-left: 4px solid transparent;
+      position: sticky; top: 0; z-index: 5; background: #161b27;
+      transition: background 0.15s;
+    }
+    .drv-head:hover { background: rgba(255,255,255,0.05); }
+    .drv-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: white; flex-shrink: 0; }
+    .drv-info { flex: 1; min-width: 0; }
+    .drv-name { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+    .drv-sub  { font-size: 10px; color: #64748b; margin-top: 2px; }
+    .drv-cnt  { font-size: 11px; color: #64748b; white-space: nowrap; }
+    .online-badge { width: 8px; height: 8px; border-radius: 50%; background: #374151; flex-shrink: 0; }
+    .online-badge.on { background: #4ade80; animation: pulse 2s infinite; }
+
+    /* ── Delivery Items ── */
+    .del-item { padding: 9px 14px 9px 22px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.12s; }
+    .del-item:hover { background: rgba(255,255,255,0.04); }
+    .di-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+    .di-name { font-size: 12px; font-weight: 700; color: #cbd5e1; }
+    .di-st { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+    .di-st.pending    { background: #3b2200; color: #fbbf24; }
+    .di-st.delivering { background: #0f2240; color: #60a5fa; }
+    .di-st.completed  { background: #052613; color: #4ade80; }
+    .di-addr { font-size: 11px; color: #475569; }
+    .di-meta { font-size: 10px; color: #374151; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .photo-btn { padding: 3px 8px; border: none; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer; }
+    .photo-btn.r { background: #3b2200; color: #fbbf24; }
+    .photo-btn.c { background: #052613; color: #4ade80; }
+    .no-del { padding: 14px; text-align: center; color: #374151; font-size: 12px; }
+
+    /* ── ETA Panel ── */
+    .eta-panel { padding: 10px 14px; background: rgba(21,93,48,0.2); border-top: 1px solid rgba(21,93,48,0.4); }
+    .eta-title { font-size: 11px; color: #4ade80; font-weight: 700; margin-bottom: 4px; }
+    .eta-body  { font-size: 11px; color: #94a3b8; line-height: 1.5; }
+
+    /* ── Photo Modal ── */
+    .photo-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
+    .photo-modal.open { display: flex; }
+    .pm-title { color: white; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+    .pm-img { max-width: 90vw; max-height: 74vh; border-radius: 10px; object-fit: contain; }
+    .pm-close { margin-top: 14px; padding: 10px 28px; background: rgba(255,255,255,0.15); border: none; color: white; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .body { flex-direction: column; }
+      .sidebar { width: 100%; height: 45vh; }
+      #map { height: 55vh; }
+      .hdr-stats { display: none; }
+      .hdr-link { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-logo">🛒</div>
+    <div class="hdr-title">
+      <h1>웰빙마트 배달 관리</h1>
+      <p><span class="live-dot"></span><span id="lastUpd">실시간 업데이트 중...</span></p>
+    </div>
+  </div>
+  <div class="hdr-stats">
+    <div class="hstat"><div id="hTotal" class="hstat-n">0</div><div class="hstat-l">전체</div></div>
+    <div class="hstat"><div id="hDoing" class="hstat-n">0</div><div class="hstat-l">배송중</div></div>
+    <div class="hstat"><div id="hDone"  class="hstat-n">0</div><div class="hstat-l">완료</div></div>
+  </div>
+  <a href="index.html" class="hdr-link">📱 기사 앱</a>
+</div>
+
+<!-- Body -->
+<div class="body">
+  <div class="sidebar" id="sidebar"></div>
+  <div id="map"></div>
+</div>
+
+<!-- Photo Modal -->
+<div id="photoModal" class="photo-modal">
+  <div class="pm-title" id="pmTitle">📷 사진</div>
+  <img id="pmImg" class="pm-img" src="" alt="">
+  <button class="pm-close" onclick="closePhoto()">닫기</button>
+</div>
+
+<script>
+/* ══ Firebase ══ */
+const firebaseConfig = {
+  apiKey: "AIzaSyB5Go7l-xjB6XOegGPGYwXuCOaypz6cj-o",
+  authDomain: "wellbingmart-d5ee1.firebaseapp.com",
+  databaseURL: "https://wellbingmart-d5ee1-default-rtdb.firebaseio.com",
+  projectId: "wellbingmart-d5ee1",
+  storageBucket: "wellbingmart-d5ee1.firebasestorage.app",
+  messagingSenderId: "948810299813",
+  appId: "1:948810299813:web:10856267d9016df490104c"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ══ Map ══ */
+const map = L.map('map', { zoomControl: true }).setView([37.5665, 126.9780], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 19
+}).addTo(map);
+
+const COLORS = { A: '#ef4444', B: '#3b82f6', C: '#f59e0b', D: '#8b5cf6' };
+const DRIVER_IDS = ['A','B','C','D'];
+const drvMarkers = {};
+
+function drvIcon(id, online) {
+  const col = COLORS[id]||'#888';
+  return L.divIcon({
+    html: `<div style="position:relative;width:38px;height:38px">
+      <div style="width:38px;height:38px;background:${col};border-radius:50%;border:3px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;
+        color:white;font-weight:800;font-size:15px;opacity:${online?1:0.45}">${id}</div>
+      ${online?`<div style="position:absolute;bottom:0;right:0;width:11px;height:11px;background:#4ade80;border-radius:50%;border:2px solid white"></div>`:''}
+    </div>`,
+    className: '', iconSize: [38,38], iconAnchor: [19,19]
+  });
+}
+
+/* ══ State ══ */
+let driversData = {};
+let deliveriesData = {};
+
+/* ══ Listeners ══ */
+db.ref('drivers').on('value', snap => {
+  driversData = snap.val() || {};
+  updateMarkers();
+  renderSidebar();
+  setUpd();
+});
+
+db.ref('deliveries').on('value', snap => {
+  deliveriesData = {};
+  snap.forEach(c => { deliveriesData[c.key] = c.val(); });
+  updateStats();
+  renderSidebar();
+  setUpd();
+});
+
+function setUpd() {
+  document.getElementById('lastUpd').textContent = '업데이트: ' + new Date().toLocaleTimeString('ko-KR');
+}
+
+/* ══ Stats ══ */
+function updateStats() {
+  const all = Object.values(deliveriesData);
+  document.getElementById('hTotal').textContent = all.length;
+  document.getElementById('hDoing').textContent = all.filter(d=>d.status==='delivering').length;
+  document.getElementById('hDone').textContent  = all.filter(d=>d.status==='completed').length;
+}
+
+/* ══ Markers ══ */
+function updateMarkers() {
+  DRIVER_IDS.forEach(id => {
+    const drv = driversData[id];
+    if (!drv || !drv.location) { if (drvMarkers[id]) drvMarkers[id].setOpacity(0.3); return; }
+    const { lat, lng } = drv.location;
+    const online = drv.online || false;
+    const icon = drvIcon(id, online);
+    const ago = drv.location.updatedAt ? Math.floor((Date.now()-drv.location.updatedAt)/60000) : null;
+    const agoTxt = ago !== null ? (ago===0?'방금 전':ago+'분 전') : '-';
+    const popup = `<b style="font-size:14px">기사 ${id}</b><br>${online?'🟢 온라인':'⚫ 오프라인'}<br>위치 갱신: ${agoTxt}`;
+    if (drvMarkers[id]) {
+      drvMarkers[id].setLatLng([lat,lng]).setIcon(icon).getPopup().setContent(popup);
+    } else {
+      const m = L.marker([lat,lng],{icon}).addTo(map).bindPopup(popup);
+      m.on('click', () => focusDriver(id));
+      drvMarkers[id] = m;
+    }
+  });
+}
+
+function focusDriver(id) {
+  const drv = driversData[id];
+  if (drv && drv.location) map.setView([drv.location.lat, drv.location.lng], 15);
+}
+
+/* ══ Sidebar ══ */
+function renderSidebar() {
+  document.getElementById('sidebar').innerHTML = DRIVER_IDS.map(id => drvSection(id)).join('');
+}
+
+function drvSection(id) {
+  const drv = driversData[id] || {};
+  const online = drv.online || false;
+  const col = COLORS[id] || '#888';
+  const myDels = Object.entries(deliveriesData)
+    .filter(([,d]) => d.driverId === id)
+    .map(([k,d]) => ({id:k,...d}))
+    .sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+  const activeCnt = myDels.filter(d=>d.status!=='completed').length;
+  const doneCnt   = myDels.filter(d=>d.status==='completed').length;
+  const ago = (drv.location && drv.location.updatedAt) ? Math.floor((Date.now()-drv.location.updatedAt)/60000) : null;
+  const agoTxt = ago !== null ? (ago===0?'방금 전':ago+'분 전') : '위치 없음';
+
+  let delHtml = '';
+  if (myDels.length === 0) {
+    delHtml = '<div class="no-del">배송 없음</div>';
+  } else {
+    delHtml = myDels.map(d => {
+      const sc = {pending:'pending',delivering:'delivering',completed:'completed'}[d.status]||'pending';
+      const st = {pending:'대기중',delivering:'배송중',completed:'완료'}[d.status]||'대기중';
+      const ct = d.createdAt   ? fmtTime(d.createdAt)   : '';
+      const ft = d.completedAt ? fmtTime(d.completedAt) : '';
+      const rBtn = d.receiptPhoto    ? `<button class="photo-btn r" onclick="showPhoto(event,'${d.id}','receipt','${escAttr(d.customerName||'고객')}')">🧾 영수증</button>`    : '';
+      const cBtn = d.completionPhoto ? `<button class="photo-btn c" onclick="showPhoto(event,'${d.id}','completion','${escAttr(d.customerName||'고객')}')">📸 완료사진</button>` : '';
+      return `<div class="del-item" onclick="focusDel('${d.id}')">
+        <div class="di-row"><span class="di-name">${esc(d.customerName||'고객')}</span><span class="di-st ${sc}">${st}</span></div>
+        <div class="di-addr">📍 ${esc(d.address||'-')}</div>
+        ${d.phone ? `<div class="di-addr">📞 ${esc(d.phone)}</div>` : ''}
+        <div class="di-meta">
+          ${ct ? '<span>등록 '+ct+'</span>' : ''}
+          ${ft ? '<span>완료 '+ft+'</span>' : ''}
+          ${rBtn}${cBtn}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const activeDel = myDels.find(d=>d.status==='delivering');
+  const etaHtml = activeDel ? `<div class="eta-panel">
+    <div class="eta-title">📦 현재 배송 중</div>
+    <div class="eta-body">${esc(activeDel.customerName||'고객')} — ${esc(activeDel.address||'-')}<br>
+    ${activeDel.phone ? '📞 '+esc(activeDel.phone)+'<br>' : ''}
+    <span style="color:#64748b;font-size:10px">손님 문의 시: "현재 배송 기사가 이동 중입니다"</span></div>
+  </div>` : '';
+
+  return `<div class="drv-section">
+    <div class="drv-head" onclick="focusDriver('${id}')" style="border-left-color:${col}">
+      <div class="drv-avatar" style="background:${col}">${id}</div>
+      <div class="drv-info">
+        <div class="drv-name">기사 ${id}</div>
+        <div class="drv-sub">${online?'🟢 온라인':'⚫ 오프라인'} · ${agoTxt}</div>
+      </div>
+      <div class="drv-cnt">${activeCnt}건 진행 · ${doneCnt}건 완료</div>
+      <div class="online-badge ${online?'on':''}"></div>
+    </div>
+    ${delHtml}
+    ${etaHtml}
+  </div>`;
+}
+
+/* ══ Photo ══ */
+function showPhoto(e, delId, type, cname) {
+  e.stopPropagation();
+  const d = deliveriesData[delId]; if (!d) return;
+  const src = type==='receipt' ? d.receiptPhoto : d.completionPhoto; if (!src) return;
+  document.getElementById('pmTitle').textContent = type==='receipt' ? '🧾 '+cname+' — 영수증' : '📸 '+cname+' — 완료사진';
+  document.getElementById('pmImg').src = src;
+  document.getElementById('photoModal').classList.add('open');
+}
+
+function closePhoto() { document.getElementById('photoModal').classList.remove('open'); }
+document.getElementById('photoModal').addEventListener('click', function(e){ if(e.target===this) closePhoto(); });
+
+/* ══ Focus delivery on map ══ */
+async function focusDel(id) {
+  const d = deliveriesData[id]; if (!d || !d.address) return;
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(d.address)}&countrycodes=kr&limit=1`, { headers: {'Accept-Language':'ko'} });
+    const j = await r.json();
+    if (j.length) {
+      const lat = parseFloat(j[0].lat), lng = parseFloat(j[0].lon);
+      map.setView([lat,lng],16);
+      L.popup().setLatLng([lat,lng]).setContent(`<b>${esc(d.customerName||'고객')}</b><br>${esc(d.address)}`).openOn(map);
+    }
+  } catch(e) { console.warn('geocode fail',e); }
+}
+
+function fmtTime(ts) { return new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
