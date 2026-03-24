@@ -6,6 +6,7 @@
   <title>웰빙마트 배달 관리 대시보드</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -28,12 +29,35 @@
     .hstat { background: rgba(255,255,255,0.14); border-radius: 10px; padding: 7px 16px; text-align: center; }
     .hstat-n { font-size: 22px; font-weight: 800; color: white; line-height: 1; }
     .hstat-l { font-size: 10px; color: rgba(255,255,255,0.65); margin-top: 3px; }
+    .hdr-actions { display: flex; gap: 8px; align-items: center; }
     .hdr-link { background: rgba(255,255,255,0.15); border: none; color: white; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .btn-add { background: #ff6b00; border: none; color: white; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .btn-add:hover { background: #e05e00; }
 
     /* ── Layout ── */
     .body { display: flex; flex: 1; overflow: hidden; }
-    .sidebar { width: 360px; background: #161b27; border-right: 1px solid rgba(255,255,255,0.07); overflow-y: auto; flex-shrink: 0; }
+    .sidebar { width: 380px; background: #161b27; border-right: 1px solid rgba(255,255,255,0.07); overflow-y: auto; flex-shrink: 0; }
     #map { flex: 1; }
+
+    /* ── Unassigned Pool ── */
+    .unassigned-pool {
+      background: rgba(255, 107, 0, 0.08);
+      border-bottom: 2px solid rgba(255, 107, 0, 0.3);
+    }
+    .pool-head {
+      padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; background: rgba(255, 107, 0, 0.12);
+    }
+    .pool-title { font-size: 13px; font-weight: 800; color: #fb923c; display: flex; align-items: center; gap: 6px; }
+    .pool-cnt { background: #ff6b00; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+    .pool-item { padding: 9px 14px 9px 14px; border-bottom: 1px solid rgba(255,107,0,0.1); display: flex; align-items: center; gap: 10px; }
+    .pi-info { flex: 1; min-width: 0; }
+    .pi-name { font-size: 12px; font-weight: 700; color: #cbd5e1; }
+    .pi-addr { font-size: 11px; color: #475569; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pi-time { font-size: 10px; color: #374151; margin-top: 2px; }
+    .btn-assign { background: #1e3a5f; border: 1px solid #3b82f6; color: #60a5fa; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowraw; }
+    .btn-assign:hover { background: #2d4f7c; }
+    .btn-del-pool { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; }
 
     /* ── Driver Sections ── */
     .drv-section { border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -73,6 +97,43 @@
     .eta-title { font-size: 11px; color: #4ade80; font-weight: 700; margin-bottom: 4px; }
     .eta-body  { font-size: 11px; color: #94a3b8; line-height: 1.5; }
 
+    /* ══════════ MODAL OVERLAY ══════════ */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:1000; align-items:center; justify-content:center; }
+    .overlay.open { display:flex; }
+    .modal { background:#1e2433; border-radius:16px; width:480px; max-width:95vw; max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.6); }
+    .modal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .modal-title { font-size:17px; font-weight:800; color:#e2e8f0; }
+    .modal-close { background:none; border:none; color:#64748b; font-size:22px; cursor:pointer; line-height:1; }
+    .modal-close:hover { color:#e2e8f0; }
+
+    /* Modal Tabs */
+    .mtabs { display:flex; gap:0; border-radius:10px; background:#111827; padding:3px; margin-bottom:20px; }
+    .mtab { flex:1; padding:8px; text-align:center; font-size:13px; font-weight:600; cursor:pointer; border-radius:8px; color:#64748b; transition:all .15s; border:none; background:none; }
+    .mtab.active { background:#ff6b00; color:white; }
+
+    /* Form */
+    .form-group { margin-bottom:14px; }
+    .form-label { font-size:12px; font-weight:700; color:#94a3b8; display:block; margin-bottom:5px; }
+    .form-input { width:100%; background:#111827; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px; font-size:14px; color:#e2e8f0; font-family:inherit; outline:none; transition:border-color .15s; }
+    .form-input:focus { border-color:#ff6b00; }
+    .form-select { width:100%; background:#111827; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px; font-size:14px; color:#e2e8f0; font-family:inherit; outline:none; cursor:pointer; }
+    .form-select:focus { border-color:#ff6b00; }
+    .btn-submit { width:100%; background:#ff6b00; border:none; color:white; padding:13px; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:8px; }
+    .btn-submit:hover { background:#e05e00; }
+    .btn-submit:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* OCR Tab */
+    .ocr-drop { border:2px dashed rgba(255,107,0,0.4); border-radius:12px; padding:32px; text-align:center; cursor:pointer; transition:all .15s; background:rgba(255,107,0,0.04); }
+    .ocr-drop:hover { border-color:#ff6b00; background:rgba(255,107,0,0.08); }
+    .ocr-drop-icon { font-size:40px; margin-bottom:8px; }
+    .ocr-drop-title { font-size:14px; font-weight:700; color:#cbd5e1; }
+    .ocr-drop-sub { font-size:12px; color:#64748b; margin-top:4px; }
+    .ocr-preview { width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin:12px 0; display:none; }
+    .ocr-status { padding:10px 14px; background:#111827; border-radius:8px; font-size:12px; color:#94a3b8; margin-bottom:12px; display:none; }
+    .ocr-status.running { display:block; }
+    .progress-bar { height:4px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:6px; overflow:hidden; }
+    .progress-fill { height:100%; background:#ff6b00; border-radius:2px; transition:width .3s; }
+
     /* ── Photo Modal ── */
     .photo-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
     .photo-modal.open { display: flex; }
@@ -80,13 +141,16 @@
     .pm-img { max-width: 90vw; max-height: 74vh; border-radius: 10px; object-fit: contain; }
     .pm-close { margin-top: 14px; padding: 10px 28px; background: rgba(255,255,255,0.15); border: none; color: white; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
 
+    /* ── Toast ── */
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:#1e293b; color:white; padding:10px 20px; border-radius:24px; font-size:13px; font-weight:600; opacity:0; transition:all .25s; z-index:3000; pointer-events:none; white-space:nowrap; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
     /* ── Responsive ── */
     @media (max-width: 768px) {
       .body { flex-direction: column; }
-      .sidebar { width: 100%; height: 45vh; }
-      #map { height: 55vh; }
+      .sidebar { width: 100%; height: 50vh; }
+      #map { height: 50vh; }
       .hdr-stats { display: none; }
-      .hdr-link { display: none; }
     }
   </style>
 </head>
@@ -103,10 +167,14 @@
   </div>
   <div class="hdr-stats">
     <div class="hstat"><div id="hTotal" class="hstat-n">0</div><div class="hstat-l">전체</div></div>
+    <div class="hstat"><div id="hUnassigned" class="hstat-n">0</div><div class="hstat-l">미배정</div></div>
     <div class="hstat"><div id="hDoing" class="hstat-n">0</div><div class="hstat-l">배송중</div></div>
     <div class="hstat"><div id="hDone"  class="hstat-n">0</div><div class="hstat-l">완료</div></div>
   </div>
-  <a href="index.html" class="hdr-link">📱 기사 앱</a>
+  <div class="hdr-actions">
+    <button class="btn-add" onclick="openAddModal()">📝 배달 등록</button>
+    <a href="index.html" class="hdr-link">📱 기사 앱</a>
+  </div>
 </div>
 
 <!-- Body -->
@@ -115,12 +183,107 @@
   <div id="map"></div>
 </div>
 
+<!-- ══ 배달 등록 모달 ══ -->
+<div id="addModal" class="overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">📝 배달 등록</div>
+      <button class="modal-close" onclick="closeAddModal()">×</button>
+    </div>
+
+    <div class="mtabs">
+      <button class="mtab active" id="tab-manual" onclick="switchTab('manual')">✏️ 직접 입력</button>
+      <button class="mtab" id="tab-ocr"    onclick="switchTab('ocr')">📷 영수증 OCR</button>
+    </div>
+
+    <!-- 직접 입력 탭 -->
+    <div id="pane-manual">
+      <div class="form-group">
+        <label class="form-label">고객명 *</label>
+        <input class="form-input" id="m-name" type="text" placeholder="예) 홍길동">
+      </div>
+      <div class="form-group">
+        <label class="form-label">배송 주소 *</label>
+        <input class="form-input" id="m-addr" type="text" placeholder="예) 경기도 남양주시 화도읍…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">연락처</label>
+        <input class="form-input" id="m-phone" type="tel" placeholder="예) 010-1234-5678">
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모 (선택)</label>
+        <input class="form-input" id="m-note" type="text" placeholder="예) 문 앞 놓아주세요">
+      </div>
+      <div class="form-group">
+        <label class="form-label">담당 기사 (미지정 시 기사가 직접 가져갑니다)</label>
+        <select class="form-select" id="m-driver">
+          <option value="">미배정 (자유 배분)</option>
+          <option value="A">기사 A</option>
+          <option value="B">기사 B</option>
+          <option value="C">기사 C</option>
+          <option value="D">기사 D</option>
+        </select>
+      </div>
+      <button class="btn-submit" onclick="submitManual()">+ 배달 등록</button>
+    </div>
+
+    <!-- OCR 탭 -->
+    <div id="pane-ocr" style="display:none">
+      <div class="ocr-drop" id="ocrDrop" onclick="document.getElementById('ocrFileInput').click()">
+        <div id="ocrPreviewWrap">
+          <div class="ocr-drop-icon">📷</div>
+          <div class="ocr-drop-title">탭하여 영수증 사진 선택</div>
+          <div class="ocr-drop-sub">카메라 촬영 또는 갤러리에서 선택</div>
+        </div>
+        <img id="ocrPreview" class="ocr-preview" alt="OCR 미리보기">
+      </div>
+      <input type="file" id="ocrFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleOCRFile(event)">
+
+      <div class="ocr-status" id="ocrStatus">
+        <span id="ocrStatusText">인식 중...</span>
+        <div class="progress-bar"><div class="progress-fill" id="ocrProgressFill" style="width:0%"></div></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">고객명 *</label>
+        <input class="form-input" id="o-name" type="text" placeholder="자동 인식 또는 직접 입력">
+      </div>
+      <div class="form-group">
+        <label class="form-label">배송 주소 *</label>
+        <input class="form-input" id="o-addr" type="text" placeholder="자동 인식 또는 직접 입력">
+      </div>
+      <div class="form-group">
+        <label class="form-label">연락처</label>
+        <input class="form-input" id="o-phone" type="tel" placeholder="자동 인식 또는 직접 입력">
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모 (선택)</label>
+        <input class="form-input" id="o-note" type="text" placeholder="예) 문 앞 놓아주세요">
+      </div>
+      <div class="form-group">
+        <label class="form-label">담당 기사</label>
+        <select class="form-select" id="o-driver">
+          <option value="">미배정 (자유 배분)</option>
+          <option value="A">기사 A</option>
+          <option value="B">기사 B</option>
+          <option value="C">기사 C</option>
+          <option value="D">기사 D</option>
+        </select>
+      </div>
+      <button class="btn-submit" id="ocrSubmitBtn" onclick="submitOCR()">+ 배달 등록</button>
+    </div>
+  </div>
+</div>
+
 <!-- Photo Modal -->
 <div id="photoModal" class="photo-modal">
   <div class="pm-title" id="pmTitle">📷 사진</div>
   <img id="pmImg" class="pm-img" src="" alt="">
   <button class="pm-close" onclick="closePhoto()">닫기</button>
 </div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
 
 <script>
 /* ══ Firebase ══ */
@@ -173,7 +336,7 @@ db.ref('drivers').on('value', snap => {
 
 db.ref('deliveries').on('value', snap => {
   deliveriesData = {};
-  snap.forEach(c => { deliveriesData[c.key] = c.val(); });
+  snap.forEach(c => { deliveriesData[c.key] = { id: c.key, ...c.val() }; });
   updateStats();
   renderSidebar();
   setUpd();
@@ -187,8 +350,9 @@ function setUpd() {
 function updateStats() {
   const all = Object.values(deliveriesData);
   document.getElementById('hTotal').textContent = all.length;
+  document.getElementById('hUnassigned').textContent = all.filter(d=>!d.driverId).length;
   document.getElementById('hDoing').textContent = all.filter(d=>d.status==='delivering').length;
-  document.getElementById('hDone').textContent  = all.filter(d=>d.status==='completed').length;
+  document.getElementById('hDone').textContent  = all.filter(d=>d.status==='completed'||d.status==='done').length;
 }
 
 /* ══ Markers ══ */
@@ -219,19 +383,63 @@ function focusDriver(id) {
 
 /* ══ Sidebar ══ */
 function renderSidebar() {
-  document.getElementById('sidebar').innerHTML = DRIVER_IDS.map(id => drvSection(id)).join('');
+  const unassigned = Object.values(deliveriesData).filter(d => !d.driverId);
+  const poolHtml = renderUnassignedPool(unassigned);
+  const driverHtml = DRIVER_IDS.map(id => drvSection(id)).join('');
+  document.getElementById('sidebar').innerHTML = poolHtml + driverHtml;
+}
+
+function renderUnassignedPool(items) {
+  if (!items.length) return '';
+  items.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+  return `<div class="unassigned-pool">
+    <div class="pool-head" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+      <div class="pool-title">📦 미배정 배달 <span class="pool-cnt">${items.length}</span></div>
+      <span style="color:#fb923c;font-size:11px">▼ 기사가 직접 가져갑니다</span>
+    </div>
+    <div>${items.map(d => `
+      <div class="pool-item">
+        <div class="pi-info">
+          <div class="pi-name">${esc(d.customerName||'고객')}</div>
+          <div class="pi-addr">📍 ${esc(d.address||'-')}</div>
+          <div class="pi-time">${d.phone ? '📞 '+esc(d.phone)+' · ' : ''}${d.createdAt ? fmtTime(d.createdAt) : ''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <select class="btn-assign" style="padding:4px 6px;font-size:11px;background:#1e3a5f;color:#60a5fa;border:1px solid #3b82f6" onchange="assignDelivery('${d.id}',this.value);this.value=''">
+            <option value="">배정 →</option>
+            <option value="A">기사 A</option>
+            <option value="B">기사 B</option>
+            <option value="C">기사 C</option>
+            <option value="D">기사 D</option>
+          </select>
+          <button class="btn-del-pool" onclick="deleteDelivery('${d.id}')">🗑</button>
+        </div>
+      </div>
+    `).join('')}</div>
+  </div>`;
+}
+
+function assignDelivery(id, driverId) {
+  if (!driverId) return;
+  db.ref('deliveries/' + id).update({ driverId, assignedAt: Date.now() })
+    .then(() => showToast('✅ 기사 ' + driverId + '에게 배정됐습니다'));
+}
+
+function deleteDelivery(id) {
+  if (!confirm('이 배달을 삭제하시겠습니까?')) return;
+  db.ref('deliveries/' + id).remove()
+    .then(() => showToast('🗑 배달이 삭제됐습니다'));
 }
 
 function drvSection(id) {
   const drv = driversData[id] || {};
   const online = drv.online || false;
   const col = COLORS[id] || '#888';
-  const myDels = Object.entries(deliveriesData)
-    .filter(([,d]) => d.driverId === id)
-    .map(([k,d]) => ({id:k,...d}))
+  const myDels = Object.values(deliveriesData)
+    .filter(d => d.driverId === id)
     .sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
-  const activeCnt = myDels.filter(d=>d.status!=='completed').length;
-  const doneCnt   = myDels.filter(d=>d.status==='completed').length;
+  const activeCnt = myDels.filter(d=>d.status!=='completed'&&d.status!=='done').length;
+  const doneCnt   = myDels.filter(d=>d.status==='completed'||d.status==='done').length;
   const ago = (drv.location && drv.location.updatedAt) ? Math.floor((Date.now()-drv.location.updatedAt)/60000) : null;
   const agoTxt = ago !== null ? (ago===0?'방금 전':ago+'분 전') : '위치 없음';
 
@@ -240,11 +448,11 @@ function drvSection(id) {
     delHtml = '<div class="no-del">배송 없음</div>';
   } else {
     delHtml = myDels.map(d => {
-      const sc = {pending:'pending',delivering:'delivering',completed:'completed'}[d.status]||'pending';
-      const st = {pending:'대기중',delivering:'배송중',completed:'완료'}[d.status]||'대기중';
-      const ct = d.createdAt   ? fmtTime(d.createdAt)   : '';
+      const isDone = d.status==='completed'||d.status==='done';
+      const sc = isDone?'completed':d.status==='delivering'?'delivering':'pending';
+      const st = isDone?'완료':d.status==='delivering'?'배송중':'대기중';
+      const ct = d.createdAt ? fmtTime(d.createdAt) : '';
       const ft = d.completedAt ? fmtTime(d.completedAt) : '';
-      const rBtn = d.receiptPhoto    ? `<button class="photo-btn r" onclick="showPhoto(event,'${d.id}','receipt','${escAttr(d.customerName||'고객')}')">🧾 영수증</button>`    : '';
       const cBtn = d.completionPhoto ? `<button class="photo-btn c" onclick="showPhoto(event,'${d.id}','completion','${escAttr(d.customerName||'고객')}')">📸 완료사진</button>` : '';
       return `<div class="del-item" onclick="focusDel('${d.id}')">
         <div class="di-row"><span class="di-name">${esc(d.customerName||'고객')}</span><span class="di-st ${sc}">${st}</span></div>
@@ -253,7 +461,7 @@ function drvSection(id) {
         <div class="di-meta">
           ${ct ? '<span>등록 '+ct+'</span>' : ''}
           ${ft ? '<span>완료 '+ft+'</span>' : ''}
-          ${rBtn}${cBtn}
+          ${cBtn}
         </div>
       </div>`;
     }).join('');
@@ -264,7 +472,7 @@ function drvSection(id) {
     <div class="eta-title">📦 현재 배송 중</div>
     <div class="eta-body">${esc(activeDel.customerName||'고객')} — ${esc(activeDel.address||'-')}<br>
     ${activeDel.phone ? '📞 '+esc(activeDel.phone)+'<br>' : ''}
-    <span style="color:#64748b;font-size:10px">손님 문의 시: "현재 배송 기사가 이동 중입니다"</span></div>
+    <span style="color:#64748b;font-size:10px">기사가 이동 중입니다</span></div>
   </div>` : '';
 
   return `<div class="drv-section">
@@ -286,16 +494,15 @@ function drvSection(id) {
 function showPhoto(e, delId, type, cname) {
   e.stopPropagation();
   const d = deliveriesData[delId]; if (!d) return;
-  const src = type==='receipt' ? d.receiptPhoto : d.completionPhoto; if (!src) return;
-  document.getElementById('pmTitle').textContent = type==='receipt' ? '🧾 '+cname+' — 영수증' : '📸 '+cname+' — 완료사진';
+  const src = d.completionPhoto; if (!src) return;
+  document.getElementById('pmTitle').textContent = '📸 '+cname+' — 완료사진';
   document.getElementById('pmImg').src = src;
   document.getElementById('photoModal').classList.add('open');
 }
-
 function closePhoto() { document.getElementById('photoModal').classList.remove('open'); }
 document.getElementById('photoModal').addEventListener('click', function(e){ if(e.target===this) closePhoto(); });
 
-/* ══ Focus delivery on map ══ */
+/* ══ Focus delivery ══ */
 async function focusDel(id) {
   const d = deliveriesData[id]; if (!d || !d.address) return;
   try {
@@ -309,9 +516,155 @@ async function focusDel(id) {
   } catch(e) { console.warn('geocode fail',e); }
 }
 
+/* ══ 배달 등록 모달 ══ */
+function openAddModal() { document.getElementById('addModal').classList.add('open'); }
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('open');
+  // reset forms
+  ['m-name','m-addr','m-phone','m-note'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('m-driver').value='';
+  ['o-name','o-addr','o-phone','o-note'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('o-driver').value='';
+  document.getElementById('ocrPreview').style.display='none';
+  document.getElementById('ocrPreviewWrap').style.display='block';
+  document.getElementById('ocrStatus').classList.remove('running');
+  document.getElementById('ocrProgressFill').style.width='0%';
+}
+
+function switchTab(tab) {
+  document.getElementById('pane-manual').style.display = tab==='manual' ? 'block' : 'none';
+  document.getElementById('pane-ocr').style.display    = tab==='ocr'    ? 'block' : 'none';
+  document.getElementById('tab-manual').classList.toggle('active', tab==='manual');
+  document.getElementById('tab-ocr').classList.toggle('active', tab==='ocr');
+}
+
+function submitManual() {
+  const name  = document.getElementById('m-name').value.trim();
+  const addr  = document.getElementById('m-addr').value.trim();
+  const phone = document.getElementById('m-phone').value.trim();
+  const note  = document.getElementById('m-note').value.trim();
+  const driver= document.getElementById('m-driver').value;
+  if (!name || !addr) { showToast('⚠️ 고객명과 주소는 필수입니다'); return; }
+  saveDelivery({ customerName: name, address: addr, phone: phone||'-', note, driverId: driver||null });
+}
+
+function submitOCR() {
+  const name  = document.getElementById('o-name').value.trim();
+  const addr  = document.getElementById('o-addr').value.trim();
+  const phone = document.getElementById('o-phone').value.trim();
+  const note  = document.getElementById('o-note').value.trim();
+  const driver= document.getElementById('o-driver').value;
+  if (!name || !addr) { showToast('⚠️ 고객명과 주소는 필수입니다'); return; }
+  saveDelivery({ customerName: name, address: addr, phone: phone||'-', note, driverId: driver||null });
+}
+
+function saveDelivery(data) {
+  const newRef = db.ref('deliveries').push();
+  newRef.set({
+    id: newRef.key,
+    customerName: data.customerName,
+    address: data.address,
+    phone: data.phone || '-',
+    note: data.note || '',
+    driverId: data.driverId || null,
+    status: 'pending',
+    completionPhoto: null,
+    lat: null,
+    lng: null,
+    createdAt: Date.now(),
+    assignedAt: data.driverId ? Date.now() : null
+  }).then(() => {
+    const target = data.driverId ? '기사 ' + data.driverId : '미배정 풀';
+    showToast('✅ 배달 등록 완료 → ' + target);
+    closeAddModal();
+  }).catch(err => showToast('❌ 저장 실패: ' + err.message));
+}
+
+/* ══ OCR ══ */
+async function handleOCRFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = document.getElementById('ocrPreview');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    document.getElementById('ocrPreviewWrap').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+
+  // Run OCR
+  const statusEl  = document.getElementById('ocrStatus');
+  const statusTxt = document.getElementById('ocrStatusText');
+  const progressFill = document.getElementById('ocrProgressFill');
+  statusEl.classList.add('running');
+  statusTxt.textContent = 'OCR 엔진 초기화 중...';
+  progressFill.style.width = '10%';
+
+  try {
+    const { data: { text } } = await Tesseract.recognize(file, 'kor+eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const pct = Math.round((m.progress || 0) * 90) + 10;
+          progressFill.style.width = pct + '%';
+          statusTxt.textContent = `텍스트 인식 중... ${pct}%`;
+        }
+      }
+    });
+
+    progressFill.style.width = '100%';
+    statusTxt.textContent = '✅ 인식 완료! 정보를 확인해 주세요.';
+
+    // Parse extracted text
+    const parsed = parseOCRText(text);
+    if (parsed.name)  document.getElementById('o-name').value  = parsed.name;
+    if (parsed.addr)  document.getElementById('o-addr').value  = parsed.addr;
+    if (parsed.phone) document.getElementById('o-phone').value = parsed.phone;
+
+  } catch(err) {
+    statusTxt.textContent = '❌ OCR 실패 - 직접 입력해주세요';
+    console.error(err);
+  }
+}
+
+function parseOCRText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  let name='', addr='', phone='';
+
+  // 전화번호 패턴
+  const phoneMatch = text.match(/0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/);
+  if (phoneMatch) phone = phoneMatch[0].replace(/\s/g,'');
+
+  // 주소 패턴 (시/도, 구/군/읍/면/동/로/길 포함)
+  const addrLine = lines.find(l =>
+    /시|도|구|군|읍|면|동|로|길|번지|아파트|APT/i.test(l) && l.length > 8
+  );
+  if (addrLine) addr = addrLine;
+
+  // 이름: 2~4글자 한국어, 주소/전화 아닌 줄
+  const nameLine = lines.find(l =>
+    /^[가-힣]{2,4}$/.test(l.replace(/\s/g,'')) &&
+    !addrLine?.includes(l) &&
+    !phoneMatch?.[0].includes(l)
+  );
+  if (nameLine) name = nameLine.trim();
+
+  return { name, addr, phone };
+}
+
+/* ══ Utils ══ */
 function fmtTime(ts) { return new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}); }
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function escAttr(s) { return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
 </script>
 </body>
 </html>
