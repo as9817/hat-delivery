@@ -427,8 +427,9 @@ function updateHeader() {
   const today = todayStart();
   const todayOrders = orders.filter(o => o.createdAt >= today);
   document.getElementById('today-count').textContent = `오늘 ${todayOrders.length}건`;
+
   const d = new Date();
-  const days = ['일','월','화','수','목','ꮈ','토’'[;
+  const days = ['일','월','화','수','목','금','토'];
   document.getElementById('today-date').textContent =
     `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
   document.getElementById('stats-date').textContent =
@@ -440,9 +441,9 @@ function todayStart() {
 }
 
 // ══════════════════════════════════════════
-// 주문 목록 댌더
+// 주문 목록 렌더
 // ══════════════════════════════════════════
-const STATUS_LABELS = { pending:'쬑수', confirmed:'확인', delivering:'배달중', done:'완룜', cancelled:'뵨Ș�' };
+const STATUS_LABELS = { pending:'접수', confirmed:'확인', delivering:'배달중', done:'완료', cancelled:'취소' };
 const CH_LABELS = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
 const PAY_LABELS = { card:'💳 카드', cash:'💵 현금', prepaid:'✅ 선불', transfer:'🏦 이체' };
 
@@ -549,7 +550,7 @@ function sendToDelivery(orderId) {
     customerName: o.customerName,
     address: o.address,
     phone: o.phone || '-',
-    note: [o.note, itemStr, PAY_LABELS[o.paymentMethod]||'', totalAmt?`b��${totalAmt.toLocaleString()}`:''].filter(Boolean).join(' · '),
+    note: [o.note, itemStr, PAY_LABELS[o.paymentMethod]||'', totalAmt?`₩${totalAmt.toLocaleString()}`:''].filter(Boolean).join(' · '),
     status: 'pending',
     orderId: o.id,
     orderChannel: o.channel,
