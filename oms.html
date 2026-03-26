@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>웰빙마트 주문관리</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-height:100vh}
+:root{
+  --blue:#2196F3;--green:#4CAF50;--orange:#FF9800;--red:#F44336;
+  --purple:#9C27B0;--teal:#00BCD4;--gray:#9E9E9E;
+  --card:#fff;--border:#e8eaed;--text2:#666;
+}
+
+/* ── 헤더 ── */
+.header{background:linear-gradient(135deg,#1a237e 0%,#283593 100%);color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.header-top{display:flex;align-items:center;gap:10px}
+.header-logo{font-size:22px}
+.header-title{font-size:18px;font-weight:700;letter-spacing:-.3px}
+.header-sub{font-size:12px;opacity:.75;margin-top:1px}
+.header-badge{margin-left:auto;background:rgba(255,255,255,.2);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600}
+
+/* ── 탭 ── */
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:72px;z-index:99}
+.tab{flex:1;padding:13px 0;text-align:center;font-size:13px;font-weight:600;color:var(--gray);border-bottom:3px solid transparent;cursor:pointer;transition:.2s}
+.tab.active{color:#1a237e;border-color:#1a237e}
+.tab-icon{font-size:16px;display:block;margin-bottom:2px}
+
+/* ── 스크린 ── */
+.screen{display:none;padding:12px}
+.screen.active{display:block}
+
+/* ── 카드 ── */
+.card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+/* ── 배지 ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-kakao{background:#FEE500;color:#3C1E1E}
+.badge-sms{background:#E8F5E9;color:#2E7D32}
+.badge-call{background:#E3F2FD;color:#1565C0}
+.badge-pending{background:#FFF3E0;color:#E65100}
+.badge-confirmed{background:#E8F5E9;color:#2E7D32}
+.badge-delivering{background:#E3F2FD;color:#1565C0}
+.badge-done{background:#F3E5F5;color:#6A1B9A}
+.badge-cancelled{background:#FFEBEE;color:#C62828}
+
+/* ── 버튼 ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:.15s}
+.btn:active{opacity:.8;transform:scale(.97)}
+.btn-primary{background:#1a237e;color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-orange{background:var(--orange);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-outline{background:#fff;color:#1a237e;border:1.5px solid #1a237e}
+.btn-gray{background:#f5f5f5;color:#555;border:1px solid #ddd}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
+.btn-full{width:100%}
+
+/* ── 입력 ── */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fafafa;transition:.2s;outline:none}
+.form-input:focus{border-color:#1a237e;background:#fff;box-shadow:0 0 0 3px rgba(26,35,126,.08)}
+.form-textarea{min-height:100px;resize:vertical}
+.form-select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fafafa;appearance:none;outline:none}
+.form-select:focus{border-color:#1a237e;background:#fff}
+
+/* ── 채널 선택 ── */
+.channel-btns{display:flex;gap:8px;flex-wrap:wrap}
+.channel-btn{flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid var(--border);background:#fafafa;text-align:center;cursor:pointer;transition:.2s;font-size:13px;font-weight:600}
+.channel-btn.sel-kakao{border-color:#FEE500;background:#FFFDE7;color:#3C1E1E}
+.channel-btn.sel-sms{border-color:var(--green);background:#E8F5E9;color:#2E7D32}
+.channel-btn.sel-call{border-color:var(--blue);background:#E3F2FD;color:#1565C0}
+.channel-btn .ch-emoji{font-size:20px;display:block;margin-bottom:4px}
+
+/* ── 주문 카드 ── */
+.order-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.09);border-left:4px solid transparent;cursor:pointer;transition:.15s}
+.order-card:active{transform:scale(.98)}
+.order-card.ch-kakao{border-color:#FEE500}
+.order-card.ch-sms{border-color:var(--green)}
+.order-card.ch-call{border-color:var(--blue)}
+.order-card.st-done{opacity:.65}
+.oc-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.oc-num{background:#1a237e;color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.oc-name{font-size:15px;font-weight:700;flex:1}
+.oc-time{font-size:11px;color:var(--text2)}
+.oc-addr{font-size:13px;color:var(--text2);margin-bottom:6px}
+.oc-items{font-size:13px;color:#333;margin-bottom:8px;line-height:1.5}
+.oc-bottom{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.oc-amount{font-size:14px;font-weight:700;color:#1a237e;margin-left:auto}
+.oc-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+
+/* ── 아이템 행 ── */
+.item-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.item-name{flex:2;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fafafa;outline:none;font-family:inherit}
+.item-name:focus{border-color:#1a237e}
+.item-qty{width:60px;padding:9px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;text-align:center;background:#fafafa;outline:none;font-family:inherit}
+.item-qty:focus{border-color:#1a237e}
+.item-price{width:90px;padding:9px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;text-align:right;background:#fafafa;outline:none;font-family:inherit}
+.item-price:focus{border-color:#1a237e}
+.item-del{width:32px;height:32px;border-radius:8px;border:none;background:#ffebee;color:var(--red);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ── 파싱 박스 ── */
+.parse-box{background:#f8f9ff;border:2px dashed #c5cae9;border-radius:12px;padding:14px;margin-bottom:14px}
+.parse-hint{font-size:12px;color:#888;margin-bottom:8px}
+.parse-result{background:#E8F5E9;border-radius:8px;padding:10px 12px;font-size:13px;color:#2E7D32;margin-top:10px;display:none;line-height:1.6}
+.parse-result.show{display:block}
+
+/* ── 필터 바 ── */
+.filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:.15s}
+.filter-chip.active{background:#1a237e;color:#fff;border-color:#1a237e}
+
+/* ── 통계 ── */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat-card{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.stat-num{font-size:28px;font-weight:800;color:#1a237e}
+.stat-label{font-size:11px;color:var(--text2);margin-top:2px}
+.stat-sub{font-size:12px;font-weight:600;color:var(--green);margin-top:2px}
+.ch-stat-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ch-stat-bar-wrap{flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden}
+.ch-stat-bar{height:100%;border-radius:4px;transition:.5s}
+
+/* ── 빈 상태 ── */
+.empty-state{text-align:center;padding:50px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-text{font-size:15px;font-weight:600;margin-bottom:4px;color:#555}
+.empty-sub{font-size:13px}
+
+/* ── 토스트 ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a2e;color:#fff;padding:11px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:999;opacity:0;pointer-events:none;transition:.3s;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── 섹션 헤더 ── */
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.section-title{font-size:14px;font-weight:700;color:#333}
+
+/* ── 날짜 표시 ── */
+.today-bar{background:linear-gradient(90deg,#E8EAF6,#fff);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;color:#3949AB;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* ── 결제 선택 ── */
+.pay-btns{display:flex;gap:6px}
+.pay-btn{flex:1;padding:9px 6px;border-radius:8px;border:2px solid var(--border);background:#fafafa;text-align:center;cursor:pointer;font-size:12px;font-weight:600;transition:.2s}
+.pay-btn.active{border-color:#1a237e;background:#E8EAF6;color:#1a237e}
+
+/* ── 총액 표시 ── */
+.total-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:2px solid #E8EAF6;margin-top:8px}
+.total-label{font-size:14px;font-weight:600;color:var(--text2)}
+.total-amount{font-size:22px;font-weight:800;color:#1a237e}
+
+/* ── 상태 흐름 ── */
+.status-flow{display:flex;gap:4px;align-items:center;font-size:11px}
+.sf-step{padding:3px 8px;border-radius:6px;font-weight:600}
+.sf-arrow{color:#ccc;font-size:10px}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+  <div class="header-top">
+    <div class="header-logo">🛒</div>
+    <div>
+      <div class="header-title">웰빙마트 주문관리</div>
+      <div class="header-sub" id="today-date"></div>
+    </div>
+    <div class="header-badge" id="today-count">오늘 0건</div>
+  </div>
+</div>
+
+<!-- 탭 -->
+<div class="tabs">
+  <div class="tab active" onclick="goTab('list')" id="tab-list">
+    <span class="tab-icon">📋</span>주문목록
+  </div>
+  <div class="tab" onclick="goTab('new')" id="tab-new">
+    <span class="tab-icon">➕</span>새주문
+  </div>
+  <div class="tab" onclick="goTab('stats')" id="tab-stats">
+    <span class="tab-icon">📊</span>통계
+  </div>
+</div>
+
+<!-- ══════════════ 주문 목록 ══════════════ -->
+<div class="screen active" id="list">
+  <div style="margin-bottom:8px">
+    <div class="filter-bar" id="filter-bar">
+      <div class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">전체</div>
+      <div class="filter-chip" data-filter="pending" onclick="setFilter('pending',this)">🟡 접수</div>
+      <div class="filter-chip" data-filter="confirmed" onclick="setFilter('confirmed',this)">🟢 확인</div>
+      <div class="filter-chip" data-filter="delivering" onclick="setFilter('delivering',this)">🔵 배달중</div>
+      <div class="filter-chip" data-filter="done" onclick="setFilter('done',this)">✅ 완료</div>
+      <div class="filter-chip" data-filter="kakao" onclick="setFilter('kakao',this)">💬 카카오</div>
+      <div class="filter-chip" data-filter="sms" onclick="setFilter('sms',this)">📱 문자</div>
+      <div class="filter-chip" data-filter="call" onclick="setFilter('call',this)">📞 전화</div>
+    </div>
+  </div>
+  <div id="order-list-container">
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <div class="empty-text">아직 주문이 없어요</div>
+      <div class="empty-sub">새주문 탭에서 주문을 입력해주세요</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ 새주문 ══════════════ -->
+<div class="screen" id="new">
+  <!-- 채널 선택 -->
+  <div class="card">
+    <div class="form-label">주문 채널</div>
+    <div class="channel-btns">
+      <div class="channel-btn sel-kakao" onclick="setChannel('kakao',this)">
+        <span class="ch-emoji">💬</span>카카오톡
+      </div>
+      <div class="channel-btn" onclick="setChannel('sms',this)">
+        <span class="ch-emoji">📱</span>문자
+      </div>
+      <div class="channel-btn" onclick="setChannel('call',this)">
+        <span class="ch-emoji">📞</span>전화
+      </div>
+    </div>
+  </div>
+
+  <!-- 붙여넣기 파싱 -->
+  <div class="card" id="paste-card">
+    <div class="section-hdr">
+      <div class="section-title">💬 카카오/문자 내용 붙여넣기</div>
+    </div>
+    <div class="parse-box">
+      <div class="parse-hint">카카오톡 대화 또는 문자 내용을 그대로 붙여넣으세요</div>
+      <textarea class="form-input form-textarea" id="paste-text" placeholder="예시)&#10;이름: 홍길동&#10;010-1234-5678&#10;경기도 남양주시 별내면 청학로 123&#10;두부 2개, 계란 1판&#10;카드 결제" style="min-height:110px"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="parsePaste()" style="flex:1">✨ 자동 파싱</button>
+        <button class="btn btn-gray btn-sm" onclick="clearPaste()">지우기</button>
+      </div>
+      <div class="parse-result" id="parse-result"></div>
+    </div>
+  </div>
+
+  <!-- 기본 정보 -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:14px">👤 고객 정보</div>
+    <div class="form-group">
+      <label class="form-label">고객명 *</label>
+      <input class="form-input" id="inp-cname" type="text" placeholder="홍길동">
+    </div>
+    <div class="form-group">
+      <label class="form-label">연락처 *</label>
+      <input class="form-input" id="inp-phone" type="tel" placeholder="010-0000-0000">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">배달 주소 *</label>
+      <input class="form-input" id="inp-addr" type="text" placeholder="경기도 남양주시 ···">
+    </div>
+  </div>
+
+  <!-- 주문 품목 -->
+  <div class="card">
+    <div class="section-hdr">
+      <div class="section-title">🛍️ 주문 품목</div>
+      <button class="btn btn-outline btn-sm" onclick="addItemRow()">+ 품목추가</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <div style="flex:2;font-size:11px;font-weight:700;color:var(--text2)">품목명</div>
+      <div style="width:60px;font-size:11px;font-weight:700;color:var(--text2);text-align:center">수량</div>
+      <div style="width:90px;font-size:11px;font-weight:700;color:var(--text2);text-align:right">가격(원)</div>
+      <div style="width:32px"></div>
+    </div>
+    <div id="item-rows"></div>
+    <div class="total-row">
+      <span class="total-label">합계</span>
+      <span class="total-amount" id="total-display">₩0</span>
+    </div>
+  </div>
+
+  <!-- 결제 방법 -->
+  <div class="card">
+    <div class="form-label" style="margin-bottom:10px">결제 방법</div>
+    <div class="pay-btns" id="pay-btns">
+      <div class="pay-btn active" onclick="setPay('card',this)">💳<br>카드</div>
+      <div class="pay-btn" onclick="setPay('cash',this)">💵<br>현금</div>
+      <div class="pay-btn" onclick="setPay('prepaid',this)">✅<br>선불</div>
+      <div class="pay-btn" onclick="setPay('transfer',this)">🏦<br>계좌이체</div>
+    </div>
+  </div>
+
+  <!-- 메모 -->
+  <div class="card">
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">배달 메모 (선택)</label>
+      <input class="form-input" id="inp-note" type="text" placeholder="문 앞, 경비실 등">
+    </div>
+  </div>
+
+  <!-- 제출 -->
+  <button class="btn btn-green btn-full" onclick="submitOrder()" style="margin-bottom:20px;padding:15px;font-size:16px">
+    🛒 주문 접수
+  </button>
+</div>
+
+<!-- ══════════════ 통계 ══════════════ -->
+<div class="screen" id="stats">
+  <div class="today-bar">
+    <span>📅</span><span id="stats-date"></span> 현황
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num" id="st-total">0</div>
+      <div class="stat-label">전체 주문</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="st-done" style="color:var(--green)">0</div>
+      <div class="stat-label">배달 완료</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="st-revenue" style="font-size:20px">₩0</div>
+      <div class="stat-label">오늘 매출</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="st-pending" style="color:var(--orange)">0</div>
+      <div class="stat-label">처리 대기</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="margin-bottom:14px">채널별 주문</div>
+    <div id="ch-stats"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="margin-bottom:14px">결제 방법별</div>
+    <div id="pay-stats"></div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════════
+// Firebase 초기화
+// ══════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBvpbxEfWv6OujIqHVXELpVRRMqHGGZMWA",
+  authDomain: "wellbingmart-d5ee1.firebaseapp.com",
+  databaseURL: "https://wellbingmart-d5ee1-default-rtdb.firebaseio.com",
+  projectId: "wellbingmart-d5ee1",
+  storageBucket: "wellbingmart-d5ee1.appspot.com",
+  messagingSenderId: "639456789012",
+  appId: "1:639456789012:web:abcdef123456"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ══════════════════════════════════════════
+// 상태
+// ══════════════════════════════════════════
+let orders = [];
+let currentFilter = 'all';
+let currentChannel = 'kakao';
+let currentPay = 'card';
+let firebaseActive = false;
+
+const STORAGE_KEY = 'oms_orders_v1';
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ══════════════════════════════════════════
+// 저장/불러오기
+// ══════════════════════════════════════════
+function saveOrders() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+}
+function loadOrders() {
+  try { orders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { orders = []; }
+}
+
+// ══════════════════════════════════════════
+// Firebase 실시간 연동
+// ══════════════════════════════════════════
+db.ref('orders').on('value', snap => {
+  const data = snap.val() || {};
+  const fbOrders = Object.values(data);
+  // Firebase 데이터로 로컬 업데이트 (중복 방지)
+  const localIds = new Set(orders.filter(o => !o.fromFb).map(o => o.id));
+  orders = [
+    ...orders.filter(o => !o.fromFb),
+    ...fbOrders.map(o => ({ ...o, fromFb: true })).filter(o => !localIds.has(o.id))
+  ];
+  orders.sort((a, b) => b.createdAt - a.createdAt);
+  saveOrders();
+  renderOrderList();
+  renderStats();
+  updateHeader();
+  firebaseActive = true;
+}, err => {
+  console.log('Firebase offline, using local storage');
+  loadOrders();
+  renderOrderList();
+  renderStats();
+  updateHeader();
+});
+
+// ══════════════════════════════════════════
+// 탭 네비게이션
+// ══════════════════════════════════════════
+function goTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'stats') renderStats();
+}
+
+// ══════════════════════════════════════════
+// 헤더 업데이트
+// ══════════════════════════════════════════
+function updateHeader() {
+  const today = todayStart();
+  const todayOrders = orders.filter(o => o.createdAt >= today);
+  document.getElementById('today-count').textContent = `오늘 ${todayOrders.length}건`;
+  const d = new Date();
+  const days = ['일','월','화','수','목','ꮈ','토’'[;
+  document.getElementById('today-date').textContent =
+    `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  document.getElementById('stats-date').textContent =
+    `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+
+function todayStart() {
+  const d = new Date(); d.setHours(0,0,0,0); return d.getTime();
+}
+
+// ══════════════════════════════════════════
+// 주문 목록 댌더
+// ══════════════════════════════════════════
+const STATUS_LABELS = { pending:'쬑수', confirmed:'확인', delivering:'배달중', done:'완룜', cancelled:'뵨Ș�' };
+const CH_LABELS = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
+const PAY_LABELS = { card:'💳 카드', cash:'💵 현금', prepaid:'✅ 선불', transfer:'🏦 이체' };
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderOrderList();
+}
+
+function filterOrders() {
+  const today = todayStart();
+  let filtered = orders.filter(o => o.createdAt >= today);
+  if (currentFilter === 'all') return filtered;
+  if (['pending','confirmed','delivering','done','cancelled'].includes(currentFilter))
+    return filtered.filter(o => o.status === currentFilter);
+  if (['kakao','sms','call'].includes(currentFilter))
+    return filtered.filter(o => o.channel === currentFilter);
+  return filtered;
+}
+
+function renderOrderList() {
+  const container = document.getElementById('order-list-container');
+  const filtered = filterOrders();
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <div class="empty-text">주문이 없어요</div>
+      <div class="empty-sub">필터를 바꾸거나 새주문을 입력해주세요</div>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((o, i) => {
+    const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
+    const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+    const time = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
+
+    const actions = orderActions(o);
+
+    return `<div class="order-card ch-${o.channel} ${o.status==='done'?'st-done':''}" id="oc-${o.id}">
+      <div class="oc-top">
+        <div class="oc-num">${i+1}</div>
+        <div class="oc-name">${o.customerName}</div>
+        <span class="badge badge-${o.channel}">${CH_LABELS[o.channel]||o.channel}</span>
+        <div class="oc-time">${time}</div>
+      </div>
+      <div class="oc-addr">📍 ${o.address}</div>
+      ${o.phone?`<div class="oc-addr">📞 ${o.phone}</div>`:''}
+      ${itemStr?`<div class="oc-items">🛍️ ${itemStr}</div>`:''}
+      <div class="oc-bottom">
+        <span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span>
+        ${o.paymentMethod?`<span class="badge" style="background:#f5f5f5;color:#555">${PAY_LABELS[o.paymentMethod]||o.paymentMethod}</span>`:''}
+        ${o.note?`<span style="font-size:11px;color:#888">📝 ${o.note}</span>`:''}
+        ${totalAmt?`<div class="oc-amount">₩${totalAmt.toLocaleString()}</div>`:''}
+      </div>
+      ${actions?`<div class="oc-actions">${actions}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function orderActions(o) {
+  if (o.status === 'pending') return `
+    <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','confirmed')">✅ 주문확인</button>
+    <button class="btn btn-orange btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달발송</button>
+    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">✕</button>`;
+  if (o.status === 'confirmed') return `
+    <button class="btn btn-primary btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달 배정하기</button>
+    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">취소</button>`;
+  if (o.status === 'delivering') return `
+    <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','done')">✅ 배달완료</button>`;
+  if (o.status === 'done') return `
+    <button class="btn btn-gray btn-sm btn-sm" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
+  return '';
+}
+
+// ══════════════════════════════════════════
+// 주문 상태 업데이트
+// ══════════════════════════════════════════
+function updateStatus(id, status) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  o.status = status;
+  o.updatedAt = Date.now();
+  saveOrders();
+  renderOrderList();
+  if (firebaseActive) db.ref('orders/' + id).update({ status, updatedAt: o.updatedAt });
+  showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
+}
+
+// ══════════════════════════════════════════
+// 배달 배정 (기사앱·대시보드로 전송)
+// ══════════════════════════════════════════
+function sendToDelivery(orderId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+
+  const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
+  const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+
+  // deliveries 노드에 추가 → 기사앱·대시보드에 실시간 표시
+  const delivery = {
+    customerName: o.customerName,
+    address: o.address,
+    phone: o.phone || '-',
+    note: [o.note, itemStr, PAY_LABELS[o.paymentMethod]||'', totalAmt?`b��${totalAmt.toLocaleString()}`:''].filter(Boolean).join(' · '),
+    status: 'pending',
+    orderId: o.id,
+    orderChannel: o.channel,
+    totalAmount: totalAmt,
+    createdAt: Date.now()
+  };
+
+  if (firebaseActive) {
+    db.ref('deliveries/' + orderId).set(delivery).then(() => {
+      updateStatus(orderId, 'delivering');
+      showToast('🚀 기사앱으로 배달 전송 완료!');
+    });
+  } else {
+    updateStatus(orderId, 'delivering');
+    showToast('⚠️ 오프라인 — Firebase 연결 후 동기화됩니다');
+  }
+}
+
+// ══════════════════════════════════════════
+// 채널 / 결제 선택
+// ══════════════════════════════════════════
+function setChannel(ch, el) {
+  currentChannel = ch;
+  document.querySelectorAll('.channel-btn').forEach(b => {
+    b.className = 'channel-btn';
+  });
+  el.classList.add('sel-' + ch);
+
+  // 채널에 따라 붙여넣기 카드 표시/숨김
+  document.getElementById('paste-card').style.display =
+    (ch === 'call') ? 'none' : 'block';
+}
+
+function setPay(p, el) {
+  currentPay = p;
+  document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ══════════════════════════════════════════
+// 품목 행
+// ══════════════════════════════════════════
+function addItemRow(name='', qty=1, price='') {
+  const id = uid();
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.id = 'ir-' + id;
+  row.innerHTML = `
+    <input class="item-name" placeholder="품목명" value="${name}" oninput="calcTotal()">
+    <input class="item-qty" type="number" min="1" value="${qty}" oninput="calcTotal()">
+    <input class="item-price" type="number" placeholder="0" value="${price}" oninput="calcTotal()">
+    <button class="item-del" onclick="removeRow('ir-${id}')">✕</button>`;
+  document.getElementById('item-rows').appendChild(row);
+  calcTotal();
+}
+
+function removeRow(id) {
+  document.getElementById(id)?.remove();
+  calcTotal();
+}
+
+function calcTotal() {
+  const rows = document.querySelectorAll('.item-row');
+  let total = 0;
+  rows.forEach(row => {
+    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('total-display').textContent = '₩' + total.toLocaleString();
+}
+
+function getItems() {
+  return Array.from(document.querySelectorAll('.item-row')).map(row => ({
+    name: row.querySelector('.item-name').value.trim(),
+    qty: parseFloat(row.querySelector('.item-qty').value) || 1,
+    price: parseFloat(row.querySelector('.item-price').value) || 0
+  })).filter(i => i.name);
+}
+
+// ══════════════════════════════════════════
+// 붙여넣기 파싱
+// ══════════════════════════════════════════
+function parsePaste() {
+  const text = document.getElementById('paste-text').value.trim();
+  if (!text) { showToast('내용을 붙여넣어 주세요'); return; }
+
+  const result = parseOrderText(text);
+  applyParsed(result);
+
+  const resEl = document.getElementById('parse-result');
+  let lines = [];
+  if (result.name) lines.push(`👤 ${result.name}`);
+  if (result.phone) lines.push(`📞 ${result.phone}`);
+  if (result.address) lines.push(`📍 ${result.address}`);
+  if (result.items.length) lines.push(`🛍️ ${result.items.map(i=>`${i.name} ${i.qty}개`).join(', ')}`);
+  if (result.pay) lines.push(`💳 ${PAY_LABELS[result.pay]||result.pay}`);
+
+  resEl.innerHTML = lines.length
+    ? `✅ 파싱 완료!<br>${lines.join('<br>')}`
+    : '⚠️ 자동 인식 실패. 아래 양식을 직접 입력해주세요.';
+  resEl.classList.add('show');
+  showToast(lines.length ? '✨ 자동 파싱 완료!' : '직접 입력해주세요');
+}
+
+function clearPaste() {
+  document.getElementById('paste-text').value = '';
+  const r = document.getElementById('parse-result');
+  r.classList.remove('show');
+  r.textContent = '';
+}
+
+function parseOrderText(text) {
+  const result = { name: '', phone: '', address: '', items: [], pay: '' };
+
+  // 전화번호
+  const phoneMatch = text.match(/0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/);
+  if (phoneMatch) result.phone = phoneMatch[0].replace(/\s/g,'-');
+
+  // 주소 (광역시·도 패턴)
+  const addrPatterns = [
+    /[서경인대부울세제강충전경][울기천구산남종주북남북][\s\S]{2,50}(?:아파트|빌라|다세대|오피스텔|APT|apt|동|호|번길|대로|로|길)\s*\d*/,
+    /(?:서울|경기|인천|부산|대구|대전|광주|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)[^\n,]{3,60}/
+  ];
+  for (const pat of addrPatterns) {
+    const m = text.match(pat);
+    if (m) { result.address = m[0].trim(); break; }
+  }
+
+  // 결제 방법
+  if (/카드/.test(text)) result.pay = 'card';
+  else if (/현금/.test(text)) result.pay = 'cash';
+  else if (/선불|미리/.test(text)) result.pay = 'prepaid';
+  else if (/계좌|이체|입금/.test(text)) result.pay = 'transfer';
+
+  // 품목 (숫자+단위 패턴)
+  const itemPatterns = [
+    /([가-힣a-zA-Z\s]+?)\s*(\d+)\s*(?:개|봉|팩|박스|묶음|병|캔|kg|g|L|ml)/g,
+    /([가-힣a-zA-Z\s]+?)\s*x\s*(\d+)/g,
+    /([가-힣a-zA-Z\s]+?)\s*(?:\*|×)\s*(\d+)/g,
+  ];
+  for (const pat of itemPatterns) {
+    let m;
+    while ((m = pat.exec(text)) !== null) {
+      const nm = m[1].trim().replace(/^[-•·*\s]+/, '').trim();
+      if (nm.length >= 2 && nm.length <= 20 && !/^\d/.test(nm)) {
+        result.items.push({ name: nm, qty: parseInt(m[2])||1, price: 0 });
+      }
+    }
+    if (result.items.length) break;
+  }
+
+  // 이름: 2~4글자 한글, 전화번호·주소 전의 첫 줄
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const nameM = line.match(/^[가-힣]{2,4}$/);
+    if (nameM) { result.name = nameM[0]; break; }
+    // "이름: 홍길동" 패턴
+    const labelM = line.match(/(?:이름|성함|받는\s*분|주문자)[:\s]*([가-힣]{2,5})/);
+    if (labelM) { result.name = labelM[1]; break; }
+  }
+
+  return result;
+}
+
+function applyParsed(r) {
+  if (r.name)    document.getElementById('inp-cname').value = r.name;
+  if (r.phone)   document.getElementById('inp-phone').value = r.phone;
+  if (r.address) document.getElementById('inp-addr').value = r.address;
+  if (r.pay) {
+    document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+    currentPay = r.pay;
+    const payBtns = { card:0, cash:1, prepaid:2, transfer:3 };
+    document.querySelectorAll('.pay-btn')[payBtns[r.pay]||0]?.classList.add('active');
+  }
+  // 품목 추가
+  if (r.items.length) {
+    document.getElementById('item-rows').innerHTML = '';
+    r.items.forEach(it => addItemRow(it.name, it.qty, it.price));
+  }
+}
+
+// ══════════════════════════════════════════
+// 주문 제출
+// ══════════════════════════════════════════
+function submitOrder() {
+  const name = document.getElementById('inp-cname').value.trim();
+  const phone = document.getElementById('inp-phone').value.trim();
+  const addr = document.getElementById('inp-addr').value.trim();
+
+  if (!name || !addr) { showToast('⚠️ 고객명과 주소는 필수입니다'); return; }
+
+  const items = getItems();
+  const totalAmount = items.reduce((s, i) => s + i.qty * i.price, 0);
+
+  const order = {
+    id: uid(),
+    customerName: name,
+    phone,
+    address: addr,
+    items,
+    totalAmount,
+    paymentMethod: currentPay,
+    channel: currentChannel,
+    note: document.getElementById('inp-note').value.trim(),
+    status: 'pending',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  orders.unshift(order);
+  saveOrders();
+  if (firebaseActive) db.ref('orders/' + order.id).set(order);
+
+  // 폼 초기화
+  resetForm();
+  renderOrderList();
+  updateHeader();
+  goTab('list');
+  showToast(`✅ ${name} 고객 주문 접수 완료!`);
+}
+
+function resetForm() {
+  ['inp-cname','inp-phone','inp-addr','inp-note'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('item-rows').innerHTML = '';
+  document.getElementById('paste-text').value = '';
+  document.getElementById('parse-result').classList.remove('show');
+  document.getElementById('total-display').textContent = '₩0';
+  addItemRow(); // 기본 1개
+}
+
+// ══════════════════════════════════════════
+// 통계
+// ══════════════════════════════════════════
+function renderStats() {
+  const today = todayStart();
+  const tOrders = orders.filter(o => o.createdAt >= today);
+
+  document.getElementById('st-total').textContent = tOrders.length;
+  document.getElementById('st-done').textContent = tOrders.filter(o=>o.status==='done').length;
+  document.getElementById('st-pending').textContent = tOrders.filter(o=>['pending','confirmed'].includes(o.status)).length;
+
+  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(o.totalAmount||0),0);
+  document.getElementById('st-revenue').textContent = '₩' + rev.toLocaleString();
+
+  // 채널별
+  const chData = { kakao:0, sms:0, call:0 };
+  tOrders.forEach(o => { if (chData[o.channel]!==undefined) chData[o.channel]++; });
+  const maxCh = Math.max(...Object.values(chData), 1);
+  const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3' };
+  const chNames = { kakao:'💬 카카오톡', sms:'📱 문자', call:'📞 전화' };
+  document.getElementById('ch-stats').innerHTML = Object.entries(chData).map(([k,v]) => `
+    <div class="ch-stat-row">
+      <div style="width:80px;font-size:13px;font-weight:600">${chNames[k]}</div>
+      <div class="ch-stat-bar-wrap">
+        <div class="ch-stat-bar" style="width:${v/maxCh*100}%;background:${chColors[k]}"></div>
+      </div>
+      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+    </div>`).join('');
+
+  // 결제별
+  const payData = {};
+  tOrders.forEach(o => { payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1; });
+  const maxPay = Math.max(...Object.values(payData), 1);
+  const payColors = { card:'#2196F3', cash:'#4CAF50', prepaid:'#9C27B0', transfer:'#FF9800' };
+  document.getElementById('pay-stats').innerHTML = Object.entries(payData).map(([k,v]) => `
+    <div class="ch-stat-row">
+      <div style="width:80px;font-size:13px;font-weight:600">${PAY_LABELS[k]||k}</div>
+      <div class="ch-stat-bar-wrap">
+        <div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors[k]||'#999'}"></div>
+      </div>
+      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+    </div>`).join('') || '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">데이터 없음</div>';
+}
+
+// ══════════════════════════════════════════
+// 토스트
+// ══════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════
+loadOrders();
+updateHeader();
+addItemRow();
+
+</script>
+</body>
+</html>
