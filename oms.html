@@ -123,6 +123,20 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .ch-stat-bar-wrap{flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden}
 .ch-stat-bar{height:100%;border-radius:4px;transition:.5s}
 
+/* ── 일괄 파싱 ── */
+.batch-preview{background:#f4f6f9;border-radius:12px;padding:12px;margin-top:10px;display:none}
+.batch-preview.show{display:block}
+.batch-hdr{font-size:13px;font-weight:700;color:#1a237e;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.batch-card{background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;border-left:4px solid var(--blue);position:relative}
+.batch-card-skip{border-left-color:#ddd;opacity:.55}
+.batch-card-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.batch-card-num{background:#1a237e;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.batch-card-name{font-weight:700;font-size:14px;flex:1}
+.batch-card-info{font-size:12px;color:#555;line-height:1.8;margin-top:4px}
+.batch-skip-btn{position:absolute;top:8px;right:8px;background:#ffebee;color:#c62828;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-weight:600}
+.batch-skip-btn.restore{background:#E8F5E9;color:#2e7d32}
+.batch-bar{display:flex;gap:8px;margin-top:10px}
+
 /* ── 빈 상태 ── */
 .empty-state{text-align:center;padding:50px 20px;color:var(--text2)}
 .empty-icon{font-size:48px;margin-bottom:12px}
@@ -230,13 +244,14 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="section-title">💬 카카오/문자 내용 붙여넣기</div>
     </div>
     <div class="parse-box">
-      <div class="parse-hint">카카오톡 대화 또는 문자 내용을 그대로 붙여넣으세요</div>
-      <textarea class="form-input form-textarea" id="paste-text" placeholder="예시)&#10;이름: 홍길동&#10;010-1234-5678&#10;경기도 남양주시 별내면 청학로 123&#10;두부 2개, 계란 1판&#10;카드 결제" style="min-height:110px"></textarea>
+      <div class="parse-hint">카카오/문자 내용을 붙여넣으세요 · 여러 건을 한꺼번에 넣으면 자동 분리됩니다<br><span style="color:#aaa">구분: 빈 줄 두 개 | --- | 번호목록 | 카카오톡 묶어서 복사</span></div>
+      <textarea class="form-input form-textarea" id="paste-text" placeholder="📦 단일 주문&#10;홍길동&#10;010-1234-5678&#10;경기도 남양주시 청학로 123&#10;두부 2개 계란 1판 카드&#10;&#10;📦 전화 주문 (한 줄 간략 입력)&#10;홍길동 010-1234-5678 강남구 두부2 카드&#10;&#10;📦 여러 건 (빈 줄 두 개로 구분)&#10;김철수 010-0000-1111 수원시 감자3개 현금&#10;&#10;&#10;이영희 010-2222-3333 강동구 계란1판 카드" style="min-height:120px"></textarea>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-primary btn-sm" onclick="parsePaste()" style="flex:1">✨ 자동 파싱</button>
         <button class="btn btn-gray btn-sm" onclick="clearPaste()">지우기</button>
       </div>
       <div class="parse-result" id="parse-result"></div>
+      <div class="batch-preview" id="batch-preview"></div>
     </div>
   </div>
 
@@ -638,22 +653,120 @@ function parsePaste() {
   const text = document.getElementById('paste-text').value.trim();
   if (!text) { showToast('내용을 붙여넣어 주세요'); return; }
 
-  const result = parseOrderText(text);
-  applyParsed(result);
+  const parts = splitMessages(text);
 
-  const resEl = document.getElementById('parse-result');
-  let lines = [];
-  if (result.name) lines.push(`👤 ${result.name}`);
-  if (result.phone) lines.push(`📞 ${result.phone}`);
-  if (result.address) lines.push(`📍 ${result.address}`);
-  if (result.items.length) lines.push(`🛍️ ${result.items.map(i=>`${i.name} ${i.qty}개`).join(', ')}`);
-  if (result.pay) lines.push(`💳 ${PAY_LABELS[result.pay]||result.pay}`);
+  if (parts.length === 1) {
+    // 단일 메시지 → 폼 채우기
+    document.getElementById('batch-preview').classList.remove('show');
+    const result = parseOrderText(text);
+    applyParsed(result);
+    const resEl = document.getElementById('parse-result');
+    const lines = [];
+    if (result.name) lines.push(`👤 ${result.name}`);
+    if (result.phone) lines.push(`📞 ${result.phone}`);
+    if (result.address) lines.push(`📍 ${result.address}`);
+    if (result.items.length) lines.push(`🛍️ ${result.items.map(i=>`${i.name} ${i.qty}개`).join(', ')}`);
+    if (result.pay) lines.push(`💳 ${PAY_LABELS[result.pay]||result.pay}`);
+    resEl.innerHTML = lines.length
+      ? `✅ 파싱 완료!<br>${lines.join('<br>')}`
+      : '⚠️ 자동 인식 실패. 아래 양식을 직접 입력해주세요.';
+    resEl.classList.add('show');
+    showToast(lines.length ? '✨ 자동 파싱 완료!' : '직접 입력해주세요');
+  } else {
+    // 다중 메시지 → 일괄 미리보기
+    document.getElementById('parse-result').classList.remove('show');
+    showBatchResult(parts);
+  }
+}
 
-  resEl.innerHTML = lines.length
-    ? `✅ 파싱 완료!<br>${lines.join('<br>')}`
-    : '⚠️ 자동 인식 실패. 아래 양식을 직접 입력해주세요.';
-  resEl.classList.add('show');
-  showToast(lines.length ? '✨ 자동 파싱 완료!' : '직접 입력해주세요');
+function showBatchResult(parts) {
+  window.__batchParsed = parts.map(p => parseOrderText(p));
+  window.__batchSkipped = new Set();
+  const preview = document.getElementById('batch-preview');
+  const cards = window.__batchParsed.map((r, i) => {
+    const info = [];
+    if (r.phone) info.push(`📞 ${r.phone}`);
+    if (r.address) info.push(`📍 ${r.address}`);
+    if (r.items.length) info.push(`🛍️ ${r.items.map(it=>`${it.name} ${it.qty}개`).join(', ')}`);
+    if (r.pay) info.push(`💳 ${PAY_LABELS[r.pay]||r.pay}`);
+    return `<div class="batch-card" id="bcard-${i}">
+      <div class="batch-card-top">
+        <div class="batch-card-num">${i+1}</div>
+        <div class="batch-card-name">${r.name||'(이름 미인식)'}</div>
+      </div>
+      <div class="batch-card-info">${info.join(' &nbsp;·&nbsp; ')||'⚠️ 인식 정보 없음'}</div>
+      <button class="batch-skip-btn" onclick="toggleBatchSkip(${i})">제외</button>
+    </div>`;
+  }).join('');
+  preview.innerHTML = `<div class="batch-hdr">
+    <span>📋 ${parts.length}건 감지</span>
+    <span style="font-size:11px;color:#888">제외할 건은 '제외' 버튼을 누르세요</span>
+  </div>
+  ${cards}
+  <div class="batch-bar">
+    <button class="btn btn-green btn-sm" style="flex:1" id="batch-submit-btn" onclick="submitBatchOrders()">✅ 전체 등록 (${parts.length}건)</button>
+    <button class="btn btn-gray btn-sm" onclick="closeBatchPreview()">취소</button>
+  </div>`;
+  preview.classList.add('show');
+  showToast(`📋 ${parts.length}건의 주문이 감지되었습니다`);
+}
+
+function toggleBatchSkip(i) {
+  const s = window.__batchSkipped;
+  const card = document.getElementById('bcard-'+i);
+  const btn = card.querySelector('.batch-skip-btn');
+  if (s.has(i)) {
+    s.delete(i);
+    card.classList.remove('batch-card-skip');
+    btn.textContent = '제외';
+    btn.classList.remove('restore');
+  } else {
+    s.add(i);
+    card.classList.add('batch-card-skip');
+    btn.textContent = '복원';
+    btn.classList.add('restore');
+  }
+  const cnt = (window.__batchParsed||[]).length - s.size;
+  const sb = document.getElementById('batch-submit-btn');
+  if (sb) sb.textContent = `✅ 전체 등록 (${cnt}건)`;
+}
+
+function submitBatchOrders() {
+  const skipped = window.__batchSkipped || new Set();
+  const toSubmit = (window.__batchParsed||[]).filter((_,i) => !skipped.has(i));
+  if (!toSubmit.length) { showToast('등록할 주문이 없습니다'); return; }
+  const now = Date.now();
+  toSubmit.forEach((r, idx) => {
+    const order = {
+      id: uid(),
+      customerName: r.name || '미입력',
+      phone: r.phone || '',
+      address: r.address || '',
+      items: r.items,
+      totalAmount: r.items.reduce((s,i)=>s+i.qty*i.price, 0),
+      paymentMethod: r.pay || currentPay,
+      channel: currentChannel,
+      note: '',
+      status: 'pending',
+      createdAt: now + idx,
+      updatedAt: now + idx
+    };
+    orders.unshift(order);
+    if (firebaseActive) db.ref('orders/'+order.id).set(order);
+  });
+  saveOrders();
+  closeBatchPreview();
+  renderOrderList();
+  updateHeader();
+  goTab('list');
+  showToast(`✅ ${toSubmit.length}건 일괄 접수 완료!`);
+}
+
+function closeBatchPreview() {
+  document.getElementById('batch-preview').classList.remove('show');
+  document.getElementById('paste-text').value = '';
+  window.__batchParsed = null;
+  window.__batchSkipped = new Set();
 }
 
 function clearPaste() {
@@ -661,23 +774,30 @@ function clearPaste() {
   const r = document.getElementById('parse-result');
   r.classList.remove('show');
   r.textContent = '';
+  document.getElementById('batch-preview').classList.remove('show');
+  window.__batchParsed = null;
+  window.__batchSkipped = new Set();
 }
 
 function parseOrderText(text) {
   const result = { name: '', phone: '', address: '', items: [], pay: '' };
 
-  // 전화번호
-  const phoneMatch = text.match(/0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/);
-  if (phoneMatch) result.phone = phoneMatch[0].replace(/\s/g,'-');
+  // 전화번호 (점·괄호·공백 구분자 허용, 010.1234.5678 / 010)1234-5678 / 01012345678)
+  const phoneMatch = text.match(/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/);
+  if (phoneMatch) {
+    const digits = phoneMatch[0].replace(/[^\d]/g, '');
+    result.phone = digits.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+  }
 
-  // 주소 (광역시·도 패턴)
+  // 주소 (상세주소 → 광역 → 간략구분 순으로 시도)
   const addrPatterns = [
     /[서경인대부울세제강충전경][울기천구산남종주북남북][\s\S]{2,50}(?:아파트|빌라|다세대|오피스텔|APT|apt|동|호|번길|대로|로|길)\s*\d*/,
-    /(?:서울|경기|인천|부산|대구|대전|광주|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)[^\n,]{3,60}/
+    /(?:서울|경기|인천|부산|대구|대전|광주|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)[^\n,]{3,60}/,
+    /[가-힣]{2,6}(?:특별시|광역시|특별자치시|도|시|구|군|동|읍|면|로|길|대로)[가-힣\d\s-]{0,20}/,
   ];
   for (const pat of addrPatterns) {
     const m = text.match(pat);
-    if (m) { result.address = m[0].trim(); break; }
+    if (m && m[0].length >= 4) { result.address = m[0].trim(); break; }
   }
 
   // 결제 방법
@@ -686,34 +806,67 @@ function parseOrderText(text) {
   else if (/선불|미리/.test(text)) result.pay = 'prepaid';
   else if (/계좌|이체|입금/.test(text)) result.pay = 'transfer';
 
-  // 품목 (숫자+단위 패턴)
+  // 품목 (단위포함 / x곱셈 / 붙여쓰기 "두부2개" "감자3" 모두 인식)
+  const seen = new Set();
   const itemPatterns = [
-    /([가-힣a-zA-Z\s]+?)\s*(\d+)\s*(?:개|봉|팩|박스|묶음|병|캔|kg|g|L|ml)/g,
-    /([가-힣a-zA-Z\s]+?)\s*x\s*(\d+)/g,
-    /([가-힣a-zA-Z\s]+?)\s*(?:\*|×)\s*(\d+)/g,
+    /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*(\d+)\s*(?:개|봉|팩|박스|묶음|병|캔|kg|g|L|ml)/g,
+    /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*[xX×\*]\s*(\d+)/g,
+    /([가-힣]{2,8})(\d+)/g,  // 붙여쓰기: 두부2, 감자3
   ];
   for (const pat of itemPatterns) {
-    let m;
+    let m; pat.lastIndex = 0;
     while ((m = pat.exec(text)) !== null) {
-      const nm = m[1].trim().replace(/^[-•·*\s]+/, '').trim();
-      if (nm.length >= 2 && nm.length <= 20 && !/^\d/.test(nm)) {
+      const nm = m[1].trim().replace(/^[-•·*\s+^]+/, '').trim();
+      if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nm) && !seen.has(nm)) {
+        seen.add(nm);
         result.items.push({ name: nm, qty: parseInt(m[2])||1, price: 0 });
       }
     }
     if (result.items.length) break;
   }
 
-  // 이름: 2~4글자 한글, 전화번호·주소 전의 첫 줄
+  // 이름: 라벨형 → 독립줄 → 한줄 간략➉구분자 맨앞 순
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   for (const line of lines) {
+    const labelM = line.match(/(?:이름|성함|받ꊔ\s+��|주문자)[:\s]*([가-힣]{2,5})/);
+    if (labelM) { result.name = labelM[1]; break; }
     const nameM = line.match(/^[가-힣]{2,4}$/);
     if (nameM) { result.name = nameM[0]; break; }
-    // "이름: 홍길동" 패턴
-    const labelM = line.match(/(?:이름|성함|받는\s*분|주문자)[:\s]*([가-힣]{2,5})/);
-    if (labelM) { result.name = labelM[1]; break; }
+    // 단위포함: "두부0.12-..." ꕔ "두부 강남구!..."
+    const inlineM = line.match(/^([가-힣]{2,4})\s+(?:0\d|[가-힣])/);
+    if (inlineM) { result.name = inlineM[1]; break; }
   }
 
   return result;
+}
+
+// 여러 메시지 자동 분리
+function splitMessages(text) {
+  // 1) 카카오톡: [slbntrpoT] [smks/amokm] H:MM] [m]
+  const kakaoRe = /(?=\[[^\]]+\]\s*\[(?:좓으쐔|빰쾱도\s*\d+:\d+\])/;
+  let parts = text.split(kakaoRe).map(s=>s.trim()).filter(Boolean);
+  if (parts.length > 1) return parts;
+
+  // 2) 구분선 (---, ===, ///, ~~~)
+  parts = text.split(/\n[ \t]*[-=\/~]{2,}[ \t]*\n/).map(s=>s.trim()).filter(Boolean);
+  if (parts.length > 1) return parts;
+
+  // 3) 번호 목록 (1. 2. 3. 또는 1) 2) 3))
+  const numbered = text.split(/(?=^\s*\d+[.\)]\s)/m).map(s=>s.trim()).filter(Boolean);
+  if (numbered.length > 1 && numbered.every(p=>/^\d+[.\)]/.test(p))) return numbered;
+
+  // 4) 빈 줄 두 개 이상
+  parts = text.split(/\n[ \t]*\n[ \t]*\n+/).map(s=>s.trim()).filter(Boolean);
+  if (parts.length > 1) return parts;
+
+  // 5) 전화번호 여러 개 → 단일 빈줄로 분리
+  const phones = (text.match(/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/g)||[]);
+  if (phones.length > 1) {
+    parts = text.split(/\n[ \t]*\n/).map(s=>s.trim()).filter(Boolean);
+    if (parts.length > 1) return parts;
+  }
+
+  return [text];
 }
 
 function applyParsed(r) {
@@ -780,6 +933,8 @@ function resetForm() {
   document.getElementById('item-rows').innerHTML = '';
   document.getElementById('paste-text').value = '';
   document.getElementById('parse-result').classList.remove('show');
+  document.getElementById('batch-preview').classList.remove('show');
+  window.__batchParsed = null; window.__batchSkipped = new Set();
   document.getElementById('total-display').textContent = '₩0';
   addItemRow(); // 기본 1개
 }
