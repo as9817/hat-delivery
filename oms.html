@@ -400,7 +400,7 @@ function loadOrders() {
 
 // ══════════════════════════════════════════
 // Firebase 실시간 연동
-// ══════════════════════════════════════════
+// ═════════════════════════════════════════
 db.ref('orders').on('value', snap => {
   const data = snap.val() || {};
   const fbOrders = Object.values(data);
@@ -550,7 +550,7 @@ function updateStatus(id, status) {
   showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
 }
 
-// ══════════════════════════════════════════
+// ═════════════════════════════════════════
 // 배달 배정 (기사앱·대시보드로 전송)
 // ══════════════════════════════════════════
 function sendToDelivery(orderId) {
@@ -816,7 +816,7 @@ function parseOrderText(text) {
   for (const pat of itemPatterns) {
     let m; pat.lastIndex = 0;
     while ((m = pat.exec(text)) !== null) {
-      const nm = m[1].trim().replace(/^[-•·*\s+^]+/, '').trim();
+      const nm = m[1].trim().replace(/^[-•·*\q]+/, '').trim();
       if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nm) && !seen.has(nm)) {
         seen.add(nm);
         result.items.push({ name: nm, qty: parseInt(m[2])||1, price: 0 });
@@ -825,14 +825,14 @@ function parseOrderText(text) {
     if (result.items.length) break;
   }
 
-  // 이름: 라벨형 → 독립줄 → 한줄 간략➉구분자 맨앞 순
+  // 이름: 라벨형 → 독립줄 → 한줄 간략입력 맨앞 순
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   for (const line of lines) {
-    const labelM = line.match(/(?:이름|성함|받ꊔ\s+��|주문자)[:\s]*([가-힣]{2,5})/);
+    const labelM = line.match(/(?:이름|성함|받는\s*분|주문자)[:\s]*([가-힣]{2,5})/);
     if (labelM) { result.name = labelM[1]; break; }
     const nameM = line.match(/^[가-힣]{2,4}$/);
     if (nameM) { result.name = nameM[0]; break; }
-    // 단위포함: "두부0.12-..." ꕔ "두부 강남구!..."
+    // 한 줄 간략: "홍길동 010-..." 또는 "홍길동 강남구..."
     const inlineM = line.match(/^([가-힣]{2,4})\s+(?:0\d|[가-힣])/);
     if (inlineM) { result.name = inlineM[1]; break; }
   }
@@ -842,8 +842,8 @@ function parseOrderText(text) {
 
 // 여러 메시지 자동 분리
 function splitMessages(text) {
-  // 1) 카카오톡: [slbntrpoT] [smks/amokm] H:MM] [m]
-  const kakaoRe = /(?=\[[^\]]+\]\s*\[(?:좓으쐔|빰쾱도\s*\d+:\d+\])/;
+  // 1) 카카오톡: [이름] [오전/오후 H:MM] 패턴
+  const kakaoRe = /(?=\[[^\]]+\]\s*\[(?:오전|오후)\s*\d+:\d+\])/;
   let parts = text.split(kakaoRe).map(s=>s.trim()).filter(Boolean);
   if (parts.length > 1) return parts;
 
@@ -1003,3 +1003,4 @@ addItemRow();
 </script>
 </body>
 </html>
+html>
