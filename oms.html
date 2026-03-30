@@ -168,6 +168,20 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .status-flow{display:flex;gap:4px;align-items:center;font-size:11px}
 .sf-step{padding:3px 8px;border-radius:6px;font-weight:600}
 .sf-arrow{color:#ccc;font-size:10px}
+
+/* ── 고객 조회 패널 ── */
+.cust-panel{background:#fff;border:2px solid #3949AB;border-radius:12px;margin-top:6px;overflow:hidden;display:none;box-shadow:0 4px 16px rgba(26,35,126,.15)}
+.cust-panel.show{display:block}
+.cust-panel-hdr{background:#E8EAF6;padding:8px 12px;font-size:11px;font-weight:700;color:#3949AB;display:flex;align-items:center;gap:6px}
+.cust-match{padding:10px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:.15s}
+.cust-match:last-child{border-bottom:none}
+.cust-match:hover{background:#f5f7ff}
+.cust-match-name{font-size:14px;font-weight:700;color:#1a237e;margin-bottom:2px}
+.cust-match-info{font-size:12px;color:#666;margin-bottom:6px}
+.cust-hist-title{font-size:11px;font-weight:700;color:#888;margin-bottom:4px}
+.cust-hist-item{font-size:12px;color:#444;padding:3px 0;border-top:1px dashed #eee;display:flex;justify-content:space-between;align-items:center}
+.cust-hist-date{font-size:11px;color:#aaa;white-space:nowrap;margin-left:8px}
+.cust-no-result{padding:12px;text-align:center;color:#aaa;font-size:13px}
 </style>
 </head>
 <body>
@@ -260,11 +274,12 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <div class="section-title" style="margin-bottom:14px">👤 고객 정보</div>
     <div class="form-group">
       <label class="form-label">고객명 *</label>
-      <input class="form-input" id="inp-cname" type="text" placeholder="홍길동">
+      <input class="form-input" id="inp-cname" type="text" placeholder="홍길동" oninput="onNameInput(this.value)" autocomplete="off">
     </div>
     <div class="form-group">
       <label class="form-label">연락처 *</label>
-      <input class="form-input" id="inp-phone" type="tel" placeholder="010-0000-0000">
+      <input class="form-input" id="inp-phone" type="tel" placeholder="010-0000-0000" oninput="onPhoneInput(this.value)" autocomplete="off">
+      <div class="cust-panel" id="cust-panel"></div>
     </div>
     <div class="form-group" style="margin-bottom:0">
       <label class="form-label">배달 주소 *</label>
@@ -400,7 +415,7 @@ function loadOrders() {
 
 // ══════════════════════════════════════════
 // Firebase 실시간 연동
-// ═════════════════════════════════════════
+// ══════════════════════════════════════════
 db.ref('orders').on('value', snap => {
   const data = snap.val() || {};
   const fbOrders = Object.values(data);
@@ -550,7 +565,7 @@ function updateStatus(id, status) {
   showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
 }
 
-// ═════════════════════════════════════════
+// ══════════════════════════════════════════
 // 배달 배정 (기사앱·대시보드로 전송)
 // ══════════════════════════════════════════
 function sendToDelivery(orderId) {
@@ -699,7 +714,7 @@ function showBatchResult(parts) {
     </div>`;
   }).join('');
   preview.innerHTML = `<div class="batch-hdr">
-    <span>📋 ${parts.length}건 감지</span>
+    <span>📋 ${parts.length}건의 감지</span>
     <span style="font-size:11px;color:#888">제외할 건은 '제외' 버튼을 누르세요</span>
   </div>
   ${cards}
@@ -809,14 +824,14 @@ function parseOrderText(text) {
   // 품목 (단위포함 / x곱셈 / 붙여쓰기 "두부2개" "감자3" 모두 인식)
   const seen = new Set();
   const itemPatterns = [
-    /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*(\d+)\s*(?:개|봉|팩|박스|묶음|병|캔|kg|g|L|ml)/g,
+    /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*(\d+)\s*(?:개|묶음|팩|박스|묶음|병|캔|kg|g|L|ml)/g,
     /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*[xX×\*]\s*(\d+)/g,
     /([가-힣]{2,8})(\d+)/g,  // 붙여쓰기: 두부2, 감자3
   ];
   for (const pat of itemPatterns) {
     let m; pat.lastIndex = 0;
     while ((m = pat.exec(text)) !== null) {
-      const nm = m[1].trim().replace(/^[-•·*\q]+/, '').trim();
+      const nm = m[1].trim().replace(/^[-•·*\s]+/, '').trim();
       if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nm) && !seen.has(nm)) {
         seen.add(nm);
         result.items.push({ name: nm, qty: parseInt(m[2])||1, price: 0 });
@@ -934,10 +949,114 @@ function resetForm() {
   document.getElementById('paste-text').value = '';
   document.getElementById('parse-result').classList.remove('show');
   document.getElementById('batch-preview').classList.remove('show');
+  hideCustPanel();
   window.__batchParsed = null; window.__batchSkipped = new Set();
   document.getElementById('total-display').textContent = '₩0';
   addItemRow(); // 기본 1개
 }
+
+// ══════════════════════════════════════════
+// 고객 조회 (전화번호 / 이름 검색)
+// ══════════════════════════════════════════
+function normalizePhone(p) {
+  return (p || '').replace(/[^\d]/g, '');
+}
+
+function getCustomerHistory(phone, name) {
+  // 전화번호 or 이름으로 과거 주문 검색, 최신순
+  return orders.filter(o => {
+    if (phone && normalizePhone(o.phone) === phone) return true;
+    if (!phone && name && o.customerName && o.customerName.includes(name)) return true;
+    return false;
+  }).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function groupCustomersByPhone(hits) {
+  // 전화번호 기준으로 고객 그룹화 (없으면 이름 기준)
+  const map = new Map();
+  hits.forEach(o => {
+    const key = normalizePhone(o.phone) || o.customerName;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(o);
+  });
+  return Array.from(map.values());
+}
+
+function onPhoneInput(val) {
+  const digits = normalizePhone(val);
+  if (digits.length < 4) { hideCustPanel(); return; }
+  // 4자리 이상 입력 시 검색 (완전 일치 우선, 앞자리 포함 포함)
+  const hits = orders.filter(o => {
+    const op = normalizePhone(o.phone);
+    return op && op.includes(digits);
+  }).sort((a, b) => b.createdAt - a.createdAt);
+  renderCustPanel(groupCustomersByPhone(hits));
+}
+
+function onNameInput(val) {
+  const q = val.trim();
+  if (q.length < 2) { hideCustPanel(); return; }
+  const hits = orders.filter(o =>
+    o.customerName && o.customerName.includes(q)
+  ).sort((a, b) => b.createdAt - a.createdAt);
+  renderCustPanel(groupCustomersByPhone(hits));
+}
+
+function renderCustPanel(groups) {
+  const panel = document.getElementById('cust-panel');
+  if (!groups.length) { hideCustPanel(); return; }
+
+  const MAX_GROUPS = 5;
+  const shown = groups.slice(0, MAX_GROUPS);
+
+  let html = `<div class="cust-panel-hdr">🔍 고객 조회 — ${groups.length}명 매칭 (탭하여 자동입력)</div>`;
+  shown.forEach(orders_g => {
+    const latest = orders_g[0]; // 가장 최근 주문
+    const histHtml = orders_g.slice(0, 4).map(o => {
+      const d = new Date(o.createdAt);
+      const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+      const itemStr = (o.items||[]).map(i => `${i.name}${i.qty>1?' '+i.qty+'개':''}`).join(', ') || '품목미상';
+      const amt = o.totalAmount ? ` ${o.totalAmount.toLocaleString()}원` : '';
+      return `<div class="cust-hist-item"><span>🛍️ ${itemStr}${amt}</span><span class="cust-hist-date">${dateStr}</span></div>`;
+    }).join('');
+
+    const totalCount = orders_g.length;
+    html += `<div class="cust-match" onclick="fillFromCustomer(${JSON.stringify(JSON.stringify(latest))})">
+      <div class="cust-match-name">${latest.customerName}</div>
+      <div class="cust-match-info">📞 ${latest.phone||'-'} &nbsp;|&nbsp; 📍 ${latest.address||'-'}</div>
+      <div class="cust-hist-title">최근 주문 (총 ${totalCount}회)</div>
+      ${histHtml}
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+  panel.classList.add('show');
+}
+
+function fillFromCustomer(jsonStr) {
+  const o = JSON.parse(jsonStr);
+  document.getElementById('inp-cname').value = o.customerName || '';
+  document.getElementById('inp-phone').value = o.phone || '';
+  document.getElementById('inp-addr').value = o.address || '';
+  hideCustPanel();
+  showToast(`✅ ${o.customerName} 고객 정보 자동입력 완료`);
+  // 포커스를 품목 입력으로
+  setTimeout(() => document.querySelector('#item-rows input')?.focus(), 100);
+}
+
+function hideCustPanel() {
+  const p = document.getElementById('cust-panel');
+  if (p) p.classList.remove('show');
+}
+
+// 패널 바깥 클릭 시 닫기
+document.addEventListener('click', e => {
+  const panel = document.getElementById('cust-panel');
+  if (panel && !panel.contains(e.target) &&
+      e.target.id !== 'inp-phone' && e.target.id !== 'inp-cname') {
+    hideCustPanel();
+  }
+});
 
 // ══════════════════════════════════════════
 // 통계
@@ -1003,4 +1122,3 @@ addItemRow();
 </script>
 </body>
 </html>
-html>
