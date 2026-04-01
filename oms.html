@@ -223,8 +223,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   }
   #list .screen-inner{padding:12px}
 
-  /* 통계 화면은 PC에서 모달로 */
+  /* 통계/고객DB 화면은 PC에서 모달로 */
   #stats{display:none!important}
+  #custdb{display:none!important}
 
   /* PC 패널 헤더 (왼쪽·오른쪽 라벨) */
   .pc-panel-hdr{
@@ -260,6 +261,41 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   #new .screen-inner, #list .screen-inner{padding:0}
   .screen{padding:12px}
 }
+
+/* ── 고객 DB ── */
+.cdb-search-wrap{padding:12px;background:#fff;border-bottom:1px solid var(--border)}
+.cdb-search{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fafafa;outline:none}
+.cdb-search:focus{border-color:#1a237e;background:#fff}
+.cdb-summary{padding:8px 14px;font-size:12px;color:var(--text2);background:#f8f9ff;border-bottom:1px solid var(--border)}
+.cdb-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;transition:.15s;border-left:4px solid #3949AB}
+.cdb-card:active{transform:scale(.98)}
+.cdb-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.12);transform:translateY(-1px)}
+.cdb-card-top{display:flex;align-items:flex-start;gap:12px}
+.cdb-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1a237e,#3949AB);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0}
+.cdb-info{flex:1;min-width:0}
+.cdb-name{font-size:15px;font-weight:700;color:#1a237e;margin-bottom:2px}
+.cdb-meta{font-size:12px;color:var(--text2);margin-bottom:2px}
+.cdb-addr{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cdb-stats{text-align:right;flex-shrink:0}
+.cdb-count{font-size:20px;font-weight:800;color:#1a237e;line-height:1.2}
+.cdb-spent{font-size:11px;color:var(--green);font-weight:600;margin-top:2px}
+.cdb-top-items{font-size:12px;color:#666;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+
+/* 고객 상세 시트 */
+.cdb-detail-modal{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
+.cdb-detail-modal.show{display:flex}
+@media (min-width:768px){.cdb-detail-modal{align-items:center}}
+.cdb-detail-box{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:88vh;overflow-y:auto}
+@media (min-width:768px){.cdb-detail-box{border-radius:20px;width:min(560px,90vw);max-height:82vh}}
+.cdb-detail-hdr{position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;z-index:1}
+.cdb-detail-back{background:#f5f5f5;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;color:#555}
+.cdb-detail-title{font-size:16px;font-weight:800;color:#1a237e;flex:1}
+.cdb-detail-content{padding:16px 16px 20px}
+.cdb-hist-item{background:#f8f9ff;border-radius:10px;padding:12px;margin-bottom:8px}
+.cdb-hist-top{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.cdb-hist-date{font-size:11px;color:#aaa;margin-left:auto}
+.cdb-hist-items{font-size:13px;color:#444;line-height:1.6}
+.cdb-hist-bottom{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
 
 /* 통계 모달 (PC 전용) */
 .stats-modal{
@@ -299,6 +335,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     </div>
     <div class="header-badge" id="today-count">오늘 0건</div>
     <button class="header-pc-btn" onclick="showStatsModal()">📊 통계</button>
+    <button class="header-pc-btn" onclick="showCustDBModal()">👥 고객DB</button>
   </div>
 </div>
 
@@ -312,6 +349,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
   <div class="tab" onclick="goTab('stats')" id="tab-stats">
     <span class="tab-icon">📊</span>통계
+  </div>
+  <div class="tab" onclick="goTab('custdb')" id="tab-custdb">
+    <span class="tab-icon">👥</span>고객DB
   </div>
 </div>
 
@@ -352,7 +392,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <div class="screen" id="new">
   <!-- PC 패널 헤더 -->
   <div class="pc-panel-hdr">
-    ➕ 새 주문 입력
+    ➕ 새 주문 입�%
   </div>
   <div class="screen-inner">
   <!-- 채널 선택 -->
@@ -489,6 +529,21 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 </div>
 
+<!-- ══════════════ 고객 DB (모바일 탭 화면) ══════════════ -->
+<div class="screen" id="custdb">
+  <div class="cdb-search-wrap">
+    <input class="cdb-search" id="cdb-search-input" type="search" placeholder="🔍 이름 또는 전화번호 검색" oninput="searchCustDB(this.value,'cdb-list')">
+  </div>
+  <div class="cdb-summary" id="cdb-summary-mobile">총 0명</div>
+  <div style="padding:8px 12px 60px" id="cdb-list">
+    <div class="empty-state" style="padding:40px 20px">
+      <div class="empty-icon">👥</div>
+      <div class="empty-text">고객 데이터 없음</div>
+      <div class="empty-sub">주문 접수 시 자동으로 고객 DB가 구축됩니다</div>
+    </div>
+  </div>
+</div>
+
 <!-- 토스트 -->
 <div class="toast" id="toast"></div>
 
@@ -517,6 +572,32 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="section-title" style="margin-bottom:14px">결제수단별</div>
       <div id="pay-stats-m"></div>
     </div>
+  </div>
+</div>
+
+<!-- PC 고객 DB 모달 -->
+<div class="stats-modal" id="custdb-modal" onclick="hideCustDBModal(event)">
+  <div class="stats-modal-box" style="padding:0;overflow:hidden;max-height:90vh;width:min(760px,94vw);display:flex;flex-direction:column">
+    <div class="stats-modal-hdr" style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div class="stats-modal-title">👥 고객 DB</div>
+      <button class="stats-modal-close" onclick="hideCustDBModal()">✕</button>
+    </div>
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <input class="cdb-search" type="search" placeholder="🔍 이름 또는 전화번호 검색" oninput="searchCustDB(this.value,'cdb-list-modal')" id="cdb-search-modal">
+    </div>
+    <div class="cdb-summary" id="cdb-summary-modal" style="flex-shrink:0">총 0명</div>
+    <div style="overflow-y:auto;flex:1;padding:8px 16px 16px" id="cdb-list-modal"></div>
+  </div>
+</div>
+
+<!-- 고객 상세 시트 -->
+<div class="cdb-detail-modal" id="cdb-detail-modal" onclick="if(event.target===this)hideCustDetail()">
+  <div class="cdb-detail-box">
+    <div class="cdb-detail-hdr">
+      <button class="cdb-detail-back" onclick="hideCustDetail()">← 목록</button>
+      <div class="cdb-detail-title" id="cdb-detail-title">고객 상세</div>
+    </div>
+    <div class="cdb-detail-content" id="cdb-detail-content"></div>
   </div>
 </div>
 
@@ -596,8 +677,15 @@ function goTab(tab) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById(tab).classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('active');
+  const tabEl = document.getElementById('tab-' + tab);
+  if (tabEl) tabEl.classList.add('active');
   if (tab === 'stats') renderStats();
+  if (tab === 'custdb') {
+    custDBQuery = '';
+    const inp = document.getElementById('cdb-search-input');
+    if (inp) inp.value = '';
+    renderCustDB('cdb-list');
+  }
 }
 
 // ══════════════════════════════════════════
@@ -858,9 +946,9 @@ function showBatchResult(parts) {
     return `<div class="batch-card" id="bcard-${i}">
       <div class="batch-card-top">
         <div class="batch-card-num">${i+1}</div>
-        <div class="batch-card-name">${r.name||')이름 미인식)'}</div>
+        <div class="batch-card-name">${r.name||'(이름 미인식)'}</div>
       </div>
-      <div class="batch-card-info">${info.join(' &nbsp;·&nbsp; ')||'⚠️ 인식 정보 없음'}</div>
+      <div class="batch-card-info">${info.join(' &nbsp;·&nbsp; ')}|'*�) 정보 없음'}</div>
       <button class="batch-skip-btn" onclick="toggleBatchSkip(${i})">제외</button>
     </div>`;
   }).join('');
@@ -948,7 +1036,7 @@ function clearPaste() {
 function parseOrderText(text) {
   const result = { name: '', phone: '', address: '', items: [], pay: '' };
 
-  // 전화번호 (점·괄호·공백 구분자 허용, 010.1234.5678 / 010)1234-5678 / 01012345678)
+  // 전화번호 (점·괄호·공백 구분자 허용, 010.1234.5678 / 010)12345678)
   const phoneMatch = text.match(/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/);
   if (phoneMatch) {
     const digits = phoneMatch[0].replace(/[^\d]/g, '');
@@ -998,7 +1086,7 @@ function parseOrderText(text) {
     if (labelM) { result.name = labelM[1]; break; }
     const nameM = line.match(/^[가-힣]{2,4}$/);
     if (nameM) { result.name = nameM[0]; break; }
-    // 한 줄 간띵: "홍길동 010-..." 또는 "홍길동 강남구..."
+    // 한 줄 간략: "홍길동 010-..." 또는 "홍길동 강남구..."
     const inlineM = line.match(/^([가-힣]{2,4})\s+(?:0\d|[가-힣])/);
     if (inlineM) { result.name = inlineM[1]; break; }
   }
@@ -1009,7 +1097,7 @@ function parseOrderText(text) {
 // 여러 메시지 자동 분리
 function splitMessages(text) {
   // 1) 카카오톡: [이름] [오전/오후 H:MM] 패턴
-  const kakaoRe = /(?=\[[^\]]+\]\s*\[(?:오전|오후)\s*\d+:\d+\])/;
+  const kakaoRe = /(==\[[^\]]+\]\s*\[(?:오전|오후)\s*\d+:\d+\])/;
   let parts = text.split(kakaoRe).map(s=>s.trim()).filter(Boolean);
   if (parts.length > 1) return parts;
 
@@ -1084,7 +1172,7 @@ function submitOrder() {
   saveOrders();
   if (firebaseActive) db.ref('orders/' + order.id).set(order);
 
-  // 폼 초기화
+  // 옄인 접수
   resetForm();
   renderOrderList();
   updateHeader();
@@ -1323,6 +1411,203 @@ function updatePcListCount() {
   const today = todayStart();
   const cnt = orders.filter(o => o.createdAt >= today).length;
   el.textContent = cnt + '건';
+}
+
+// ══════════════════════════════════════════
+// 고객 DB
+// ══════════════════════════════════════════
+let custDBQuery = '';
+
+function buildCustomerDB() {
+  const map = new Map();
+  orders.forEach(o => {
+    const key = normalizePhone(o.phone) || o.customerName;
+    if (!key) return;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name: o.customerName || '',
+        phone: o.phone || '',
+        address: o.address || '',
+        orderCount: 0,
+        totalSpent: 0,
+        lastOrderDate: 0,
+        orders: []
+      });
+    }
+    const c = map.get(key);
+    c.orders.push(o);
+    c.orderCount++;
+    c.totalSpent += (o.totalAmount || 0);
+    if (o.createdAt > c.lastOrderDate) {
+      c.lastOrderDate = o.createdAt;
+      c.name = o.customerName || c.name;
+      if (o.phone) c.phone = o.phone;
+      if (o.address) c.address = o.address;
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => b.lastOrderDate - a.lastOrderDate);
+}
+
+function getTopItems(orderList) {
+  const freq = {};
+  orderList.forEach(o => (o.items || []).forEach(it => {
+    freq[it.name] = (freq[it.name] || 0) + it.qty;
+  }));
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([n]) => n)
+    .join(', ');
+}
+
+function searchCustDB(q, listId) {
+  custDBQuery = q;
+  renderCustDB(listId);
+}
+
+function renderCustDB(listId) {
+  const customers = buildCustomerDB();
+  const q = custDBQuery.trim();
+  const qDigits = q.replace(/[^\d]/g, '');
+  const filtered = q
+    ? customers.filter(c =>
+        c.name.includes(q) ||
+        (qDigits.length >= 2 && normalizePhone(c.phone).includes(qDigits))
+      )
+    : customers;
+
+  // 요약 업데이트
+  const summaryText = `총 ${customers.length}명 · ${q ? '검색결과 ' + filtered.length + '명' : '전체'}`;
+  const mobSum = document.getElementById('cdb-summary-mobile');
+  const modSum = document.getElementById('cdb-summary-modal');
+  if (mobSum && listId === 'cdb-list') mobSum.textContent = summaryText;
+  if (modSum && listId === 'cdb-list-modal') modSum.textContent = summaryText;
+
+  const container = document.getElementById(listId);
+  if (!container) return;
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state" style="padding:40px 20px">
+      <div class="empty-icon">👥</div>
+      <div class="empty-text">${q ? '검색 결과 없어요' : '고객 데이터 없음'}</div>
+      <div class="empty-sub">주문 접수 시 자동으로 고객 DB가 구축됩니다</div>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(c => {
+    const lastD = new Date(c.lastOrderDate);
+    const dateStr = `${lastD.getMonth()+1}/${lastD.getDate()}`;
+    const topItems = getTopItems(c.orders);
+    const safeKey = encodeURIComponent(c.key);
+    return `<div class="cdb-card" onclick="showCustDetail('${safeKey}')">
+      <div class="cdb-card-top">
+        <div class="cdb-avatar">${(c.name || '?')[0]}</div>
+        <div class="cdb-info">
+          <div class="cdb-name">${c.name}</div>
+          <div class="cdb-meta">📞 ${c.phone || '-'} &nbsp;|&nbsp; 마지막: ${dateStr}</div>
+          <div class="cdb-addr">📍 ${c.address || '-'}</div>
+        </div>
+        <div class="cdb-stats">
+          <div class="cdb-count">${c.orderCount}<span style="font-size:11px;font-weight:600;color:#888">회</span></div>
+          <div class="cdb-spent">${c.totalSpent ? '₩' + c.totalSpent.toLocaleString() : '-'}</div>
+        </div>
+      </div>
+      ${topItems ? `<div class="cdb-top-items">🛍️ 자주 주문: ${topItems}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function showCustDetail(encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  const customers = buildCustomerDB();
+  const c = customers.find(x => x.key === key);
+  if (!c) return;
+
+  const sortedOrders = [...c.orders].sort((a, b) => b.createdAt - a.createdAt);
+  const latestOrder = sortedOrders[0];
+
+  const histHtml = sortedOrders.map(o => {
+    const d = new Date(o.createdAt);
+    const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const itemStr = (o.items || []).map(it => `${it.name} ${it.qty}개`).join(', ') || '품목 미상';
+    const amt = o.totalAmount ? `₩${o.totalAmount.toLocaleString()}` : '';
+    return `<div class="cdb-hist-item">
+      <div class="cdb-hist-top">
+        <span class="badge badge-${o.channel}">${CH_LABELS[o.channel] || o.channel}</span>
+        <span class="badge badge-${o.status}">${STATUS_LABELS[o.status] || o.status}</span>
+        <span class="cdb-hist-date">${dateStr}</span>
+      </div>
+      <div class="cdb-hist-items">${itemStr}</div>
+      <div class="cdb-hist-bottom">
+        ${amt ? `<span style="font-size:13px;font-weight:700;color:#1a237e">${amt}</span>` : ''}
+        ${PAY_LABELS[o.paymentMethod] ? `<span style="font-size:12px;color:#888">${PAY_LABELS[o.paymentMethod]}</span>` : ''}
+        ${o.note ? `<span style="font-size:12px;color:#aaa">📝 ${o.note}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const avgAmt = c.orderCount ? Math.round(c.totalSpent / c.orderCount) : 0;
+  const content = document.getElementById('cdb-detail-content');
+  content.innerHTML = `
+    <div style="background:#E8EAF6;border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div class="cdb-avatar" style="width:54px;height:54px;font-size:24px">${(c.name || '?')[0]}</div>
+        <div style="flex:1">
+          <div style="font-size:18px;font-weight:800;color:#1a237e">${c.name}</div>
+          <div style="font-size:13px;color:#555;margin-top:3px">📞 ${c.phone || '-'}</div>
+          <div style="font-size:13px;color:#555">📍 ${c.address || '-'}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:#1a237e">${c.orderCount}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">총 주문</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:15px;font-weight:800;color:var(--green)">${c.totalSpent ? '₩' + c.totalSpent.toLocaleString() : '-'}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">누적 금액</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:15px;font-weight:800;color:var(--orange)">${avgAmt ? '₩' + avgAmt.toLocaleString() : '-'}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">평균 주문</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="reorderFromCust(${JSON.stringify(JSON.stringify(latestOrder))})" style="margin-bottom:16px;padding:14px;font-size:15px">
+      🛒 이 고객으로 새 주문 입력
+    </button>
+    <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px">📋 주문 이력 (${c.orderCount}건)</div>
+    ${histHtml}
+  `;
+
+  document.getElementById('cdb-detail-title').textContent = c.name + ' 고객';
+  document.getElementById('cdb-detail-modal').classList.add('show');
+}
+
+function hideCustDetail() {
+  document.getElementById('cdb-detail-modal').classList.remove('show');
+}
+
+function reorderFromCust(jsonStr) {
+  hideCustDetail();
+  hideCustDBModal();
+  fillFromCustomer(jsonStr);
+  if (window.innerWidth < 768) goTab('new');
+}
+
+function showCustDBModal() {
+  custDBQuery = '';
+  const inp = document.getElementById('cdb-search-modal');
+  if (inp) inp.value = '';
+  renderCustDB('cdb-list-modal');
+  document.getElementById('custdb-modal').classList.add('show');
+}
+
+function hideCustDBModal(e) {
+  if (e && e.target !== document.getElementById('custdb-modal')) return;
+  document.getElementById('custdb-modal').classList.remove('show');
 }
 
 // ══════════════════════════════════════════
