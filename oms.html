@@ -1217,8 +1217,8 @@ function parseOrderText(text) {
   for (const pat of itemPatterns) {
     let m; pat.lastIndex = 0;
     while ((m = pat.exec(text)) !== null) {
-      const nh = m[1].trim().replace(/^[-•·*\s*]+/, '').trim();
-      if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nh) && !seen.has(nm)) {
+      const nm = m[1].trim().replace(/^[-•·*\s]+/, '').trim();
+      if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nm) && !seen.has(nm)) {
         seen.add(nm);
         result.items.push({ name: nm, qty: parseInt(m[2])||1, price: 0 });
       }
@@ -1226,8 +1226,7 @@ function parseOrderText(text) {
     if (result.items.length) break;
   }
 
-  // 也不：:管理个台はでかたはさィイエ
-警先：机模開化差标言先了
+  // 이름: 라벨형 → 독립줄 → 한줄 간략입력 맨앞 순
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   for (const line of lines) {
     const labelM = line.match(/(?:이름|성함|받는\s*분|주문자)[:\s]*([가-힣]{2,5})/);
@@ -1402,7 +1401,7 @@ function renderCustPanel(groups) {
     const histHtml = orders_g.slice(0, 4).map(o => {
       const d = new Date(o.createdAt);
       const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
-      const itemStr = (o.items||[]).map(i => `${i.name}${i.qty>1?' '+i.qty+'개':''}`).join(', ') || '품목미상';
+      const itemStr = (o.items||[]).map(i => `${i.name}${i.qty>1?' '+i.qty+'개':''}`).join(', ') || '풇목미상';
       const amt = o.totalAmount ? ` ${o.totalAmount.toLocaleString()}원` : '';
       return `<div class="cust-hist-item"><span>🛍️ ${itemStr}${amt}</span><span class="cust-hist-date">${dateStr}</span></div>`;
     }).join('');
