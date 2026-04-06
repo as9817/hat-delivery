@@ -321,6 +321,64 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   width:32px;height:32px;font-size:18px;cursor:pointer;
   display:flex;align-items:center;justify-content:center
 }
+
+/* ── 가져오기 모달 ── */
+.import-modal{
+  display:none;position:fixed;inset:0;z-index:350;
+  background:rgba(0,0,0,.5);
+  align-items:center;justify-content:center
+}
+.import-modal.show{display:flex}
+.import-box{
+  background:#fff;border-radius:20px;
+  width:min(720px,96vw);max-height:90vh;
+  overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+  display:flex;flex-direction:column
+}
+.import-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 24px 16px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:#fff;z-index:1;border-radius:20px 20px 0 0
+}
+.import-title{font-size:17px;font-weight:800;color:#1a237e}
+.import-close{background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.import-body{padding:20px 24px;flex:1}
+.import-dropzone{
+  border:2.5px dashed #c5cae9;border-radius:14px;
+  padding:36px 20px;text-align:center;cursor:pointer;transition:.2s;
+  background:#f8f9ff
+}
+.import-dropzone:hover,.import-dropzone.dragover{border-color:#3949AB;background:#eef0ff}
+.import-dropzone-icon{font-size:42px;margin-bottom:10px}
+.import-dropzone-text{font-size:15px;font-weight:600;color:#3949AB;margin-bottom:4px}
+.import-dropzone-sub{font-size:12px;color:#888}
+.import-step{display:none}
+.import-step.active{display:block}
+.import-section-title{font-size:13px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+.import-file-info{background:#f0f4ff;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.import-file-icon{font-size:28px}
+.import-file-name{font-size:14px;font-weight:700;color:#1a237e}
+.import-file-meta{font-size:12px;color:#888;margin-top:2px}
+.import-map-table{width:100%;border-collapse:collapse;font-size:13px}
+.import-map-table th{background:#f0f4ff;color:#1a237e;font-weight:700;padding:9px 12px;border:1px solid #dde3f5;text-align:left}
+.import-map-table td{padding:8px 12px;border:1px solid #eee;vertical-align:middle}
+.import-map-table tr:hover td{background:#fafbff}
+.import-map-sel{width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:#fff;cursor:pointer;outline:none}
+.import-map-sel:focus{border-color:#3949AB}
+.import-sample{font-size:11px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.import-preview-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin-top:4px}
+.import-preview-table{width:100%;border-collapse:collapse;font-size:12px}
+.import-preview-table th{background:#1a237e;color:#fff;padding:8px 10px;white-space:nowrap}
+.import-preview-table td{padding:7px 10px;border-bottom:1px solid #eee;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.import-preview-table tr:nth-child(even) td{background:#f8f9ff}
+.import-progress{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin:12px 0}
+.import-progress-bar{height:100%;background:linear-gradient(90deg,#3949AB,#2196F3);border-radius:3px;transition:width .3s}
+.import-result{text-align:center;padding:20px}
+.import-result-icon{font-size:52px;margin-bottom:12px}
+.import-result-text{font-size:18px;font-weight:800;color:#1a237e;margin-bottom:6px}
+.import-result-sub{font-size:14px;color:#666}
+.import-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:#fff;border-radius:0 0 20px 20px;position:sticky;bottom:0}
 </style>
 </head>
 <body>
@@ -336,6 +394,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <div class="header-badge" id="today-count">오늘 0건</div>
     <button class="header-pc-btn" onclick="showStatsModal()">📊 통계</button>
     <button class="header-pc-btn" onclick="showCustDBModal()">👥 고객DB</button>
+    <button class="header-pc-btn" onclick="showImportModal()">📥 가져오기</button>
   </div>
 </div>
 
@@ -392,7 +451,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <div class="screen" id="new">
   <!-- PC 패널 헤더 -->
   <div class="pc-panel-hdr">
-    ➕ 새 주문 입�%
+    ➕ 새 주문 입력
   </div>
   <div class="screen-inner">
   <!-- 채널 선택 -->
@@ -600,6 +659,94 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <div class="cdb-detail-content" id="cdb-detail-content"></div>
   </div>
 </div>
+
+<!-- 가져오기 모달 -->
+<div class="import-modal" id="import-modal" onclick="hideImportModal(event)">
+  <div class="import-box" onclick="event.stopPropagation()">
+    <div class="import-hdr">
+      <div class="import-title">📥 데이터 가져오기</div>
+      <button class="import-close" onclick="hideImportModal()">✕</button>
+    </div>
+    <div class="import-body">
+
+      <!-- Step 0: 파일 선택 -->
+      <div class="import-step active" id="imp-step-0">
+        <div class="import-dropzone" id="imp-dropzone"
+          onclick="document.getElementById('imp-file-input').click()"
+          ondragover="impDragOver(event)" ondragleave="impDragLeave(event)" ondrop="impDrop(event)">
+          <div class="import-dropzone-icon">📂</div>
+          <div class="import-dropzone-text">파일을 끌어다 놓거나 클릭해서 선택</div>
+          <div class="import-dropzone-sub">Excel (.xlsx, .xls) 또는 CSV (.csv) 파일 지원</div>
+        </div>
+        <input type="file" id="imp-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="impFileSelected(this)">
+        <div style="margin-top:16px;padding:14px;background:#fffde7;border-radius:10px;border-left:4px solid #FFC107;font-size:13px;color:#7a5800;line-height:1.6">
+          <strong>💡 사용 방법</strong><br>
+          파일을 불러오면 컬럼을 자동으로 인식합니다. 각 컬럼을 OMS 항목에 매핑한 뒤 가져오기를 누르세요.<br>
+          가져온 데이터는 <strong>완료</strong> 상태로 저장됩니다.
+        </div>
+      </div>
+
+      <!-- Step 1: 컬럼 매핑 -->
+      <div class="import-step" id="imp-step-1">
+        <div class="import-file-info">
+          <div class="import-file-icon">📄</div>
+          <div>
+            <div class="import-file-name" id="imp-fname"></div>
+            <div class="import-file-meta" id="imp-fmeta"></div>
+          </div>
+          <button class="btn" style="margin-left:auto;background:#f5f5f5;color:#555;padding:7px 14px;font-size:12px" onclick="impReset()">다시 선택</button>
+        </div>
+
+        <div class="import-section-title">컬럼 매핑</div>
+        <p style="font-size:12px;color:#888;margin-bottom:10px">각 컬럼을 OMS 항목에 매핑하세요. 자동 감지된 항목은 이미 선택되어 있습니다.</p>
+        <div style="overflow-x:auto">
+          <table class="import-map-table">
+            <thead>
+              <tr>
+                <th>파일 컬럼명</th>
+                <th>OMS 항목</th>
+                <th>샘플 데이터</th>
+              </tr>
+            </thead>
+            <tbody id="imp-map-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="import-section-title" style="margin-top:20px">미리보기 (최대 5행)</div>
+        <div class="import-preview-wrap">
+          <table class="import-preview-table" id="imp-preview-table"></table>
+        </div>
+      </div>
+
+      <!-- Step 2: 가져오는 중 -->
+      <div class="import-step" id="imp-step-2">
+        <div class="import-result">
+          <div class="import-result-icon">⏳</div>
+          <div class="import-result-text">가져오는 중...</div>
+          <div class="import-result-sub" id="imp-progress-text">0 / 0 건</div>
+          <div class="import-progress"><div class="import-progress-bar" id="imp-prog-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Step 3: 완료 -->
+      <div class="import-step" id="imp-step-3">
+        <div class="import-result">
+          <div class="import-result-icon" id="imp-done-icon">✅</div>
+          <div class="import-result-text" id="imp-done-title">가져오기 완료!</div>
+          <div class="import-result-sub" id="imp-done-sub"></div>
+        </div>
+      </div>
+
+    </div><!-- /import-body -->
+    <div class="import-footer" id="imp-footer">
+      <button class="btn" style="background:#f5f5f5;color:#555" onclick="hideImportModal()">닫기</button>
+      <button class="btn" style="background:#3949AB;color:#fff" id="imp-next-btn" onclick="impNextStep()" disabled>다음</button>
+    </div>
+  </div>
+</div>
+
+<!-- SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -948,7 +1095,7 @@ function showBatchResult(parts) {
         <div class="batch-card-num">${i+1}</div>
         <div class="batch-card-name">${r.name||'(이름 미인식)'}</div>
       </div>
-      <div class="batch-card-info">${info.join(' &nbsp;·&nbsp; ')}|'*�) 정보 없음'}</div>
+      <div class="batch-card-info">${info.join(' &nbsp;·&nbsp; ')||'⚠️ 인식 정보 없음'}</div>
       <button class="batch-skip-btn" onclick="toggleBatchSkip(${i})">제외</button>
     </div>`;
   }).join('');
@@ -1036,7 +1183,7 @@ function clearPaste() {
 function parseOrderText(text) {
   const result = { name: '', phone: '', address: '', items: [], pay: '' };
 
-  // 전화번호 (점·괄호·공백 구분자 허용, 010.1234.5678 / 010)12345678)
+  // 전화번호 (점·괄호·공백 구분자 허용, 010.1234.5678 / 010)1234-5678 / 01012345678)
   const phoneMatch = text.match(/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/);
   if (phoneMatch) {
     const digits = phoneMatch[0].replace(/[^\d]/g, '');
@@ -1070,8 +1217,8 @@ function parseOrderText(text) {
   for (const pat of itemPatterns) {
     let m; pat.lastIndex = 0;
     while ((m = pat.exec(text)) !== null) {
-      const nm = m[1].trim().replace(/^[-•·*\s]+/, '').trim();
-      if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nm) && !seen.has(nm)) {
+      const nh = m[1].trim().replace(/^[-•·*\s*]+/, '').trim();
+      if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nh) && !seen.has(nm)) {
         seen.add(nm);
         result.items.push({ name: nm, qty: parseInt(m[2])||1, price: 0 });
       }
@@ -1079,7 +1226,8 @@ function parseOrderText(text) {
     if (result.items.length) break;
   }
 
-  // 이름: 라벨형 → 독립줄 → 한줄 간략입력 맨앞 순
+  // 也不：:管理个台はでかたはさィイエ
+警先：机模開化差标言先了
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   for (const line of lines) {
     const labelM = line.match(/(?:이름|성함|받는\s*분|주문자)[:\s]*([가-힣]{2,5})/);
@@ -1097,7 +1245,7 @@ function parseOrderText(text) {
 // 여러 메시지 자동 분리
 function splitMessages(text) {
   // 1) 카카오톡: [이름] [오전/오후 H:MM] 패턴
-  const kakaoRe = /(==\[[^\]]+\]\s*\[(?:오전|오후)\s*\d+:\d+\])/;
+  const kakaoRe = /(?=\[[^\]]+\]\s*\[(?:오전|오후)\s*\d+:\d+\])/;
   let parts = text.split(kakaoRe).map(s=>s.trim()).filter(Boolean);
   if (parts.length > 1) return parts;
 
@@ -1172,7 +1320,7 @@ function submitOrder() {
   saveOrders();
   if (firebaseActive) db.ref('orders/' + order.id).set(order);
 
-  // 옄인 접수
+  // 폼 초기화
   resetForm();
   renderOrderList();
   updateHeader();
@@ -1608,6 +1756,262 @@ function showCustDBModal() {
 function hideCustDBModal(e) {
   if (e && e.target !== document.getElementById('custdb-modal')) return;
   document.getElementById('custdb-modal').classList.remove('show');
+}
+
+// ══════════════════════════════════════════
+// 📥 가져오기 (Import) — Excel / CSV
+// ══════════════════════════════════════════
+let impRawData = [];    // [{colName: value, ...}, ...]
+let impHeaders = [];    // 컬럼명 배열
+let impStep = 0;
+
+// OMS 필드 정의
+const IMP_FIELDS = [
+  { key: 'ignore',        label: '— 무시 —' },
+  { key: 'customerName',  label: '고객명' },
+  { key: 'phone',         label: '전화번호' },
+  { key: 'address',       label: '주소' },
+  { key: 'itemName',      label: '품목명' },
+  { key: 'qty',           label: '수량' },
+  { key: 'price',         label: '단가' },
+  { key: 'totalAmount',   label: '총금액' },
+  { key: 'date',          label: '날짜' },
+  { key: 'paymentMethod', label: '결제방법' },
+  { key: 'channel',       label: '채널' },
+  { key: 'note',          label: '메모' },
+];
+
+// 자동 감지 키워드 맵
+const IMP_AUTO_MAP = {
+  '고객명':'customerName','이름':'customerName','성명':'customerName','주문자':'customerName',
+  '전화번호':'phone','연락처':'phone','전화':'phone','핸드폰':'phone','휴대폰':'phone','폰':'phone','tel':'phone','phone':'phone','mobile':'phone',
+  '주소':'address','배송지':'address','배송주소':'address','수령지':'address','address':'address',
+  '품목':'itemName','품목명':'itemName','상품명':'itemName','상품':'itemName','제품':'itemName','아이템':'itemName','item':'itemName',
+  '수량':'qty','qty':'qty','quantity':'qty','개수':'qty',
+  '단가':'price','가격':'price','price':'price','unit price':'price',
+  '금액':'totalAmount','합계':'totalAmount','총금액':'totalAmount','결제금액':'totalAmount','amount':'totalAmount','total':'totalAmount',
+  '날짜':'date','주문일':'date','주문날짜':'date','일자':'date','date':'date','order date':'date',
+  '결제':'paymentMethod','결제방법':'paymentMethod','결제수단':'paymentMethod','payment':'paymentMethod',
+  '채널':'channel','주문경로':'channel','경로':'channel','channel':'channel',
+  '메모':'note','비고':'note','참고':'note','특이사항':'note','note':'note','memo':'note','remark':'note',
+};
+
+function impAutoDetect(header) {
+  const k = header.trim().toLowerCase();
+  return IMP_AUTO_MAP[k] || IMP_AUTO_MAP[k.replace(/\s+/g,'')] || 'ignore';
+}
+
+function showImportModal() {
+  impReset(true);
+  document.getElementById('import-modal').classList.add('show');
+}
+
+function hideImportModal(e) {
+  if (e && e.target !== document.getElementById('import-modal')) return;
+  document.getElementById('import-modal').classList.remove('show');
+}
+
+function impReset(full) {
+  impRawData = [];
+  impHeaders = [];
+  impStep = 0;
+  ['imp-step-0','imp-step-1','imp-step-2','imp-step-3'].forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('active', i===0);
+  });
+  document.getElementById('imp-next-btn').disabled = true;
+  document.getElementById('imp-next-btn').textContent = '다음';
+  document.getElementById('imp-footer').style.display = 'flex';
+  const fi = document.getElementById('imp-file-input');
+  if (fi) fi.value = '';
+}
+
+function impDragOver(e) { e.preventDefault(); document.getElementById('imp-dropzone').classList.add('dragover'); }
+function impDragLeave(e) { document.getElementById('imp-dropzone').classList.remove('dragover'); }
+function impDrop(e) {
+  e.preventDefault();
+  document.getElementById('imp-dropzone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) impLoadFile(file);
+}
+function impFileSelected(inp) {
+  if (inp.files[0]) impLoadFile(inp.files[0]);
+}
+
+function impLoadFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let data;
+      if (file.name.match(/\.csv$/i)) {
+        const wb = XLSX.read(e.target.result, {type:'binary', raw:false});
+        data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      } else {
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      }
+      if (!data || data.length === 0) { alert('데이터가 없거나 읽을 수 없는 파일입니다.'); return; }
+      impRawData = data;
+      impHeaders = Object.keys(data[0]);
+
+      // 파일 정보
+      document.getElementById('imp-fname').textContent = file.name;
+      document.getElementById('imp-fmeta').textContent = data.length + '행 · ' + impHeaders.length + '컬럼';
+
+      // 컬럼 매핑 테이블
+      const tbody = document.getElementById('imp-map-tbody');
+      tbody.innerHTML = '';
+      impHeaders.forEach(h => {
+        const detected = impAutoDetect(h);
+        const sampleVals = data.slice(0,3).map(r=>String(r[h]||'')).filter(Boolean).join(' / ');
+        const tr = document.createElement('tr');
+
+        const selOpts = IMP_FIELDS.map(f=>
+          `<option value="${f.key}"${f.key===detected?' selected':''}>${f.label}</option>`
+        ).join('');
+
+        tr.innerHTML = `
+          <td><strong>${h}</strong></td>
+          <td>
+            <select class="import-map-sel" data-col="${h}">
+              ${selOpts}
+            </select>
+          </td>
+          <td>
+            <div class="import-sample">${sampleVals || '—'}</div>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      // 미리보기 테이블
+      impBuildPreview();
+
+      // Step 전환
+      document.getElementById('imp-step-0').classList.remove('active');
+      document.getElementById('imp-step-1').classList.add('active');
+      document.getElementById('imp-next-btn').disabled = false;
+      document.getElementById('imp-next-btn').textContent = '가져오기';
+
+    } catch(err) {
+      alert('파일 읽기 실패: ' + err.message);
+    }
+  };
+  if (file.name.match(/\.csv$/i)) {
+    reader.readAsBinaryString(file);
+  } else {
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function impBuildPreview() {
+  const table = document.getElementById('imp-preview-table');
+  const preview = impRawData.slice(0,5);
+  let html = '<thead><tr>' + impHeaders.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+  preview.forEach(row => {
+    html += '<tr>' + impHeaders.map(h=>`<td>${row[h]??''}</td>`).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function impNextStep() {
+  if (impStep === 1) {
+    impStartImport();
+  }
+}
+
+async function impStartImport() {
+  // 매핑 읽기
+  const mapping = {};
+  document.querySelectorAll('.import-map-sel').forEach(sel => {
+    mapping[sel.dataset.col] = sel.value;
+  });
+
+  // Step 2로 전환
+  document.getElementById('imp-step-1').classList.remove('active');
+  document.getElementById('imp-step-2').classList.add('active');
+  document.getElementById('imp-footer').style.display = 'none';
+  impStep = 2;
+
+  const total = impRawData.length;
+  let done = 0, skipped = 0, added = 0;
+
+  for (let i = 0; i < total; i++) {
+    const row = impRawData[i];
+    // 빌드 주문 객체
+    const mapped = {};
+    Object.keys(mapping).forEach(col => {
+      const field = mapping[col];
+      if (field !== 'ignore') mapped[field] = row[col] ?? '';
+    });
+
+    // 필수 값 없으면 스킵
+    if (!mapped.customerName && !mapped.phone) { skipped++; done++; continue; }
+
+    // 날짜 처리
+    let dateStr = mapped.date ? String(mapped.date) : '';
+    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
+    else {
+      // 숫자형 Excel 날짜 처리
+      const num = parseFloat(dateStr);
+      if (!isNaN(num) && num > 1000 && num < 99999) {
+        const d = XLSX.SSF.parse_date_code(num);
+        if (d) dateStr = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      }
+    }
+
+    // 품목 파싱
+    const itemName = mapped.itemName ? String(mapped.itemName) : '가져온 품목';
+    const qty = parseInt(mapped.qty) || 1;
+    const price = parseFloat(String(mapped.price||'').replace(/[^0-9.]/g,'')) || 0;
+    const totalAmount = parseFloat(String(mapped.totalAmount||'').replace(/[^0-9.]/g,'')) || price * qty;
+    const phone = normalizePhone(String(mapped.phone||''));
+
+    const order = {
+      id: 'imp_' + Date.now() + '_' + i,
+      customerName: String(mapped.customerName||'').trim() || '이름없음',
+      phone: phone,
+      address: String(mapped.address||'').trim(),
+      items: [{ name: itemName, qty: qty, price: price }],
+      totalAmount: totalAmount || 0,
+      paymentMethod: String(mapped.paymentMethod||'').trim() || '',
+      channel: String(mapped.channel||'').trim() || '',
+      note: String(mapped.note||'').trim(),
+      date: dateStr,
+      status: 'done',
+      createdAt: Date.now() + i,
+    };
+
+    try {
+      await db.ref('orders/' + order.id).set(order);
+      orders.unshift(order);
+      added++;
+    } catch(e) {
+      skipped++;
+    }
+
+    done++;
+    const pct = Math.round(done / total * 100);
+    document.getElementById('imp-prog-bar').style.width = pct + '%';
+    document.getElementById('imp-progress-text').textContent = done + ' / ' + total + ' 건';
+
+    // UI 블로킹 방지
+    if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  // 완료
+  renderOrders();
+  buildCustomerDB();
+  updateHeader();
+
+  document.getElementById('imp-step-2').classList.remove('active');
+  document.getElementById('imp-step-3').classList.add('active');
+  document.getElementById('imp-done-icon').textContent = added > 0 ? '✅' : '⚠️';
+  document.getElementById('imp-done-title').textContent = added > 0 ? '가져오기 완료!' : '가져온 데이터 없음';
+  document.getElementById('imp-done-sub').textContent =
+    added + '건 추가됨' + (skipped > 0 ? ' · ' + skipped + '건 건너뜀' : '');
+  document.getElementById('imp-footer').style.display = 'flex';
+  document.getElementById('imp-next-btn').style.display = 'none';
+  impStep = 3;
 }
 
 // ══════════════════════════════════════════
