@@ -10,7 +10,7 @@
   <title>햇배달</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- Google Vision API (Tesseract 대체) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <style>
@@ -407,16 +407,35 @@
     </div>
   </div>
 
-  <!-- ══════════════ 스캔: 영수증 OCR ═════════════ -->
+  <!-- ══════════════ 스캔: 영수증 OCR ══════════════ -->
   <div id="scan" class="screen">
-    <div style="font-size:18px;font-weight:800;margin-bottom:16px">📷 영수증 추가</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:18px;font-weight:800">📷 영수증 추가</div>
+      <button onclick="showVisionKeyModal()" style="background:#fff3e0;border:1.5px solid #FF9800;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#E65100;cursor:pointer">🔑 Vision API 설정</button>
+    </div>
+    <div id="scan-api-warning" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#856404">
+      ⚠️ Google Vision API 키가 설정되지 않았습니다. 위 버튼을 눌러 API 키를 설정하세요.
+    </div>
 
     <div id="scan-btn" onclick="document.getElementById('file-input').click()">
       <div class="scan-icon">📷</div>
       <div class="scan-title">탭하여 카메라로 영수증 찍기</div>
-      <div class="scan-sub">영수증 촬영</div>
+      <div class="scan-sub">Google Vision AI로 자동 인식</div>
     </div>
     <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(event)">
+
+  <!-- Vision API 키 모달 -->
+  <div id="vision-key-modal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:16px;padding:24px;width:min(380px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:17px;font-weight:800;margin-bottom:6px">🔑 Google Vision API 키</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px">Google Cloud Console에서 Vision API 키를 발급받아 입력하세요</div>
+      <input id="vision-key-input" type="text" placeholder="AIzaSy..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:12px;outline:none">
+      <div style="display:flex;gap:8px">
+        <button onclick="hideVisionKeyModal()" style="flex:1;padding:10px;border:1.5px solid #ddd;border-radius:8px;background:#fff;font-size:14px;font-weight:600;cursor:pointer">취소</button>
+        <button onclick="saveVisionKey()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#FF6B00;color:#fff;font-size:14px;font-weight:700;cursor:pointer">저장</button>
+      </div>
+    </div>
+  </div>
 
     <hr class="divider">
 
@@ -545,7 +564,7 @@
       <div class="modal-addr" id="modal-addr"></div>
       <button class="nav-btn nav-kakao" onclick="launchNav('kakao')">🚕 카카오내비</button>
       <button class="nav-btn nav-naver" onclick="launchNav('naver')">🧭 네이버 내비</button>
-      <button class="nav-btn nav-cancel" onclick="closeNavModal()">취셬</button>
+      <button class="nav-btn nav-cancel" onclick="closeNavModal()">취소</button>
     </div>
   </div>
 
@@ -811,6 +830,7 @@ function goTab(tab) {
 
   if (tab === 'home') renderHome();
   if (tab === 'mapzone') setTimeout(() => mapZone.init(), 80);
+  if (tab === 'scan') checkVisionKey();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1089,8 +1109,30 @@ function resetAll() {
 }
 
 // ══════════════════════════════════════════════════════
-// OCR (Tesseract.js)
+// OCR (Google Cloud Vision API)
 // ══════════════════════════════════════════════════════
+const VISION_KEY_STORAGE = 'hatdelivery_vision_key';
+
+function showVisionKeyModal() {
+  const saved = localStorage.getItem(VISION_KEY_STORAGE) || '';
+  document.getElementById('vision-key-input').value = saved;
+  document.getElementById('vision-key-modal').style.display = 'flex';
+}
+function hideVisionKeyModal() {
+  document.getElementById('vision-key-modal').style.display = 'none';
+}
+function saveVisionKey() {
+  const key = document.getElementById('vision-key-input').value.trim();
+  if (key) localStorage.setItem(VISION_KEY_STORAGE, key);
+  hideVisionKeyModal();
+  checkVisionKey();
+}
+function checkVisionKey() {
+  const key = localStorage.getItem(VISION_KEY_STORAGE);
+  const warn = document.getElementById('scan-api-warning');
+  if (warn) warn.style.display = key ? 'none' : 'block';
+}
+
 let ocrImageFile = null;
 
 function handleFile(event) {
@@ -1118,16 +1160,28 @@ function setStep(id, state) {
 }
 
 async function startOCR(file) {
+  const apiKey = localStorage.getItem(VISION_KEY_STORAGE);
+  if (!apiKey) { showVisionKeyModal(); return; }
   setStep('step-load', 'active');
-  await sleep(300);
+  // Convert image to base64
+  const b64 = await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result.split(',')[1]);
+    reader.readAsDataURL(file);
+  });
   setStep('step-load', 'done');
   setStep('step-init', 'active');
+  await sleep(200);
+  setStep('step-init', 'done');
+  setStep('step-ocr', 'active');
   try {
-    const worker = await Tesseract.createWorker('kor+eng');
-    setStep('step-init', 'done');
-    setStep('step-ocr', 'active');
-    const { data: { text } } = await worker.recognize(file);
-    await worker.terminate();
+    const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({requests:[{image:{content:b64},features:[{type:'DOCUMENT_TEXT_DETECTION'}]}]})
+    });
+    const json = await res.json();
+    const text = json.responses?.[0]?.fullTextAnnotation?.text || '';
     setStep('step-ocr', 'done');
     setStep('step-parse', 'active');
     await sleep(200);
@@ -1635,7 +1689,7 @@ const mapZone = (() => {
       html += `<div class="zone-row"><span class="zbadge" style="background:${r.color};color:#fff">구역 ${r.id}</span>`;
       if (!r.items.length) html += `<span style="color:#bbb;font-size:11px">없음</span>`;
       else r.items.forEach(d => { html += `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`; });
-      html += `<span style="color:#aaa;font-size:11px;margin-left:4px">${r.items.length}건</span></div>`;
+      html += `<span style="color:#aaa;font-size:11px;margin-left:4px">${r.items.length} count</span></div>`;
     });
     if (unassigned.length) {
       html += `<div class="zone-row"><span class="zbadge" style="background:#9E9E9E;color:#fff">미배정</span>`;
@@ -1694,7 +1748,7 @@ function initApp() {
   const d = new Date();
   const days = ['일','월','화','수','목','금','토'];
   const dateEl = document.getElementById('today-date');
-  if (dateEl) dateEl.textContent = `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  if (dateEl) dateEl.textContent = `${d.getMonth()+1}월 ${d.getDate()}܅� (${days[d.getDay()]})`;
   loadDeliveries();
   renderHome();
 }
