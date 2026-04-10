@@ -8,13 +8,13 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-height:100vh}
 :root{
-  --blue:#2196F34--green:#4CAF50;--orange:#FF9800;--red:#F44336;
-  --purple:#9C27B0;--teal:#00BCD44--gray:#9E9E9E;
-  --card:#fff4--border:#e8eaed;--text2:#666;
+  --blue:#2196F3;--green:#4CAF50;--orange:#FF9800;--red:#F44336;
+  --purple:#9C27B0;--teal:#00BCD4;--gray:#9E9E9E;
+  --card:#fff;--border:#e8eaed;--text2:#666;
 }
 
 /* ── 헤더 ── */
-.header{background:linear-gradient(135deg,#1a237e 0%,#283593 100%);color:#fff4padding:14px 16px 12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.header{background:linear-gradient(135deg,#1a237e 0%,#283593 100%);color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .header-top{display:flex;align-items:center;gap:10px}
 .header-logo{font-size:22px}
 .header-title{font-size:18px;font-weight:700;letter-spacing:-.3px}
@@ -22,13 +22,13 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .header-badge{margin-left:auto;background:rgba(255,255,255,.2);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600}
 
 /* ── 탭 ── */
-.tabs{display:flex;background:#fff4border-bottom:1px solid var(--border);position:sticky;top:72px;z-index:99}
-.tab{flex:14padding:13px 0;text-align:center;font-size:13px;font-weight:600;color:var(--gray)4border-bottom:3px solid transparent;cursor:pointer;transition:.2s}
-.tab.active{color:#1a237e4border-color:#1a237e}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:72px;z-index:99}
+.tab{flex:1;padding:13px 0;text-align:center;font-size:13px;font-weight:600;color:var(--gray);border-bottom:3px solid transparent;cursor:pointer;transition:.2s}
+.tab.active{color:#1a237e;border-color:#1a237e}
 .tab-icon{font-size:16px;display:block;margin-bottom:2px}
 
 /* ── 스크린 ── */
-.screen{display:none4padding:12px}
+.screen{display:none;padding:12px}
 .screen.active{display:block}
 
 /* ── 카드 ── */
@@ -46,14 +46,14 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .badge-cancelled{background:#FFEBEE;color:#C62828}
 
 /* ── 버튼 ── */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none4transition:.15s}
-.btn:active{opacity:.84transform:scale(.97)}
-.btn-primary{background:#1a237e4color:#fff}
-.btn-green{background:var(--green)4color:#fff}
-.btn-orange{background:var(--orange)4color:#fff}
-.btn-red{background:var(--red)4color:#fff}
-.btn-outline{background:#fff4color:#1a237e4border:1.5px solid #1a237e}
-.btn-gray{background:#f5f5f54color:#5554border:1px solid #ddd}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:.15s}
+.btn:active{opacity:.8;transform:scale(.97)}
+.btn-primary{background:#1a237e;color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-orange{background:var(--orange);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-outline{background:#fff;color:#1a237e;border:1.5px solid #1a237e}
+.btn-gray{background:#f5f5f5;color:#555;border:1px solid #ddd}
 .btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
 .btn-full{width:100%}
 
@@ -61,34 +61,34 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .form-group{margin-bottom:14px}
 .form-label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .form-input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fafafa;transition:.2s;outline:none}
-.form-input:focus{border-color:#1a237e;background:#fff4box-shadow:0 0 0 3px rgba(26,35,126,.08)}
+.form-input:focus{border-color:#1a237e;background:#fff;box-shadow:0 0 0 3px rgba(26,35,126,.08)}
 .form-textarea{min-height:100px;resize:vertical}
-.form-select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fafafa;appearance:none4outline:none}
+.form-select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fafafa;appearance:none;outline:none}
 .form-select:focus{border-color:#1a237e;background:#fff}
 
 /* ── 채널 선택 ── */
 .channel-btns{display:flex;gap:8px;flex-wrap:wrap}
-.channel-btn{flex:14min-width:80px;padding:10px;border-radius:10px;border:2px solid var(--border);background:#fafafa;text-align:center;cursor:pointer;transition:.2s;font-size:13px;font-weight:600}
+.channel-btn{flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid var(--border);background:#fafafa;text-align:center;cursor:pointer;transition:.2s;font-size:13px;font-weight:600}
 .channel-btn.sel-kakao{border-color:#FEE500;background:#FFFDE7;color:#3C1E1E}
-.channel-btn.sel-sms{border-color:var(--green)4background:#E8F5E9;color:#2E7D32}
-.channel-btn.sel-call{border-color:var(--blue)4background:#E3F2FD;color:#1565C0}
+.channel-btn.sel-sms{border-color:var(--green);background:#E8F5E9;color:#2E7D32}
+.channel-btn.sel-call{border-color:var(--blue);background:#E3F2FD;color:#1565C0}
 .channel-btn .ch-emoji{font-size:20px;display:block;margin-bottom:4px}
 
 /* ── 주문 카드 ── */
-.order-card{background:#fff4border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.09);border-left:4px solid transparent;cursor:pointer;transition:.15s}
+.order-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.09);border-left:4px solid transparent;cursor:pointer;transition:.15s}
 .order-card:active{transform:scale(.98)}
 .order-card.ch-kakao{border-color:#FEE500}
 .order-card.ch-sms{border-color:var(--green)}
 .order-card.ch-call{border-color:var(--blue)}
 .order-card.st-done{opacity:.65}
 .oc-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.oc-num{background:#1a237e4color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.oc-num{background:#1a237e;color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
 .oc-name{font-size:15px;font-weight:700;flex:1}
 .oc-time{font-size:11px;color:var(--text2)}
 .oc-addr{font-size:13px;color:var(--text2);margin-bottom:6px}
 .oc-items{font-size:13px;color:#333;margin-bottom:8px;line-height:1.5}
 .oc-bottom{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.oc-amount{font-size:14px;font-weight:700;color:#1a237e4margin-left:auto}
+.oc-amount{font-size:14px;font-weight:700;color:#1a237e;margin-left:auto}
 .oc-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
 
 /* ── 아이템 행 ── */
@@ -99,41 +99,41 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .item-qty:focus{border-color:#1a237e}
 .item-price{width:90px;padding:9px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;text-align:right;background:#fafafa;outline:none;font-family:inherit}
 .item-price:focus{border-color:#1a237e}
-.item-del{width:32px;height:32px;border-radius:8px;border:none4background:#ffebee;color:var(--red)4font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.item-del{width:32px;height:32px;border-radius:8px;border:none;background:#ffebee;color:var(--red);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 /* ── 파싱 박스 ── */
-.parse-box{background:#f8f9ff4border:2px dashed #c5cae9;border-radius:12px;padding:14px;margin-bottom:14px}
+.parse-box{background:#f8f9ff;border:2px dashed #c5cae9;border-radius:12px;padding:14px;margin-bottom:14px}
 .parse-hint{font-size:12px;color:#888;margin-bottom:8px}
-.parse-result{background:#E8F5E9;border-radius:8px;padding:10px 12px;font-size:13px;color:#2E7D32;margin-top:10px;display:none4line-height:1.6}
+.parse-result{background:#E8F5E9;border-radius:8px;padding:10px 12px;font-size:13px;color:#2E7D32;margin-top:10px;display:none;line-height:1.6}
 .parse-result.show{display:block}
 
 /* ── 필터 바 ── */
 .filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
 .filter-bar::-webkit-scrollbar{display:none}
-.filter-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff4color:var(--text2);cursor:pointer;transition:.15s}
-.filter-chip.active{background:#1a237e4color:#fff;border-color:#1a237e}
+.filter-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:.15s}
+.filter-chip.active{background:#1a237e;color:#fff;border-color:#1a237e}
 
 /* ── 통계 ── */
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.stat-card{background:#fff4border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.stat-card{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .stat-num{font-size:28px;font-weight:800;color:#1a237e}
 .stat-label{font-size:11px;color:var(--text2);margin-top:2px}
-.stat-sub{font-size:12px;font-weight:600;color:var(--green)4margin-top:2px}
-.ch-stat-row{display:flex;align-items:center;gap:10px;padding:10px 04border-bottom:1px solid var(--border)}
-.ch-stat-bar-wrap{flex:14height:8px;background:#f0f0f04border-radius:4px;overflow:hidden}
-.ch-stat-bar{height:100%4border-radius:4px;transition:.5s}
+.stat-sub{font-size:12px;font-weight:600;color:var(--green);margin-top:2px}
+.ch-stat-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ch-stat-bar-wrap{flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden}
+.ch-stat-bar{height:100%;border-radius:4px;transition:.5s}
 
 /* ── 일괄 파싱 ── */
 .batch-preview{background:#f4f6f9;border-radius:12px;padding:12px;margin-top:10px;display:none}
 .batch-preview.show{display:block}
-.batch-hdr{font-size:13px;font-weight:700;color:#1a237e4margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
-.batch-card{background:#fff4border-radius:10px;padding:12px;margin-bottom:8px;border-left:4px solid var(--blue)4position:relative}
+.batch-hdr{font-size:13px;font-weight:700;color:#1a237e;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.batch-card{background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;border-left:4px solid var(--blue);position:relative}
 .batch-card-skip{border-left-color:#ddd;opacity:.55}
 .batch-card-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.batch-card-num{background:#1a237e4color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.batch-card-num{background:#1a237e;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
 .batch-card-name{font-weight:700;font-size:14px;flex:1}
-.batch-card-info{font-size:12px;color:#5554line-height:1.8;margin-top:4px}
-.batch-skip-btn{position:absolute;top:8px;right:8px;background:#ffebee;color:#c62828;border:none4border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-weight:600}
+.batch-card-info{font-size:12px;color:#555;line-height:1.8;margin-top:4px}
+.batch-skip-btn{position:absolute;top:8px;right:8px;background:#ffebee;color:#c62828;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-weight:600}
 .batch-skip-btn.restore{background:#E8F5E9;color:#2e7d32}
 .batch-bar{display:flex;gap:8px;margin-top:10px}
 
@@ -144,11 +144,11 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .empty-sub{font-size:13px}
 
 /* ── 토스트 ── */
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a2e;color:#fff4padding:11px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:999;opacity:0;pointer-events:none4transition:.3s;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a2e;color:#fff;padding:11px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:999;opacity:0;pointer-events:none;transition:.3s;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ── 섹션 헤더 ── */
-.section-hdr{display:flex;align-items:center;justify-content:space-between4margin-bottom:10px}
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .section-title{font-size:14px;font-weight:700;color:#333}
 
 /* ── 날짜 표시 ── */
@@ -156,11 +156,11 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 
 /* ── 결제 선택 ── */
 .pay-btns{display:flex;gap:6px}
-.pay-btn{flex:14padding:9px 6px;border-radius:8px;border:2px solid var(--border);background:#fafafa;text-align:center;cursor:pointer;font-size:12px;font-weight:600;transition:.2s}
+.pay-btn{flex:1;padding:9px 6px;border-radius:8px;border:2px solid var(--border);background:#fafafa;text-align:center;cursor:pointer;font-size:12px;font-weight:600;transition:.2s}
 .pay-btn.active{border-color:#1a237e;background:#E8EAF6;color:#1a237e}
 
 /* ── 총액 표시 ── */
-.total-row{display:flex;justify-content:space-between4align-items:center;padding:12px 04border-top:2px solid #E8EAF6;margin-top:8px}
+.total-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:2px solid #E8EAF6;margin-top:8px}
 .total-label{font-size:14px;font-weight:600;color:var(--text2)}
 .total-amount{font-size:22px;font-weight:800;color:#1a237e}
 
@@ -170,16 +170,16 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .sf-arrow{color:#ccc;font-size:10px}
 
 /* ── 고객 조회 패널 ── */
-.cust-panel{background:#fff4border:2px solid #3949AB;border-radius:12px;margin-top:6px;overflow:hidden;display:none4box-shadow:0 4px 16px rgba(26,35,126,.15)}
+.cust-panel{background:#fff;border:2px solid #3949AB;border-radius:12px;margin-top:6px;overflow:hidden;display:none;box-shadow:0 4px 16px rgba(26,35,126,.15)}
 .cust-panel.show{display:block}
 .cust-panel-hdr{background:#E8EAF6;padding:8px 12px;font-size:11px;font-weight:700;color:#3949AB;display:flex;align-items:center;gap:6px}
-.cust-match{padding:10px 12px;border-bottom:1px solid #f0f0f04cursor:pointer;transition:.15s}
+.cust-match{padding:10px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:.15s}
 .cust-match:last-child{border-bottom:none}
 .cust-match:hover{background:#f5f7ff}
-.cust-match-name{font-size:14px;font-weight:700;color:#1a237e4margin-bottom:2px}
+.cust-match-name{font-size:14px;font-weight:700;color:#1a237e;margin-bottom:2px}
 .cust-match-info{font-size:12px;color:#666;margin-bottom:6px}
 .cust-hist-title{font-size:11px;font-weight:700;color:#888;margin-bottom:4px}
-.cust-hist-item{font-size:12px;color:#444;padding:3px 0;border-top:1px dashed #eee;display:flex;justify-content:space-between4align-items:center}
+.cust-hist-item{font-size:12px;color:#444;padding:3px 0;border-top:1px dashed #eee;display:flex;justify-content:space-between;align-items:center}
 .cust-hist-date{font-size:11px;color:#aaa;white-space:nowrap;margin-left:8px}
 .cust-no-result{padding:12px;text-align:center;color:#aaa;font-size:13px}
 
@@ -194,7 +194,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   /* 헤더 PC 스타일 */
   .header{padding:12px 24px}
   .header-title{font-size:20px}
-  .header-pc-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff4font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+  .header-pc-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
   .header-pc-btn:hover{background:rgba(255,255,255,.28)}
 
   /* 탭 바 숨김 */
@@ -217,7 +217,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   /* 오른쪽 패널 — 주문 목록 */
   #list{
     display:block!important;
-    flex:14overflow-y:auto;
+    flex:1;overflow-y:auto;
     background:#f4f6f9;
     padding-top:0
   }
@@ -231,10 +231,10 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   .pc-panel-hdr{
     display:flex;align-items:center;gap:8px;
     padding:11px 16px;
-    background:#fff4
+    background:#fff;
     border-bottom:2px solid var(--border);
-    font-size:14px;font-weight:700;color:#1a237e4
-    position:sticky;top:0;z-index:504
+    font-size:14px;font-weight:700;color:#1a237e;
+    position:sticky;top:0;z-index:50;
     box-shadow:0 1px 4px rgba(0,0,0,.06)
   }
   .pc-panel-hdr-cnt{
@@ -263,35 +263,35 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 }
 
 /* ── 고객 DB ── */
-.cdb-search-wrap{padding:12px;background:#fff4border-bottom:1px solid var(--border)}
+.cdb-search-wrap{padding:12px;background:#fff;border-bottom:1px solid var(--border)}
 .cdb-search{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fafafa;outline:none}
 .cdb-search:focus{border-color:#1a237e;background:#fff}
-.cdb-summary{padding:8px 14px;font-size:12px;color:var(--text2);background:#f8f9ff4border-bottom:1px solid var(--border)}
-.cdb-card{background:#fff4border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;transition:.15s;border-left:4px solid #3949AB}
+.cdb-summary{padding:8px 14px;font-size:12px;color:var(--text2);background:#f8f9ff;border-bottom:1px solid var(--border)}
+.cdb-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;transition:.15s;border-left:4px solid #3949AB}
 .cdb-card:active{transform:scale(.98)}
 .cdb-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.12);transform:translateY(-1px)}
 .cdb-card-top{display:flex;align-items:flex-start;gap:12px}
-.cdb-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1a237e,#3949AB);color:#fff4display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0}
-.cdb-info{flex:14min-width:0}
-.cdb-name{font-size:15px;font-weight:700;color:#1a237e4margin-bottom:2px}
+.cdb-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1a237e,#3949AB);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0}
+.cdb-info{flex:1;min-width:0}
+.cdb-name{font-size:15px;font-weight:700;color:#1a237e;margin-bottom:2px}
 .cdb-meta{font-size:12px;color:var(--text2);margin-bottom:2px}
 .cdb-addr{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cdb-stats{text-align:right;flex-shrink:0}
-.cdb-count{font-size:20px;font-weight:800;color:#1a237e4line-height:1.2}
-.cdb-spent{font-size:11px;color:var(--green)4font-weight:600;margin-top:2px}
+.cdb-count{font-size:20px;font-weight:800;color:#1a237e;line-height:1.2}
+.cdb-spent{font-size:11px;color:var(--green);font-weight:600;margin-top:2px}
 .cdb-top-items{font-size:12px;color:#666;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
 
 /* 고객 상세 시트 */
-.cdb-detail-modal{display:none4position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
+.cdb-detail-modal{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
 .cdb-detail-modal.show{display:flex}
 @media (min-width:768px){.cdb-detail-modal{align-items:center}}
-.cdb-detail-box{background:#fff4border-radius:20px 20px 0 0;width:100%;max-height:88vh4overflow-y:auto}
+.cdb-detail-box{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:88vh;overflow-y:auto}
 @media (min-width:768px){.cdb-detail-box{border-radius:20px;width:min(560px,90vw);max-height:82vh}}
-.cdb-detail-hdr{position:sticky;top:0;background:#fff4border-radius:20px 20px 0 0;padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;z-index:1}
-.cdb-detail-back{background:#f5f5f54border:none4border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;color:#555}
-.cdb-detail-title{font-size:16px;font-weight:800;color:#1a237e4flex:1}
+.cdb-detail-hdr{position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;z-index:1}
+.cdb-detail-back{background:#f5f5f5;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;color:#555}
+.cdb-detail-title{font-size:16px;font-weight:800;color:#1a237e;flex:1}
 .cdb-detail-content{padding:16px 16px 20px}
-.cdb-hist-item{background:#f8f9ff4border-radius:10px;padding:12px;margin-bottom:8px}
+.cdb-hist-item{background:#f8f9ff;border-radius:10px;padding:12px;margin-bottom:8px}
 .cdb-hist-top{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
 .cdb-hist-date{font-size:11px;color:#aaa;margin-left:auto}
 .cdb-hist-items{font-size:13px;color:#444;line-height:1.6}
@@ -299,51 +299,51 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 
 /* 통계 모달 (PC 전용) */
 .stats-modal{
-  display:none4position:fixed;inset:0;z-index:3004
+  display:none;position:fixed;inset:0;z-index:300;
   background:rgba(0,0,0,.45);
   align-items:center;justify-content:center
 }
 .stats-modal.show{display:flex}
 .stats-modal-box{
-  background:#fff4border-radius:20px;
-  width:min(700px,92vw);max-height:88vh4
+  background:#fff;border-radius:20px;
+  width:min(700px,92vw);max-height:88vh;
   overflow-y:auto;padding:24px;
   box-shadow:0 20px 60px rgba(0,0,0,.3)
 }
 .stats-modal-hdr{
   display:flex;align-items:center;
-  justify-content:space-between4
+  justify-content:space-between;
   margin-bottom:20px
 }
 .stats-modal-title{font-size:18px;font-weight:800;color:#1a237e}
 .stats-modal-close{
-  background:#f5f5f54border:none4border-radius:8px;
+  background:#f5f5f5;border:none;border-radius:8px;
   width:32px;height:32px;font-size:18px;cursor:pointer;
   display:flex;align-items:center;justify-content:center
 }
 
 /* ── 가져오기 모달 ── */
 .import-modal{
-  display:none4position:fixed;inset:0;z-index:3504
+  display:none;position:fixed;inset:0;z-index:350;
   background:rgba(0,0,0,.5);
   align-items:center;justify-content:center
 }
 .import-modal.show{display:flex}
 .import-box{
-  background:#fff4border-radius:20px;
-  width:min(720px,96vw);max-height:90vh4
+  background:#fff;border-radius:20px;
+  width:min(720px,96vw);max-height:90vh;
   overflow-y:auto;
   box-shadow:0 20px 60px rgba(0,0,0,.3);
   display:flex;flex-direction:column
 }
 .import-hdr{
-  display:flex;align-items:center;justify-content:space-between4
+  display:flex;align-items:center;justify-content:space-between;
   padding:20px 24px 16px;border-bottom:1px solid var(--border);
-  position:sticky;top:0;background:#fff4z-index:14border-radius:20px 20px 0 0
+  position:sticky;top:0;background:#fff;z-index:1;border-radius:20px 20px 0 0
 }
 .import-title{font-size:17px;font-weight:800;color:#1a237e}
-.import-close{background:#f5f5f54border:none4border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.import-body{padding:20px 24px4flex:1}
+.import-close{background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.import-body{padding:20px 24px;flex:1}
 .import-dropzone{
   border:2.5px dashed #c5cae9;border-radius:14px;
   padding:36px 20px;text-align:center;cursor:pointer;transition:.2s;
@@ -356,54 +356,54 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .import-step{display:none}
 .import-step.active{display:block}
 .import-section-title{font-size:13px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
-.import-file-info{background:#f0f4ff4border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.import-file-info{background:#f0f4ff;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:16px}
 .import-file-icon{font-size:28px}
 .import-file-name{font-size:14px;font-weight:700;color:#1a237e}
 .import-file-meta{font-size:12px;color:#888;margin-top:2px}
 .import-map-table{width:100%;border-collapse:collapse;font-size:13px}
-.import-map-table th{background:#f0f4ff4color:#1a237e4font-weight:700;padding:9px 12px;border:1px solid #dde3f54text-align:left}
+.import-map-table th{background:#f0f4ff;color:#1a237e;font-weight:700;padding:9px 12px;border:1px solid #dde3f5;text-align:left}
 .import-map-table td{padding:8px 12px;border:1px solid #eee;vertical-align:middle}
 .import-map-table tr:hover td{background:#fafbff}
-.import-map-sel{width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:#fff4cursor:pointer;outline:none}
+.import-map-sel{width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:#fff;cursor:pointer;outline:none}
 .import-map-sel:focus{border-color:#3949AB}
 .import-sample{font-size:11px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .import-preview-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin-top:4px}
 .import-preview-table{width:100%;border-collapse:collapse;font-size:12px}
-.import-preview-table th{background:#1a237e4color:#fff;padding:8px 10px;white-space:nowrap}
+.import-preview-table th{background:#1a237e;color:#fff;padding:8px 10px;white-space:nowrap}
 .import-preview-table td{padding:7px 10px;border-bottom:1px solid #eee;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
 .import-preview-table tr:nth-child(even) td{background:#f8f9ff}
 .import-progress{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin:12px 0}
-.import-progress-bar{height:100%4background:linear-gradient(90deg,#3949AB,#2196F3);border-radius:3px;transition:width .3s}
+.import-progress-bar{height:100%;background:linear-gradient(90deg,#3949AB,#2196F3);border-radius:3px;transition:width .3s}
 .import-result{text-align:center;padding:20px}
 .import-result-icon{font-size:52px;margin-bottom:12px}
 .import-result-text{font-size:18px;font-weight:800;color:#1a237e;margin-bottom:6px}
 .import-result-sub{font-size:14px;color:#666}
-.import-footer{padding:16px 24px4border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:#fff4border-radius:0 0 20px 20px;position:sticky;bottom:0}
+.import-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:#fff;border-radius:0 0 20px 20px;position:sticky;bottom:0}
 /* ══════════════════════════════════════
    OCR 시스템
 ══════════════════════════════════════ */
-.ocr-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;background:linear-gradient(135deg,#1565C0,#1a237e)4color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
-.ocr-btn:active{opacity:.84transform:scale(.97)}
+.ocr-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;background:linear-gradient(135deg,#1565C0,#1a237e);color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
+.ocr-btn:active{opacity:.8;transform:scale(.97)}
 .ocr-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
 .ocr-modal.hide{display:none}
-.ocr-box{background:#fff4border-radius:20px;width:100%;max-width:420px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
-.ocr-header{background:linear-gradient(135deg,#1a237e,#3949AB);color:#fff4padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+.ocr-box{background:#fff;border-radius:20px;width:100%;max-width:420px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.ocr-header{background:linear-gradient(135deg,#1a237e,#3949AB);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
 .ocr-preview{width:100%;max-height:220px;object-fit:contain;background:#111;display:block}
 .ocr-progress{padding:28px 20px;text-align:center}
-.ocr-spinner{width:48px;height:48px;border:5px solid #E8EAF6;border-top-color:#1a237e4border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+.ocr-spinner{width:48px;height:48px;border:5px solid #E8EAF6;border-top-color:#1a237e;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .ocr-result-table{padding:14px 18px}
-.ocr-field{display:flex;padding:9px 0;border-bottom:1px solid #f0f0f04gap:10px;align-items:flex-start}
+.ocr-field{display:flex;padding:9px 0;border-bottom:1px solid #f0f0f0;gap:10px;align-items:flex-start}
 .ocr-field:last-child{border-bottom:none}
 .ocr-field-lbl{font-size:11px;font-weight:700;color:#999;width:52px;flex-shrink:0;padding-top:8px;text-transform:uppercase;letter-spacing:.3px}
 .ocr-field-val{flex:1}
 .ocr-field-val input{width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:7px 10px;font-size:14px;font-family:inherit;outline:none;background:#fafafa}
 .ocr-field-val input:focus{border-color:#1a237e;background:#fff}
-.ocr-gps-badge{display:inline-flex;align-items:center;gap:4px;background:#E8F5E9;color:#2E7D324border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;margin-top:5px}
+.ocr-gps-badge{display:inline-flex;align-items:center;gap:4px;background:#E8F5E9;color:#2E7D32;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;margin-top:5px}
 .ocr-footer{padding:12px 18px;display:flex;gap:8px;border-top:1px solid #eee}
-.apikey-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:30004display:flex;align-items:center;justify-content:center;padding:20px}
+.apikey-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px}
 .apikey-modal.hide{display:none}
-.apikey-box{background:#fff4border-radius:18px;width:100%;max-width:380px;padding:24px4box-shadow:0 16px 50px rgba(0,0,0,.35)}
+.apikey-box{background:#fff;border-radius:18px;width:100%;max-width:380px;padding:24px;box-shadow:0 16px 50px rgba(0,0,0,.35)}
 </style>
 </head>
 <body>
@@ -416,11 +416,13 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="header-title">웰빙마트 주문관리</div>
       <div class="header-sub" id="today-date"></div>
     </div>
-    <div class="header-badge" id="today-count">오늘 0건</div>
-    <button class="header-pc-btn" onclick="showStatsModal()">📊 통계</button>
-    <button class="header-pc-btn" onclick="showCustDBModal()">👥 고객DB</button>
-    <button class="header-pc-btn" onclick="showImportModal()">📥 가져오기</button>
-  <button class="header-pc-btn" onclick="showApiKeyModal()" title="Vision API 키 설정">🔑 OCR 설정</button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <div class="header-badge" id="today-count">오늘 0건</div>
+      <button class="header-pc-btn" onclick="showStatsModal()">📊 통계</button>
+      <button class="header-pc-btn" onclick="showCustDBModal()">👥 고객DB</button>
+      <button class="header-pc-btn" onclick="showImportModal()">📥 가져오기</button>
+      <button class="header-pc-btn" onclick="showApiKeyModal()" title="Vision API 키 설정">🔑 OCR 설정</button>
+    </div>
   </div>
 </div>
 
@@ -526,7 +528,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="cust-panel" id="cust-panel"></div>
     </div>
     <div class="form-group" style="margin-bottom:0">
-      <div style="display:flex;align-items:center;justify-content:space-between4margin-bottom:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <label class="form-label" style="margin-bottom:0">배달 주소 *</label>
         <button class="ocr-btn" onclick="openOcrCamera()">📷 영수증 스캔</button>
         <input type="file" id="ocr-file-input" accept="image/*" capture="environment" style="display:none" onchange="handleOcrImage(this)">
@@ -574,7 +576,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 
   <!-- 제출 -->
-  <button class="btn btn-green btn-full" onclick="submitOrder()" style="margin-bottom:20px4padding:15px;font-size:16px">
+  <button class="btn btn-green btn-full" onclick="submitOrder()" style="margin-bottom:20px;padding:15px;font-size:16px">
     🛒 주문 접수
   </button>
   </div><!-- /screen-inner -->
@@ -740,603 +742,1687 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="section-title" style="margin-bottom:14px">채널별 주문</div>
       <div id="ch-stats-m"></div>
     </div>
-    <div class="card"�,div>div stp-stats-m"></div>
-    </div"��</div>
-       p5|.">채 id="tab-custdb">
-    <>
-  </div>토스트 -->
-<div class="toast" id="toa��═�/div>
-
-<!-- PC 통계��� 통계</
-<div class="stats-modal" id="stats-mod"padding:8px 12p0f9ff}
-.import-progrx{
-  backgroundisplay:fleia (mi4ort-dal{position:fixed;inset:0;backgrodal" onclick="hideStatsModal(event)"padding:8px 12p-weight:8tems:center;justify-content:space-betweocr-field-lbl)">
-  <div class="stats-modal-box">
-    <dn>
-    <b uttodal-hdr">
-      <div class="stats-modal-title">📊 오늘��� 통계</but      <button class="stats-mo<div class="cdb-sumx}
-.importems:center;justify-content:space-betweocr-field-lbl)">
-  <divv class="screen" id="cust-search-wrap">
-    <input class="cdb-search" id="cdb-search-input" type="search" placeholder="🔍 이름 또ts-mod���</spa
-  <div cla��══�m:14px">채널별 주문</put="searchCustDB(this.value,'d" style="coocr-field-lbl)"st')">
-  </div>
- -mo<div class=fff4border-radiu� 결제 선택8ont-weig 현�summary-mobile="margin-|.">채 id="tab-custdb">
-  n-top:8px;padding-top�� -->
-<div claser}
-.cdb-detail-�summary-m.cdb-detail-�s">📊 �if/
-<div.tv>
-et===선붤늘��� �cdb-d()��══════�00%;max-he">채널별 주문</putox{border-ttom:12px;display:none">var(--border);dle">📊 오늘��� �cdb-d()��←�널 �s="btn btn-gray" 별 주문</putox{bord</div>
-ummary-m.cdb-de">
-    n-top:8px;padgin-bottom:14px">채널별 주문</etail-title{font->
-ummary-m.cdb-dee{font->in-|.">채 id="tab-custdb">
-  nsplay:flex;align-it�� -->
-<div clasund:rgba(0,0abel">�nd:rgba(0,0ab">📊 오늘� 고객DB</
-<div class="stats-moda:center;juab">📊 �
-<div.stopPropagr:5px()">채널별 주문< 20px 60px)">
-  <div class="stacky;top:0;bautton>
-class="emp    <button cldal-hdr">
-      <div class0 0
-}
-.imporab">📊 오늘� 고객DB</but      <button class="stats-mo<divts-moda:center;jdy":14pxts-modal-Step 0:tn-prs="f주문 입�ts-mo<divts-moda:center-sub� ═══�:cer-sub-0sult-area" style="displt{font-size:15p�═�:cersize:15p�         <d">📊 �docut ty.�(let tyById(':cer>📷 영�').📊 /bu         <d">2s;
-  ba�:ceDs;
-O ba/
-<div cd">2s;
-leave�:ceDs;
-Leave/
-<div cd">2sop�:ceDsop/
-<div classt-area" style="displt{font-size:15pt-containe�ne">
-          <div class="oc#eef0ff}
-.import-dro">n-prs=="par��어�form��거�="s�db-�>
-  �이주�ne">
-          <div class="oc#eef0ff}
-.import"emptExcel (.xlsx, .xls)earch" iCSV (.csv)tn-prs="f��원id="ocr-items" type="text" plac onclick="openOcrCamer:cer>📷 영수증 스�.xlsx,.xls,.csvpe="file" id="ocr-file-input" acc:ceF�Selseted(  </div>
-      <d"list-pc-cnt">0건top:561px solid var(--:center;paddingde7flow:ellipsis;max-width:16dow:0 1px 4px rgbFFC107;in-bottom:6px">🔑 Go7a5marg/div>
-    <div style="fo��용 trong>nt-siideStatrd">
-    trong>→ API 및����n-prs=="par��러clas 내��럼��요<�터 없음ld-valTTP 리�.p  �����럼���OMS 항<but오/��핑23&#뒤p    <button d Vi누르영수�→ API 및����    <but�
-class="emh" i� trong>" style= trong>8px;�═�� �Cloud Vision Awrap;word-break:break-all;fon4pxts-modal-Step 1:����럼�/��핑� 입�ts-mo<divts-moda:center-sub�═�:cer-sub-1sult-area" style="displt{font-transformclasst-area" style="displt{font-splay:fletaine�ne">
-          <div c    <input id="ocr-="displt{font-splay��객�amer:cer>��객>ne">
-          <dd="ocr-="displt{font-splayle-n��amer:cer>le-n�>s="ocr-gps-badge" style="displayy" onclick="closeApi()">다시 촬영</bu0 1px 4px rgba(0,size:178px;paddind-val input{wius{border-color:#1�s">📊 �impReset      <butto주�nesm" onclick="toggll;fon4pxts-m-mo<divts-moda:center-div class="car���럼�/��핑type="text" placplor:#c62828;margin-bottom:8px"></div>
-      <div iv cla �����럼���OMS 항<but오/��핑23>영수�"btn bt (빧�">
- 항<but��tems:ceto주�되어;color:#888;m.</pv>
-      <d"list-pc-cnidden;text-overclasst-area" sidth:1iv clasund:rgbaing:8px      <input id="tpx;pad    <input id="trad    <input id=d="tp>n-prs="f��럼>
-  <tp>d    <input id=d="tp>OMS 항<bu <tp>d    <input id=d="tp>샘플
-class="em <tp>d    <input id= <trad    <input i <tpx;pad    <input i<t;jdy�amer:ceraing:;jdy": <ting:24  <input i <t8px click="toggll;fon4pxts-m-mo<divts-moda:center-div class="cast-pc-cnt">0건top:tat-ca;justify-cont(최대 5행)type="text" placeholder="�ce:nowrap;overflow:classt-area" sidth:1iv clasund:rgbap;max-width:��amer:cerap;max-width:�> <t8px click="toggll;fonbreak-all;fon4pxts-modal-Step 2:p    <butth" id��� 입�ts-mo<divts-moda:center-sub�═�:cer-sub-2sult-area" style="displt{font-��</buttasst-area" style="displt{font-:width .3s}ut ��ne">
-          <div class="oc#eef0ffpx}
-.import;font <butth" id��le="font-size:14  <div class="oc#eef0ffpx}
-.imer-title":cerapnd:#eeeport;f0 / 0 
+    <div class="card">
+      <div class="section-title" style="margin-bottom:14px">결제수단별</div>
+      <div id="pay-stats-m"></div>
     </div>
-  t" placeholder="�ce:nowrap">
-    <ceholder="�ce:nowrap">
-   en-inner">:cerapnd  </div>
-    font-si%�>s="ocre:pre-wrap;word-break:break-all;fon4pxts-modal-Step 3:m" styl� 입�ts-mo<divts-moda:center-sub�═�:cer-sub-3sult-area" style="displt{font-��</buttasst-area" style="displt{font-:width .3s}u═�:cers15pt-conta</die">
-          <div class="oc#eef0ffpx}
-.import;═�:cers15pt">
-    nsplay:flex;a" styl!"font-size:14  <div class="oc#eef0ffpx}
-.imer-title":cerdport"empte:pre-wrap;word-break:break-all;fon4pxtsiKey()" styl:center;jdytsModal()">✕</butto;margin-botto��amer:cer>aw-text"></div onclick="closeApi()">다� 4px rgba(0,size:178px;paddinab">📊 오늘� 고객DB</but닫  <button class="btnonclick="closeApi()">다� 4px rgba(0,:10px}
-loseOcrMod��amer:cern-->
-"setPay('prepa:ceN-->Step</bu id8px d   <b��e="margin-left:6px" onclick="showApiKeyModaSheetJSt�� --script 미�https://cdn.jsv clar.net/npm/xlsx@0.18.5owAst/xlsx.iv>
-.min.jsgin-bcriptiKeyModaFirebaset�� --script 미�https://www.g="stic.com/firebasejs/10.7.1/firebase-apr-spmpat.jsgin-bcriptiK-script 미�https://www.g="stic.com/firebasejs/10.7.1/firebase-lterbase-spmpat.jsgin-bcriptiKK-script>
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�Firebaset초  <hann//�═════════
-     Vision API 키 설정 모달
-     ════════════════════const firebaseCv clg = ent:a��소: "form-iBvpbxEfWv6OujIqHVXELpVRRMqHGGZMWA",nt:authDomain: "wellb int">ff}5ee1.firebaseapr.com",nt:lterbaseURL: "https://wellb int">ff}5ee1-defa
-.imrtdb.firebaseio.com",nt:apn-conId: "wellb int">ff}5ee1",nt:storageBucket: "wellb int">ff}5ee1.aprspot.com",nt:m   a0�gSen:16Id: "6:10;�9012",nt:appId: "1:6:10;�9012:web:abcdef;&#156"
+  </div>
+</div>
+
+<!-- PC 고객 DB 모달 -->
+<div class="stats-modal" id="custdb-modal" onclick="hideCustDBModal(event)">
+  <div class="stats-modal-box" style="padding:0;overflow:hidden;max-height:90vh;width:min(760px,94vw);display:flex;flex-direction:column">
+    <div class="stats-modal-hdr" style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div class="stats-modal-title">👥 고객 DB</div>
+      <button class="stats-modal-close" onclick="hideCustDBModal()">✕</button>
+    </div>
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <input class="cdb-search" type="search" placeholder="🔍 이름 또는 전화번호 검색" oninput="searchCustDB(this.value,'cdb-list-modal')" id="cdb-search-modal">
+    </div>
+    <div class="cdb-summary" id="cdb-summary-modal" style="flex-shrink:0">총 0명</div>
+    <div style="overflow-y:auto;flex:1;padding:8px 16px 16px" id="cdb-list-modal"></div>
+  </div>
+</div>
+
+<!-- 고객 상세 시트 -->
+<div class="cdb-detail-modal" id="cdb-detail-modal" onclick="if(event.target===this)hideCustDetail()">
+  <div class="cdb-detail-box">
+    <div class="cdb-detail-hdr">
+      <button class="cdb-detail-back" onclick="hideCustDetail()">← 목록</button>
+      <div class="cdb-detail-title" id="cdb-detail-title">고객 상세</div>
+    </div>
+    <div class="cdb-detail-content" id="cdb-detail-content"></div>
+  </div>
+</div>
+
+<!-- 가져오기 모달 -->
+<div class="import-modal" id="import-modal" onclick="hideImportModal(event)">
+  <div class="import-box" onclick="event.stopPropagation()">
+    <div class="import-hdr">
+      <div class="import-title">📥 데이터 가져오기</div>
+      <button class="import-close" onclick="hideImportModal()">✕</button>
+    </div>
+    <div class="import-body">
+
+      <!-- Step 0: 파일 선택 -->
+      <div class="import-step active" id="imp-step-0">
+        <div class="import-dropzone" id="imp-dropzone"
+          onclick="document.getElementById('imp-file-input').click()"
+          ondragover="impDragOver(event)" ondragleave="impDragLeave(event)" ondrop="impDrop(event)">
+          <div class="import-dropzone-icon">📂</div>
+          <div class="import-dropzone-text">파일을 끌어다 놓거나 클릭해서 선택</div>
+          <div class="import-dropzone-sub">Excel (.xlsx, .xls) 또는 CSV (.csv) 파일 지원</div>
+        </div>
+        <input type="file" id="imp-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="impFileSelected(this)">
+        <div style="margin-top:16px;padding:14px;background:#fffde7;border-radius:10px;border-left:4px solid #FFC107;font-size:13px;color:#7a5800;line-height:1.6">
+          <strong>💡 사용 방법</strong><br>
+          파일을 불러오면 컬럼을 자동으로 인식합니다. 각 컬럼을 OMS 항목에 매핑한 뒤 가져오기를 누르세요.<br>
+          가져온 데이터는 <strong>완료</strong> 상태로 저장됩니다.
+        </div>
+      </div>
+
+      <!-- Step 1: 컬럼 매핑 -->
+      <div class="import-step" id="imp-step-1">
+        <div class="import-file-info">
+          <div class="import-file-icon">📄</div>
+          <div>
+            <div class="import-file-name" id="imp-fname"></div>
+            <div class="import-file-meta" id="imp-fmeta"></div>
+          </div>
+          <button class="btn" style="margin-left:auto;background:#f5f5f5;color:#555;padding:7px 14px;font-size:12px" onclick="impReset()">다시 선택</button>
+        </div>
+
+        <div class="import-section-title">컬럼 매핑</div>
+        <p style="font-size:12px;color:#888;margin-bottom:10px">각 컬럼을 OMS 항목에 매핑하세요. 자동 감지된 항목은 이미 선택되어 있습니다.</p>
+        <div style="overflow-x:auto">
+          <table class="import-map-table">
+            <thead>
+              <tr>
+                <th>파일 컬럼명</th>
+                <th>OMS 항목</th>
+                <th>샘플 데이터</th>
+              </tr>
+            </thead>
+            <tbody id="imp-map-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="import-section-title" style="margin-top:20px">미리보기 (최대 5행)</div>
+        <div class="import-preview-wrap">
+          <table class="import-preview-table" id="imp-preview-table"></table>
+        </div>
+      </div>
+
+      <!-- Step 2: 가져오는 중 -->
+      <div class="import-step" id="imp-step-2">
+        <div class="import-result">
+          <div class="import-result-icon">⏳</div>
+          <div class="import-result-text">가져오는 중...</div>
+          <div class="import-result-sub" id="imp-progress-text">0 / 0 건</div>
+          <div class="import-progress"><div class="import-progress-bar" id="imp-prog-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Step 3: 완료 -->
+      <div class="import-step" id="imp-step-3">
+        <div class="import-result">
+          <div class="import-result-icon" id="imp-done-icon">✅</div>
+          <div class="import-result-text" id="imp-done-title">가져오기 완료!</div>
+          <div class="import-result-sub" id="imp-done-sub"></div>
+        </div>
+      </div>
+
+    </div><!-- /import-body -->
+    <div class="import-footer" id="imp-footer">
+      <button class="btn" style="background:#f5f5f5;color:#555" onclick="hideImportModal()">닫기</button>
+      <button class="btn" style="background:#3949AB;color:#fff" id="imp-next-btn" onclick="impNextStep()" disabled>다음</button>
+    </div>
+  </div>
+</div>
+
+<!-- SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════════
+// Firebase 초기화
+// ══════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBvpbxEfWv6OujIqHVXELpVRRMqHGGZMWA",
+  authDomain: "wellbingmart-d5ee1.firebaseapp.com",
+  databaseURL: "https://wellbingmart-d5ee1-default-rtdb.firebaseio.com",
+  projectId: "wellbingmart-d5ee1",
+  storageBucket: "wellbingmart-d5ee1.appspot.com",
+  messagingSenderId: "639456789012",
+  appId: "1:639456789012:web:abcdef123456"
 };
-firebase.r-toialrgiApp(firebaseCv clg);�const db = firebase.lterbase();�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�px;��
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════let th:16s = [];�let curren/div>
-  = iv cl;�let curren/pan>문 = ins">
- ;�let curren/Pay = i id=";�let firebaseA═� = false;�
-const STORAGE_KEY = ioms_th:16s_v1";�
-funiv cl uid() { return Date.ndiv>.toSts="f(36) + Math.randomv>.toSts="f(36).s'pre(2,6); }�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�p�Clou/r��러cla  <
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl :1">제�s() {nt:localStorage.set목<(STORAGE_KEY, JSON.sts="fify(th:16s));�}�funiv cl load제�s() {nt:try { th:16s = JSON.��우(localStorage.get목<(STORAGE_KEY) || '[]'); } clt" (e) { th:16s = []; }�}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�Firebaset� <but간     ��
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════db.ref('th:16s').on('🔍 ', snap => {nt:const dter = snap"�() || {};nt:const fbOh:16s = Oy-con"🔍 s(dterween4//�Firebasetclass="emh�� h��컬   �class="��t(중�data�지)nt:const localIds = new Set(th:16s.'sms',(o => !o.fromFb).ain(o => o.id)ween4th:16s = [-leftle=th:16s.'sms',(o => !o.fromFb),-leftle=fbOh:16s.ain(o => ({tle=t, fromFb::true })).'sms',(o => !localIds.has(o.id)w-le]een4th:16s.s���((a, b) => b.createdAt - a.createdAtween4:1">제�s()een4ren:16제�LAst()een4ren:16 통�()een4upstylHhide"()een4firebaseA═� = true;�}, err => {nt:console.log('Firebasetoff/div, us="f local:storage')een4load제�s()een4ren:16제�LAst()een4ren:16 통�()een4upstylHhide"()ee});�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�-- �네비�div c��
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl ="tab-erb) {nt:docut ty.querySelsetorAll('.화면').forEa" (s => s.="cloLAst.remove(' ═�')ween4docut ty.querySelsetorAll('.erb').forEa" (t => t.="cloLAst.remove(' ═�')ween4docut ty.�(let tyById(erb).="cloLAst.add(' ═�');nt:const erbE� = docut ty.�(let tyById('="ta' + erb);nt:if (erbE�) erbE�.="cloLAst.add(' ═�');nt:if (erb === in">➕<4ren:16 통�()een4if (erb === icon">� {nt:t:cacehoQuery = i';nt:t:const inp = docut ty.�(let tyById('
-  <div class="c');nt:n4if (ss=) inp"🔍  = i';nt:t:ren:16lacehol��름 또�;nt:}�}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�══�  �class="��
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl upstylHhide"() {nt:const n>
-   = t>
-  Sg:9p();nt:const e>
-  Oh:16s = th:16s.'sms',(o => o.createdAt >= t>
-  ween4docut ty.�(let tyById('d="today-da').portC{font- = `class="${e>
-  Oh:16s.length}건`een4upstylPcLAstCy-da();�
-t:const d = new Date();nt:const 
-  s = ['일','월','han','수','목','금','h��']een4docut ty.�(let tyById('d="todstyl').portC{font- =nt:t:`${d.�M{foh()+1}월 ${d.�Date()}rs="(${d  s[d.�Day()]})`een4docut ty.�(let tyById('-bar" styl').portC{font- =nt:t:`${d.�M{foh()+1}월 ${d.�Date()}rs="(${d  s[d.�Day()]})`ee}�
-funiv cl t>
-  Sg:9p() {nt:const d = new Date(); d.setHou�s(idth:10); return d.�Time();n}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�pid="pc-wrappe렌═n//�═════════
-     Vision API 키 설정 모달
-     ════════════════════const STATUS_LABELS = e v></div:'>고�', iv class=:'data-f', v class="f:'ta-filter', vcurs'" styl', iancells=:'n clas' };�const CH_LABELS = e ns">
-:'d">
-    <div c', sms:'d"="filter-', iall:'d"=ilter-ch' };�const PAY_LABELS = e  id=:'d">�� 현�', iash:'d">�두 개', ">💵<:' clas     ', )">✅<b:'d"�� iv cla' };��funiv cl :</div>
-  f, el) {nt:curren/div>
-  = feen4docut ty.querySelsetorAll('.nclick="set').forEa" (c => c.="cloLAst.remove(' ═�')ween4e�.="cloLAst.add(' ═�');nt:ren:16제�LAst()ee}�
-funiv cl nclick제�s() {nt:const n>
-   = t>
-  Sg:9p();nt:let filicked = th:16s.'sms',(o => o.createdAt >= t>
-  ween4if (curren/div>
-  === iv cl) return filickedeen4if ([ <div clasdiv class="fiv class="fil    <di'iancells='].includ s(curren/div>
- )w-le  return filicked.'sms',(o => o.�� 제 === curren/div>
- )een4if ([ ns">
-  ��
-   ��
-   ].includ s(curren/div>
- )w-le  return filicked.'sms',(o => o.can>문 === curren/div>
- )een4return filickedee}�
-funiv cl ren:16제�LAst() {nt:const this)">� = docut ty.�(let tyById('ter('call',this)">�');nt:const filicked = nclick제�s();�
-t:if (!filicked.length� {nt:t:chis)">�.iv clHTML = `��</div>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ══════════════════════════════════════════
+// 상태
+// ══════════════════════════════════════════
+let orders = [];
+let currentFilter = 'all';
+let currentChannel = 'kakao';
+let currentPay = 'card';
+let firebaseActive = false;
+
+const STORAGE_KEY = 'oms_orders_v1';
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ══════════════════════════════════════════
+// 저장/불러오기
+// ══════════════════════════════════════════
+function saveOrders() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+}
+function loadOrders() {
+  try { orders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { orders = []; }
+}
+
+// ══════════════════════════════════════════
+// Firebase 실시간 연동
+// ══════════════════════════════════════════
+db.ref('orders').on('value', snap => {
+  const data = snap.val() || {};
+  const fbOrders = Object.values(data);
+  // Firebase 데이터로 로컬 업데이트 (중복 방지)
+  const localIds = new Set(orders.filter(o => !o.fromFb).map(o => o.id));
+  orders = [
+    ...orders.filter(o => !o.fromFb),
+    ...fbOrders.map(o => ({ ...o, fromFb: true })).filter(o => !localIds.has(o.id))
+  ];
+  orders.sort((a, b) => b.createdAt - a.createdAt);
+  saveOrders();
+  renderOrderList();
+  renderStats();
+  updateHeader();
+  firebaseActive = true;
+}, err => {
+  console.log('Firebase offline, using local storage');
+  loadOrders();
+  renderOrderList();
+  renderStats();
+  updateHeader();
+});
+
+// ══════════════════════════════════════════
+// 탭 네비게이션
+// ══════════════════════════════════════════
+function goTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tab).classList.add('active');
+  const tabEl = document.getElementById('tab-' + tab);
+  if (tabEl) tabEl.classList.add('active');
+  if (tab === 'stats') renderStats();
+  if (tab === 'custdb') {
+    custDBQuery = '';
+    const inp = document.getElementById('cdb-search-input');
+    if (inp) inp.value = '';
+    renderCustDB('cdb-list');
+  }
+}
+
+// ══════════════════════════════════════════
+// 헤더 업데이트
+// ══════════════════════════════════════════
+function updateHeader() {
+  const today = todayStart();
+  const todayOrders = orders.filter(o => o.createdAt >= today);
+  document.getElementById('today-count').textContent = `오늘 ${todayOrders.length}건`;
+  updatePcListCount();
+
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('today-date').textContent =
+    `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  document.getElementById('stats-date').textContent =
+    `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+
+function todayStart() {
+  const d = new Date(); d.setHours(0,0,0,0); return d.getTime();
+}
+
+// ══════════════════════════════════════════
+// 주문 목록 렌더
+// ══════════════════════════════════════════
+const STATUS_LABELS = { pending:'접수', confirmed:'확인', delivering:'배달중', done:'완료', cancelled:'취소' };
+const CH_LABELS = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
+const PAY_LABELS = { card:'💳 카드', cash:'💵 현금', prepaid:'✅ 선불', transfer:'🏦 이체' };
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderOrderList();
+}
+
+function filterOrders() {
+  const today = todayStart();
+  let filtered = orders.filter(o => o.createdAt >= today);
+  if (currentFilter === 'all') return filtered;
+  if (['pending','confirmed','delivering','done','cancelled'].includes(currentFilter))
+    return filtered.filter(o => o.status === currentFilter);
+  if (['kakao','sms','call'].includes(currentFilter))
+    return filtered.filter(o => o.channel === currentFilter);
+  return filtered;
+}
+
+function renderOrderList() {
+  const container = document.getElementById('order-list-container');
+  const filtered = filterOrders();
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <div class="empty-text">주문이 없어요</div>
+      <div class="empty-sub">필터를 바꾸거나 새주문을 입력해주세요</div>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((o, i) => {
+    const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
+    const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+    const time = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
+
+    const actions = orderActions(o);
+
+    return `<div class="order-card ch-${o.channel} ${o.status==='done'?'st-done':''}" id="oc-${o.id}">
+      <div class="oc-top">
+        <div class="oc-num">${i+1}</div>
+        <div class="oc-name">${o.customerName}</div>
+        <span class="badge badge-${o.channel}">${CH_LABELS[o.channel]||o.channel}</span>
+        <div class="oc-time">${time}</div>
+      </div>
+      <div class="oc-addr">📍 ${o.address}</div>
+      ${o.phone?`<div class="oc-addr">📞 ${o.phone}</div>`:''}
+      ${itemStr?`<div class="oc-items">🛍️ ${itemStr}</div>`:''}
+      <div class="oc-bottom">
+        <span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span>
+        ${o.paymentMethod?`<span class="badge" style="background:#f5f5f5;color:#555">${PAY_LABELS[o.paymentMethod]||o.paymentMethod}</span>`:''}
+        ${o.note?`<span style="font-size:11px;color:#888">📝 ${o.note}</span>`:''}
+        ${totalAmt?`<div class="oc-amount">₩${totalAmt.toLocaleString()}</div>`:''}
+      </div>
+      ${actions?`<div class="oc-actions">${actions}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function orderActions(o) {
+  if (o.status === 'pending') return `
+    <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','confirmed')">✅ 주문확인</button>
+    <button class="btn btn-orange btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달발송</button>
+    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">✕</button>`;
+  if (o.status === 'confirmed') return `
+    <button class="btn btn-primary btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달 배정하기</button>
+    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">취소</button>`;
+  if (o.status === 'delivering') return `
+    <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','done')">✅ 배달완료</button>`;
+  if (o.status === 'done') return `
+    <button class="btn btn-gray btn-sm btn-sm" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
+  return '';
+}
+
+// ══════════════════════════════════════════
+// 주문 상태 업데이트
+// ══════════════════════════════════════════
+function updateStatus(id, status) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  o.status = status;
+  o.updatedAt = Date.now();
+  saveOrders();
+  renderOrderList();
+  if (firebaseActive) db.ref('orders/' + id).update({ status, updatedAt: o.updatedAt });
+  showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
+}
+
+// ══════════════════════════════════════════
+// 배달 배정 (기사앱·대시보드로 전송)
+// ══════════════════════════════════════════
+function sendToDelivery(orderId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+
+  const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
+  const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+
+  // deliveries 노드에 추가 → 기사앱·대시보드에 실시간 표시
+  const delivery = {
+    customerName: o.customerName,
+    address: o.address,
+    phone: o.phone || '-',
+    note: [o.note, itemStr, PAY_LABELS[o.paymentMethod]||'', totalAmt?`₩${totalAmt.toLocaleString()}`:''].filter(Boolean).join(' · '),
+    status: 'pending',
+    orderId: o.id,
+    orderChannel: o.channel,
+    totalAmount: totalAmt,
+    createdAt: Date.now()
+  };
+
+  if (firebaseActive) {
+    db.ref('deliveries/' + orderId).set(delivery).then(() => {
+      updateStatus(orderId, 'delivering');
+      showToast('🚀 기사앱으로 배달 전송 완료!');
+    });
+  } else {
+    updateStatus(orderId, 'delivering');
+    showToast('⚠️ 오프라인 — Firebase 연결 후 동기화됩니다');
+  }
+}
+
+// ══════════════════════════════════════════
+// 채널 / 결제 선택
+// ══════════════════════════════════════════
+function setChannel(ch, el) {
+  currentChannel = ch;
+  document.querySelectorAll('.channel-btn').forEach(b => {
+    b.className = 'channel-btn';
+  });
+  el.classList.add('sel-' + ch);
+
+  // 채널에 따라 붙여넣기 카드 표시/숨김
+  document.getElementById('paste-card').style.display =
+    (ch === 'call') ? 'none' : 'block';
+}
+
+function setPay(p, el) {
+  currentPay = p;
+  document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ══════════════════════════════════════════
+// 품목 행
+// ══════════════════════════════════════════
+function addItemRow(name='', qty=1, price='') {
+  const id = uid();
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.id = 'ir-' + id;
+  row.innerHTML = `
+    <input class="item-name" placeholder="품목명" value="${name}" oninput="calcTotal()">
+    <input class="item-qty" type="number" min="1" value="${qty}" oninput="calcTotal()">
+    <input class="item-price" type="number" placeholder="0" value="${price}" oninput="calcTotal()">
+    <button class="item-del" onclick="removeRow('ir-${id}')">✕</button>`;
+  document.getElementById('item-rows').appendChild(row);
+  calcTotal();
+}
+
+function removeRow(id) {
+  document.getElementById(id)?.remove();
+  calcTotal();
+}
+
+function calcTotal() {
+  const rows = document.querySelectorAll('.item-row');
+  let total = 0;
+  rows.forEach(row => {
+    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('total-display').textContent = '₩' + total.toLocaleString();
+}
+
+function getItems() {
+  return Array.from(document.querySelectorAll('.item-row')).map(row => ({
+    name: row.querySelector('.item-name').value.trim(),
+    qty: parseFloat(row.querySelector('.item-qty').value) || 1,
+    price: parseFloat(row.querySelector('.item-price').value) || 0
+  })).filter(i => i.name);
+}
+
+// ══════════════════════════════════════════
+// 붙여넣기 파싱
+// ══════════════════════════════════════════
+function parsePaste() {
+  const text = document.getElementById('paste-text').value.trim();
+  if (!text) { showToast('내용을 붙여넣어 주세요'); return; }
+
+  const parts = splitMessages(text);
+
+  if (parts.length === 1) {
+    // 단일 메시지 → 폼 채우기
+    document.getElementById('batch-preview').classList.remove('show');
+    const result = parseOrderText(text);
+    applyParsed(result);
+    const resEl = document.getElementById('parse-result');
+    const lines = [];
+    if (result.name) lines.push(`👤 ${result.name}`);
+    if (result.phone) lines.push(`📞 ${result.phone}`);
+    if (result.address) lines.push(`📍 ${result.address}`);
+    if (result.items.length) lines.push(`🛍️ ${result.items.map(i=>`${i.name} ${i.qty}개`).join(', ')}`);
+    if (result.pay) lines.push(`💳 ${PAY_LABELS[result.pay]||result.pay}`);
+    resEl.innerHTML = lines.length
+      ? `✅ 파싱 완료!<br>${lines.join('<br>')}`
+      : '⚠️ 자동 인식 실패. 아래 양식을 직접 입력해주세요.';
+    resEl.classList.add('show');
+    showToast(lines.length ? '✨ 자동 파싱 완료!' : '직접 입력해주세요');
+  } else {
+    // 다중 메시지 → 일괄 미리보기
+    document.getElementById('parse-result').classList.remove('show');
+    showBatchResult(parts);
+  }
+}
+
+function showBatchResult(parts) {
+  window.__batchParsed = parts.map(p => parseOrderText(p));
+  window.__batchSkipped = new Set();
+  const preview = document.getElementById('batch-preview');
+  const cards = window.__batchParsed.map((r, i) => {
+    const info = [];
+    if (r.phone) info.push(`📞 ${r.phone}`);
+    if (r.address) info.push(`📍 ${r.address}`);
+    if (r.items.length) info.push(`🛍️ ${r.items.map(it=>`${it.name} ${it.qty}개`).join(', ')}`);
+    if (r.pay) info.push(`💳 ${PAY_LABELS[r.pay]||r.pay}`);
+    return `<div class="batch-card" id="bcard-${i}">
+      <div class="batch-card-top">
+        <div class="batch-card-num">${i+1}</div>
+        <div class="batch-card-name">${r.name||'(이름 미인식)'}</div>
+      </div>
+      <div class="batch-card-info">${info.join(' &nbsp;·&nbsp; ')||'⚠️ 인식 정보 없음'}</div>
+      <button class="batch-skip-btn" onclick="toggleBatchSkip(${i})">제외</button>
+    </div>`;
+  }).join('');
+  preview.innerHTML = `<div class="batch-hdr">
+    <span>📋 ${parts.length}건 감지</span>
+    <span style="font-size:11px;color:#888">제외할 건은 '제외' 버튼을 누르세요</span>
+  </div>
+  ${cards}
+  <div class="batch-bar">
+    <button class="btn btn-green btn-sm" style="flex:1" id="batch-submit-btn" onclick="submitBatchOrders()">✅ 전체 등록 (${parts.length}건)</button>
+    <button class="btn btn-gray btn-sm" onclick="closeBatchPreview()">취소</button>
+  </div>`;
+  preview.classList.add('show');
+  showToast(`📋 ${parts.length}건의 주문이 감지되었습니다`);
+}
+
+function toggleBatchSkip(i) {
+  const s = window.__batchSkipped;
+  const card = document.getElementById('bcard-'+i);
+  const btn = card.querySelector('.batch-skip-btn');
+  if (s.has(i)) {
+    s.delete(i);
+    card.classList.remove('batch-card-skip');
+    btn.textContent = '제외';
+    btn.classList.remove('restore');
+  } else {
+    s.add(i);
+    card.classList.add('batch-card-skip');
+    btn.textContent = '복원';
+    btn.classList.add('restore');
+  }
+  const cnt = (window.__batchParsed||[]).length - s.size;
+  const sb = document.getElementById('batch-submit-btn');
+  if (sb) sb.textContent = `✅ 전체 등록 (${cnt}건)`;
+}
+
+function submitBatchOrders() {
+  const skipped = window.__batchSkipped || new Set();
+  const toSubmit = (window.__batchParsed||[]).filter((_,i) => !skipped.has(i));
+  if (!toSubmit.length) { showToast('등록할 주문이 없습니다'); return; }
+  const now = Date.now();
+  toSubmit.forEach((r, idx) => {
+    const order = {
+      id: uid(),
+      customerName: r.name || '미입력',
+      phone: r.phone || '',
+      address: r.address || '',
+      items: r.items,
+      totalAmount: r.items.reduce((s,i)=>s+i.qty*i.price, 0),
+      paymentMethod: r.pay || currentPay,
+      channel: currentChannel,
+      note: '',
+      status: 'pending',
+      createdAt: now + idx,
+      updatedAt: now + idx
+    };
+    orders.unshift(order);
+    if (firebaseActive) db.ref('orders/'+order.id).set(order);
+  });
+  saveOrders();
+  closeBatchPreview();
+  renderOrderList();
+  updateHeader();
+  goTab('list');
+  showToast(`✅ ${toSubmit.length}건 일괄 접수 완료!`);
+}
+
+function closeBatchPreview() {
+  document.getElementById('batch-preview').classList.remove('show');
+  document.getElementById('paste-text').value = '';
+  window.__batchParsed = null;
+  window.__batchSkipped = new Set();
+}
+
+function clearPaste() {
+  document.getElementById('paste-text').value = '';
+  const r = document.getElementById('parse-result');
+  r.classList.remove('show');
+  r.textContent = '';
+  document.getElementById('batch-preview').classList.remove('show');
+  window.__batchParsed = null;
+  window.__batchSkipped = new Set();
+}
+
+function parseOrderText(text) {
+  const result = { name: '', phone: '', address: '', items: [], pay: '' };
+
+  // 전화번호 (점·괄호·공백 구분자 허용, 010.1234.5678 / 010)1234-5678 / 01012345678)
+  const phoneMatch = text.match(/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/);
+  if (phoneMatch) {
+    const digits = phoneMatch[0].replace(/[^\d]/g, '');
+    result.phone = digits.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+  }
+
+  // 주소 (상세주소 → 광역 → 간략구분 순으로 시도)
+  const addrPatterns = [
+    /[서경인대부울세제강충전경][울기천구산남종주북남북][\s\S]{2,50}(?:아파트|빌라|다세대|오피스텔|APT|apt|동|호|번길|대로|로|길)\s*\d*/,
+    /(?:서울|경기|인천|부산|대구|대전|광주|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)[^\n,]{3,60}/,
+    /[가-힣]{2,6}(?:특별시|광역시|특별자치시|도|시|구|군|동|읍|면|로|길|대로)[가-힣\d\s-]{0,20}/,
+  ];
+  for (const pat of addrPatterns) {
+    const m = text.match(pat);
+    if (m && m[0].length >= 4) { result.address = m[0].trim(); break; }
+  }
+
+  // 결제 방법
+  if (/카드/.test(text)) result.pay = 'card';
+  else if (/현금/.test(text)) result.pay = 'cash';
+  else if (/선불|미리/.test(text)) result.pay = 'prepaid';
+  else if (/계좌|이체|입금/.test(text)) result.pay = 'transfer';
+
+  // 품목 (단위포함 / x곱셈 / 붙여쓰기 "두부2개" "감자3" 모두 인식)
+  const seen = new Set();
+  const itemPatterns = [
+    /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*(\d+)\s*(?:개|봉|팩|박스|묶음|병|캔|kg|g|L|ml)/g,
+    /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*[xX×\*]\s*(\d+)/g,
+    /([가-힣]{2,8})(\d+)/g,  // 붙여쓰기: 두부2, 감자3
+  ];
+  for (const pat of itemPatterns) {
+    let m; pat.lastIndex = 0;
+    while ((m = pat.exec(text)) !== null) {
+      const nm = m[1].trim().replace(/^[-•·*\s]+/, '').trim();
+      if (nm.length >= 2 && nm.length <= 15 && !/^\d/.test(nm) && !seen.has(nm)) {
+        seen.add(nm);
+        result.items.push({ name: nm, qty: parseInt(m[2])||1, price: 0 });
+      }
+    }
+    if (result.items.length) break;
+  }
+
+  // 이름: 라벨형 → 독립줄 → 한줄 간략입력 맨앞 순
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const labelM = line.match(/(?:이름|성함|받는\s*분|주문자)[:\s]*([가-힣]{2,5})/);
+    if (labelM) { result.name = labelM[1]; break; }
+    const nameM = line.match(/^[가-힣]{2,4}$/);
+    if (nameM) { result.name = nameM[0]; break; }
+    // 한 줄 간략: "홍길동 010-..." 또는 "홍길동 강남구..."
+    const inlineM = line.match(/^([가-힣]{2,4})\s+(?:0\d|[가-힣])/);
+    if (inlineM) { result.name = inlineM[1]; break; }
+  }
+
+  return result;
+}
+
+// 여러 메시지 자동 분리
+function splitMessages(text) {
+  // 1) 카카오톡: [이름] [오전/오후 H:MM] 패턴
+  const kakaoRe = /(?=\[[^\]]+\]\s*\[(?:오전|오후)\s*\d+:\d+\])/;
+  let parts = text.split(kakaoRe).map(s=>s.trim()).filter(Boolean);
+  if (parts.length > 1) return parts;
+
+  // 2) 구분선 (---, ===, ///, ~~~)
+  parts = text.split(/\n[ \t]*[-=\/~]{2,}[ \t]*\n/).map(s=>s.trim()).filter(Boolean);
+  if (parts.length > 1) return parts;
+
+  // 3) 번호 목록 (1. 2. 3. 또는 1) 2) 3))
+  const numbered = text.split(/(?=^\s*\d+[.\)]\s)/m).map(s=>s.trim()).filter(Boolean);
+  if (numbered.length > 1 && numbered.every(p=>/^\d+[.\)]/.test(p))) return numbered;
+
+  // 4) 빈 줄 두 개 이상
+  parts = text.split(/\n[ \t]*\n[ \t]*\n+/).map(s=>s.trim()).filter(Boolean);
+  if (parts.length > 1) return parts;
+
+  // 5) 전화번호 여러 개 → 단일 빈줄로 분리
+  const phones = (text.match(/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/g)||[]);
+  if (phones.length > 1) {
+    parts = text.split(/\n[ \t]*\n/).map(s=>s.trim()).filter(Boolean);
+    if (parts.length > 1) return parts;
+  }
+
+  return [text];
+}
+
+function applyParsed(r) {
+  if (r.name)    document.getElementById('inp-cname').value = r.name;
+  if (r.phone)   document.getElementById('inp-phone').value = r.phone;
+  if (r.address) document.getElementById('inp-addr').value = r.address;
+  if (r.pay) {
+    document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+    currentPay = r.pay;
+    const payBtns = { card:0, cash:1, prepaid:2, transfer:3 };
+    document.querySelectorAll('.pay-btn')[payBtns[r.pay]||0]?.classList.add('active');
+  }
+  // 품목 추가
+  if (r.items.length) {
+    document.getElementById('item-rows').innerHTML = '';
+    r.items.forEach(it => addItemRow(it.name, it.qty, it.price));
+  }
+}
+
+// ══════════════════════════════════════════
+// 주문 제출
+// ══════════════════════════════════════════
+function submitOrder() {
+  const name = document.getElementById('inp-cname').value.trim();
+  const phone = document.getElementById('inp-phone').value.trim();
+  const addr = document.getElementById('inp-addr').value.trim();
+
+  if (!name || !addr) { showToast('⚠️ 고객명과 주소는 필수입니다'); return; }
+
+  const items = getItems();
+  const totalAmount = items.reduce((s, i) => s + i.qty * i.price, 0);
+
+  const order = {
+    id: uid(),
+    customerName: name,
+    phone,
+    address: addr,
+    items,
+    totalAmount,
+    paymentMethod: currentPay,
+    channel: currentChannel,
+    note: document.getElementById('inp-note').value.trim(),
+    status: 'pending',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  orders.unshift(order);
+  saveOrders();
+  if (firebaseActive) db.ref('orders/' + order.id).set(order);
+
+  // 폼 초기화
+  resetForm();
+  renderOrderList();
+  updateHeader();
+  goTab('list');
+  showToast(`✅ ${name} 고객 주문 접수 완료!`);
+}
+
+function resetForm() {
+  ['inp-cname','inp-phone','inp-addr','inp-note'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('item-rows').innerHTML = '';
+  document.getElementById('paste-text').value = '';
+  document.getElementById('parse-result').classList.remove('show');
+  document.getElementById('batch-preview').classList.remove('show');
+  hideCustPanel();
+  window.__batchParsed = null; window.__batchSkipped = new Set();
+  document.getElementById('total-display').textContent = '₩0';
+  addItemRow(); // 기본 1개
+}
+
+// ══════════════════════════════════════════
+// 고객 조회 (전화번호 / 이름 검색)
+// ══════════════════════════════════════════
+function normalizePhone(p) {
+  return (p || '').replace(/[^\d]/g, '');
+}
+
+function getCustomerHistory(phone, name) {
+  // 전화번호 or 이름으로 과거 주문 검색, 최신순
+  return orders.filter(o => {
+    if (phone && normalizePhone(o.phone) === phone) return true;
+    if (!phone && name && o.customerName && o.customerName.includes(name)) return true;
+    return false;
+  }).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function groupCustomersByPhone(hits) {
+  // 전화번호 기준으로 고객 그룹화 (없으면 이름 기준)
+  const map = new Map();
+  hits.forEach(o => {
+    const key = normalizePhone(o.phone) || o.customerName;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(o);
+  });
+  return Array.from(map.values());
+}
+
+function onPhoneInput(val) {
+  const digits = normalizePhone(val);
+  if (digits.length < 4) { hideCustPanel(); return; }
+  // 4자리 이상 입력 시 검색 (완전 일치 우선, 앞자리 포함 포함)
+  const hits = orders.filter(o => {
+    const op = normalizePhone(o.phone);
+    return op && op.includes(digits);
+  }).sort((a, b) => b.createdAt - a.createdAt);
+  renderCustPanel(groupCustomersByPhone(hits));
+}
+
+function onNameInput(val) {
+  const q = val.trim();
+  if (q.length < 2) { hideCustPanel(); return; }
+  const hits = orders.filter(o =>
+    o.customerName && o.customerName.includes(q)
+  ).sort((a, b) => b.createdAt - a.createdAt);
+  renderCustPanel(groupCustomersByPhone(hits));
+}
+
+function renderCustPanel(groups) {
+  const panel = document.getElementById('cust-panel');
+  if (!groups.length) { hideCustPanel(); return; }
+
+  const MAX_GROUPS = 5;
+  const shown = groups.slice(0, MAX_GROUPS);
+
+  let html = `<div class="cust-panel-hdr">🔍 고객 조회 — ${groups.length}명 매칭 (탭하여 자동입력)</div>`;
+  shown.forEach(orders_g => {
+    const latest = orders_g[0]; // 가장 최근 주문
+    const histHtml = orders_g.slice(0, 4).map(o => {
+      const d = new Date(o.createdAt);
+      const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+      const itemStr = (o.items||[]).map(i => `${i.name}${i.qty>1?' '+i.qty+'개':''}`).join(', ') || '품목미상';
+      const amt = o.totalAmount ? ` ${o.totalAmount.toLocaleString()}원` : '';
+      return `<div class="cust-hist-item"><span>🛍️ ${itemStr}${amt}</span><span class="cust-hist-date">${dateStr}</span></div>`;
+    }).join('');
+
+    const totalCount = orders_g.length;
+    html += `<div class="cust-match" onclick="fillFromCustomer(${JSON.stringify(JSON.stringify(latest))})">
+      <div class="cust-match-name">${latest.customerName}</div>
+      <div class="cust-match-info">📞 ${latest.phone||'-'} &nbsp;|&nbsp; 📍 ${latest.address||'-'}</div>
+      <div class="cust-hist-title">최근 주문 (총 ${totalCount}회)</div>
+      ${histHtml}
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+  panel.classList.add('show');
+}
+
+function fillFromCustomer(jsonStr) {
+  const o = JSON.parse(jsonStr);
+  document.getElementById('inp-cname').value = o.customerName || '';
+  document.getElementById('inp-phone').value = o.phone || '';
+  document.getElementById('inp-addr').value = o.address || '';
+  hideCustPanel();
+  showToast(`✅ ${o.customerName} 고객 정보 자동입력 완료`);
+  // 포커스를 품목 입력으로
+  setTimeout(() => document.querySelector('#item-rows input')?.focus(), 100);
+}
+
+function hideCustPanel() {
+  const p = document.getElementById('cust-panel');
+  if (p) p.classList.remove('show');
+}
+
+// 패널 바깥 클릭 시 닫기
+document.addEventListener('click', e => {
+  const panel = document.getElementById('cust-panel');
+  if (panel && !panel.contains(e.target) &&
+      e.target.id !== 'inp-phone' && e.target.id !== 'inp-cname') {
+    hideCustPanel();
+  }
+});
+
+// ══════════════════════════════════════════
+// 통계
+// ══════════════════════════════════════════
+function renderStats() {
+  const today = todayStart();
+  const tOrders = orders.filter(o => o.createdAt >= today);
+
+  document.getElementById('st-total').textContent = tOrders.length;
+  document.getElementById('st-done').textContent = tOrders.filter(o=>o.status==='done').length;
+  document.getElementById('st-pending').textContent = tOrders.filter(o=>['pending','confirmed'].includes(o.status)).length;
+
+  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(o.totalAmount||0),0);
+  document.getElementById('st-revenue').textContent = '₩' + rev.toLocaleString();
+
+  // 채널별
+  const chData = { kakao:0, sms:0, call:0 };
+  tOrders.forEach(o => { if (chData[o.channel]!==undefined) chData[o.channel]++; });
+  const maxCh = Math.max(...Object.values(chData), 1);
+  const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3' };
+  const chNames = { kakao:'💬 카카오톡', sms:'📱 문자', call:'📞 전화' };
+  document.getElementById('ch-stats').innerHTML = Object.entries(chData).map(([k,v]) => `
+    <div class="ch-stat-row">
+      <div style="width:80px;font-size:13px;font-weight:600">${chNames[k]}</div>
+      <div class="ch-stat-bar-wrap">
+        <div class="ch-stat-bar" style="width:${v/maxCh*100}%;background:${chColors[k]}"></div>
+      </div>
+      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+    </div>`).join('');
+
+  // 결제별
+  const payData = {};
+  tOrders.forEach(o => { payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1; });
+  const maxPay = Math.max(...Object.values(payData), 1);
+  const payColors = { card:'#2196F3', cash:'#4CAF50', prepaid:'#9C27B0', transfer:'#FF9800' };
+  document.getElementById('pay-stats').innerHTML = Object.entries(payData).map(([k,v]) => `
+    <div class="ch-stat-row">
+      <div style="width:80px;font-size:13px;font-weight:600">${PAY_LABELS[k]||k}</div>
+      <div class="ch-stat-bar-wrap">
+        <div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors[k]||'#999'}"></div>
+      </div>
+      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+    </div>`).join('') || '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">데이터 없음</div>';
+}
+
+// ══════════════════════════════════════════
+// 토스트
+// ══════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════
+// PC 통계 모달
+// ══════════════════════════════════════════
+function showStatsModal() {
+  renderStatsModal();
+  document.getElementById('stats-modal').classList.add('show');
+}
+function hideStatsModal(e) {
+  if (e && e.target !== document.getElementById('stats-modal')) return;
+  document.getElementById('stats-modal').classList.remove('show');
+}
+function renderStatsModal() {
+  const today = todayStart();
+  const tOrders = orders.filter(o => o.createdAt >= today);
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  const dateStr = `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  const el = document.getElementById('stats-date-modal');
+  if (el) el.textContent = dateStr;
+
+  const setM = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  setM('st-total-m', tOrders.length);
+  setM('st-done-m', tOrders.filter(o=>o.status==='done').length);
+  setM('st-pending-m', tOrders.filter(o=>['pending','confirmed'].includes(o.status)).length);
+  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(o.totalAmount||0),0);
+  setM('st-revenue-m', '₩' + rev.toLocaleString());
+
+  const chData = { kakao:0, sms:0, call:0 };
+  tOrders.forEach(o => { if(chData[o.channel]!==undefined) chData[o.channel]++; });
+  const maxCh = Math.max(...Object.values(chData), 1);
+  const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3' };
+  const chNames = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
+  const chEl = document.getElementById('ch-stats-m');
+  if (chEl) chEl.innerHTML = Object.entries(chData).map(([k,v]) => `
+    <div class="ch-stat-row">
+      <div style="width:80px;font-size:13px;font-weight:600">${chNames[k]}</div>
+      <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxCh*100}%;background:${chColors[k]}"></div></div>
+      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+    </div>`).join('');
+
+  const payData = {};
+  tOrders.forEach(o => { payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1; });
+  const maxPay = Math.max(...Object.values(payData), 1);
+  const payColors = { card:'#2196F3', cash:'#4CAF50', prepaid:'#9C27B0', transfer:'#FF9800' };
+  const payEl = document.getElementById('pay-stats-m');
+  if (payEl) payEl.innerHTML = Object.entries(payData).map(([k,v]) => `
+    <div class="ch-stat-row">
+      <div style="width:80px;font-size:13px;font-weight:600">${PAY_LABELS[k]||k}</div>
+      <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors[k]||'#999'}"></div></div>
+      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+    </div>`).join('') || '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">주문 없음</div>';
+}
+
+// PC 모드에서 오른쪽 패널 카운트 업데이트
+function updatePcListCount() {
+  const el = document.getElementById('list-pc-cnt');
+  if (!el) return;
+  const today = todayStart();
+  const cnt = orders.filter(o => o.createdAt >= today).length;
+  el.textContent = cnt + '건';
+}
+
+// ══════════════════════════════════════════
+// 고객 DB
+// ══════════════════════════════════════════
+let custDBQuery = '';
+
+function buildCustomerDB() {
+  const map = new Map();
+  orders.forEach(o => {
+    const key = normalizePhone(o.phone) || o.customerName;
+    if (!key) return;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name: o.customerName || '',
+        phone: o.phone || '',
+        address: o.address || '',
+        orderCount: 0,
+        totalSpent: 0,
+        lastOrderDate: 0,
+        orders: []
+      });
+    }
+    const c = map.get(key);
+    c.orders.push(o);
+    c.orderCount++;
+    c.totalSpent += (o.totalAmount || 0);
+    if (o.createdAt > c.lastOrderDate) {
+      c.lastOrderDate = o.createdAt;
+      c.name = o.customerName || c.name;
+      if (o.phone) c.phone = o.phone;
+      if (o.address) c.address = o.address;
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => b.lastOrderDate - a.lastOrderDate);
+}
+
+function getTopItems(orderList) {
+  const freq = {};
+  orderList.forEach(o => (o.items || []).forEach(it => {
+    freq[it.name] = (freq[it.name] || 0) + it.qty;
+  }));
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([n]) => n)
+    .join(', ');
+}
+
+function searchCustDB(q, listId) {
+  custDBQuery = q;
+  renderCustDB(listId);
+}
+
+function renderCustDB(listId) {
+  const customers = buildCustomerDB();
+  const q = custDBQuery.trim();
+  const qDigits = q.replace(/[^\d]/g, '');
+  const filtered = q
+    ? customers.filter(c =>
+        c.name.includes(q) ||
+        (qDigits.length >= 2 && normalizePhone(c.phone).includes(qDigits))
+      )
+    : customers;
+
+  // 요약 업데이트
+  const summaryText = `총 ${customers.length}명 · ${q ? '검색결과 ' + filtered.length + '명' : '전체'}`;
+  const mobSum = document.getElementById('cdb-summary-mobile');
+  const modSum = document.getElementById('cdb-summary-modal');
+  if (mobSum && listId === 'cdb-list') mobSum.textContent = summaryText;
+  if (modSum && listId === 'cdb-list-modal') modSum.textContent = summaryText;
+
+  const container = document.getElementById(listId);
+  if (!container) return;
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state" style="padding:40px 20px">
+      <div class="empty-icon">👥</div>
+      <div class="empty-text">${q ? '검색 결과 없어요' : '고객 데이터 없음'}</div>
+      <div class="empty-sub">주문 접수 시 자동으로 고객 DB가 구축됩니다</div>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(c => {
+    const lastD = new Date(c.lastOrderDate);
+    const dateStr = `${lastD.getMonth()+1}/${lastD.getDate()}`;
+    const topItems = getTopItems(c.orders);
+    const safeKey = encodeURIComponent(c.key);
+    return `<div class="cdb-card" onclick="showCustDetail('${safeKey}')">
+      <div class="cdb-card-top">
+        <div class="cdb-avatar">${(c.name || '?')[0]}</div>
+        <div class="cdb-info">
+          <div class="cdb-name">${c.name}</div>
+          <div class="cdb-meta">📞 ${c.phone || '-'} &nbsp;|&nbsp; 마지막: ${dateStr}</div>
+          <div class="cdb-addr">📍 ${c.address || '-'}</div>
+        </div>
+        <div class="cdb-stats">
+          <div class="cdb-count">${c.orderCount}<span style="font-size:11px;font-weight:600;color:#888">회</span></div>
+          <div class="cdb-spent">${c.totalSpent ? '₩' + c.totalSpent.toLocaleString() : '-'}</div>
+        </div>
+      </div>
+      ${topItems ? `<div class="cdb-top-items">🛍️ 자주 주문: ${topItems}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function showCustDetail(encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  const customers = buildCustomerDB();
+  const c = customers.find(x => x.key === key);
+  if (!c) return;
+
+  const sortedOrders = [...c.orders].sort((a, b) => b.createdAt - a.createdAt);
+  const latestOrder = sortedOrders[0];
+
+  const histHtml = sortedOrders.map(o => {
+    const d = new Date(o.createdAt);
+    const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const itemStr = (o.items || []).map(it => `${it.name} ${it.qty}개`).join(', ') || '품목 미상';
+    const amt = o.totalAmount ? `₩${o.totalAmount.toLocaleString()}` : '';
+    return `<div class="cdb-hist-item">
+      <div class="cdb-hist-top">
+        <span class="badge badge-${o.channel}">${CH_LABELS[o.channel] || o.channel}</span>
+        <span class="badge badge-${o.status}">${STATUS_LABELS[o.status] || o.status}</span>
+        <span class="cdb-hist-date">${dateStr}</span>
+      </div>
+      <div class="cdb-hist-items">${itemStr}</div>
+      <div class="cdb-hist-bottom">
+        ${amt ? `<span style="font-size:13px;font-weight:700;color:#1a237e">${amt}</span>` : ''}
+        ${PAY_LABELS[o.paymentMethod] ? `<span style="font-size:12px;color:#888">${PAY_LABELS[o.paymentMethod]}</span>` : ''}
+        ${o.note ? `<span style="font-size:12px;color:#aaa">📝 ${o.note}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const avgAmt = c.orderCount ? Math.round(c.totalSpent / c.orderCount) : 0;
+  const content = document.getElementById('cdb-detail-content');
+  content.innerHTML = `
+    <div style="background:#E8EAF6;border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div class="cdb-avatar" style="width:54px;height:54px;font-size:24px">${(c.name || '?')[0]}</div>
+        <div style="flex:1">
+          <div style="font-size:18px;font-weight:800;color:#1a237e">${c.name}</div>
+          <div style="font-size:13px;color:#555;margin-top:3px">📞 ${c.phone || '-'}</div>
+          <div style="font-size:13px;color:#555">📍 ${c.address || '-'}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:#1a237e">${c.orderCount}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">총 주문</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:15px;font-weight:800;color:var(--green)">${c.totalSpent ? '₩' + c.totalSpent.toLocaleString() : '-'}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">누적 금액</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:15px;font-weight:800;color:var(--orange)">${avgAmt ? '₩' + avgAmt.toLocaleString() : '-'}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">평균 주문</div>
+        </div>
+      </div>
     </div>
-  </div>
-  <div id="order-list-container">
-    <div class="empty-state">
-     lass="empty-icon">📭</div>
-      <div class="empty-t필"emh Vi바꾸거�="-inner --��요</div>
-      <div class="empty-sub`;-le  return;nt:}�
-t:chis)">�.iv clHTML = filicked.ain((t, i) => {nt:t:const itemSt� = (o.i�상||[]).ain(it => `${it.���} ${it.qty}개`).join(', ');nt:n4const n>talAmt = (o.i�상||[]).keduce((s, it) => s + (it.price*it.qty||0), 0);nt:n4const nime = new Date(o.createdAt>.toLocaleTimeSts="f('k
-   {hou�:'2-digit',minute:'2-digit'});�
-t:n4const aiv cls = th:16Aiv cls(o);�
-t:n4return `��</div>
-   herit;oid= cla${o.can>문} ${o.�� 제===    <d?'/div></':''}size:12pa${o.id}  <!-- 결과 -->
-    <>
-<body>
+    <button class="btn btn-primary btn-full" onclick="reorderFromCust(${JSON.stringify(JSON.stringify(latestOrder))})" style="margin-bottom:16px;padding:14px;font-size:15px">
+      🛒 이 고객으로 새 주문 입력
+    </button>
+    <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px">📋 주문 이력 (${c.orderCount}건)</div>
+    ${histHtml}
+  `;
 
-<- 결과 -->
-    <>� �>${i+1}type="text" placeholder="상�y��객>${o.caceomerput"}type="text" plac="total-row"식� 식�a${o.can>문}�>${CH_LABELS[o.can>문]||o.can>문}an style="font결과 -->
-    <>
-i객>${
-i�}-break:break-all;font-weight:400" id="ocv>
-    <div ${o.>
-  ess}-break:break-${o.��락?`ht:400" id="ocv>
-    <di�-${o.��락}-break`:''}:break-${itemSt�?`ht:400" id="ocv��상�rd">
-    ${itemSt�}-break`:''}:break-ht:400" id="ocv   <di""text" plac="total-row"식� 식�a${o.�� 제}�>${STATUS_LABELS[o.�� 제]||o.�� 제}an style="font�${o.�ayt tyMethod?`h="total-row"식�()">다� 4px rgba(0,size:178px;paddina>${PAY_LABELS[o.�ayt tyMethod]||o.�ayt tyMethod}an styl`:''}:break-�${o.�� �?`h="totnput" type="password" placeho888  <di��${o.�� �}an styl`:''}:break-�${n>talAmt?`ht:400" id="ocv> <spanard"${n>talAmt.toLocaleSts="f()}-break`:''}:break-hbreak:break-${aiv cls?`ht:400" id="ocv>iv clsa>${>iv cls}-break`:''}:breaty-sub`;-le}).join('')ee}�
-funiv cl th:16Aiv cls(o) {nt:if (o.�� 제 ===  <div cla) return `
-12px;display:none"></div>
-   
-    </dra()">다�     <bPay('prepaupstylS� 제('${o.id}asdiv class=")on class="btdata-filn class="header-pc-btn" oncs="sectio-card  </dra()">다�     <bPay('prepasdivToD classy('${o.id}a btn-��ata-fil발송iln class="header-pc-btn" oncs="sectidiv>
-      <div class=upstylS� 제('${o.id}asdiancells='but      <butto`;nt:if (o.�� 제 ===  iv class=") return `
-12px;display:none"></div>
- color:#888;margi">다�     <bPay('prepasdivToD classy('${o.id}a btn-��ata-filata-정하  <button class="der-pc-btn" oncs="sectidiv>
-      <div class=upstylS� 제('${o.id}asdiancells='butn class="btn bt`;nt:if (o.�� 제 ===  v class="fi) return `
-12px;display:none"></div>
-   
-    </dra()">다�     <bPay('prepaupstylS� 제('${o.id}asdv></')on clata-filt style="btn bt`;nt:if (o.�� 제 ===  v></') return `
-12px;display:none"></div>
-   v>
-      
-      <div class=upstylS� 제('${o.id}asdiv class=")on ��a" styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�pid="pcpx;���  �class="��
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl upstylS� 제(id, s� 제) {nt:const o = th:16s.'snd(x => x.id === id)een4if (!o) return;nt:o.�� 제 = s� 제;nt:o.upstyldAt = Date.ndiv>een4:1">제�s()een4ren:16제�LAst()een4if (firebaseA═�) db.ref('th:16s/' + id).upstyl({ s� 제, upstyldAt::o.upstyldAt }>een4:howT</di(`${o.caceomerput"}-heig${STATUS_LABELS[�� 제]}`);n}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�ta-filata-정 (�할��앱·대시볘�긐�� 샄송)
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl :divToD classy(th:16Id) {nt:const o = th:16s.'snd(x => x.id === th:16Id)een4if (!o) return;n
-t:const itemSt� = (o.i�상||[]).ain(it => `${it.���} ${it.qty}개`).join(', ');nt:const n>talAmt = (o.i�상||[]).keduce((s, it) => s + (it.price*it.qty||0), 0);nen4//�v class=es 노�� stylton c-heig�할��앱·대시볘�� styl <but간 표butnt:const d classy = ent:t:caceomerput"::o.caceomerput",-left>
-  ess::o.>
-  ess,-left��락::o.��락 || '-',-left�� �: [o.�� �, itemSt�, PAY_LABELS[o.�ayt tyMethod]||'', )>talAmt?`rd"${n>talAmt.toLocaleSts="f()}`:''].'sms',(Boolean).join('iv c'),-left�� 제:  <div cla,-leftth:16Id: o.id,-leftth:16pan>문: o.can>문,-leftn>talAm<spa: )>talAmt,-leftcreatedAt: Date.ndiv>-le};�
-t:if (firebaseA═�) ent:t:db.ref('v class=es/' + th:16Id).set(d classy>.then(() => {nt:t:  upstylS� 제(th:16Id,  v class="fi);nt:t:  :howT</di('n-��a�할��앱 없음-done-m"��송a" styl!i);nt:t:}>een4} else {nt:t:upstylS� 제(th:16Id,  v class="fi);nt:t::howT</di('lign:c cla프�s=="� —�Firebaset연결 Clou�원 <hand Vision �;nt:}�}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�➕ 새/-amount"o주�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl :dspan>문�ch, el) {nt:curren/pan>문 = cheen4docut ty.querySelsetorAll('. class="ch-').forEa" (b => {nt:t:b.="cloput" = i class="ch-';-le})een4e�.="cloLAst.add('/div' + ch);nen4//�➕ �t오/���s=h-emoji">📞< 현� 표but/숨김en4docut ty.�(let tyById('>
-  </div>').">다. id="oc =nt:t:�ch ===  iv cl) ? '-fil' :  block'ee}�
-funiv cl id',thip, el) {nt:curren/Pay = peen4docut ty.querySelsetorAll('.ick="se').forEa" (b => b.="cloLAst.remove(' ═�')ween4e�.="cloLAst.add(' ═�');n}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�ⲽ기�행
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl 품목</div���='', qty=1, ">ice='') {nt:const id = uid();nt:const row = docut ty.create(let ty('viv');nt:row.="cloput" = i/div>
-  ';nt:row.id = 'ir-' + id;nt:row.iv clHTML = `->
-<div class="scre/div>��객�/label>
-       style="" 🔍 ="${���}" type="seaiv cT>tal()">채널v class="scre/div>qtyst-searcnumbto��min="1" 🔍 ="${qty}" type="seaiv cT>tal()">채널v class="scre/div>">icest-searcnumbto��       <div cl" 🔍 ="${">ice}" type="seaiv cT>tal()">채널    <div class0div>de0ab">📊 �remove/div'ir-${id}a bt      <butto`;nt:docut ty.�(let tyById(':div>
-   ').ex:1ndChild(
-  );nt:cv cT>tal()ee}�
-funiv cl remove/divid) {nt:docut ty.�(let tyById(id)?.remove();nt:cv cT>tal()ee}�
-funiv cl cv cT>tal() {nt:const 
-    = docut ty.querySelsetorAll('./div>
-  ');nt:let )>tal = 0;nt:rows.forEa" (row => {nt:t:const qty = p�우Float(row.querySelsetor('./div>qty'). type= || 0;nt:n4const ">ice = p�우Float(row.querySelsetor('./div>">ice'). type= || 0;nt:n4)>tal += qty * ">ice;-le})een4docut ty.�(let tyById('d="total-labe').portC{font- = 'rd"' + e="to.toLocaleSts="f()ee}�
-funiv cl get목<s() {nt:return Array.from(docut ty.querySelsetorAll('./div>
-  ')).ain(row => ({nt:t:nut"::row.querySelsetor('./div>nut"'). type.ts=m(),-leftqty: p�우Float(row.querySelsetor('./div>qty'). type= || 1,-left�>ice: p�우Float(row.querySelsetor('./div>">ice'). type= || 0-le})).'sms',(i => i.���);n}�
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════//�temoji">📞</span>
-//�═════════
-     Vision API 키 설정 모달
-     ════════════════════funiv cl -top:8px">
-  {nt:const nort = docut ty.�(let tyById('</span></d'). type.ts=m()een4if (!></d) { :howT</di(' class="parse-box">
-�ass="  <div'); return;:}�
-t:chist "art� = spliyMe  a0es(></d);�
-t:if ("art�.length === 1) ent:t://�tlass="메butatusheig폼�➕     <nt:t:docut ty.�(let tyById('ult" id="pars').="cloLAst.remove(':how');nt:n4const px}
-.i = p�우제�T</d(></d);�left> 보P�우d(
-x}
-.i);nt:n4const px}E� = docut ty.�(let tyById('��우기</bu');nt:n4const /divs = [];�t:n4if (��</bu.���) /divs.push(`s = [()een4ups">�}`);nt:n4if (��</bu.��락) /divs.push(`s i�-${��</bu.��락}`);nt:n4if (��</bu.>
-  ess) /divs.push(`s i�-${��</bu.>
-  ess}`);nt:n4if (��</bu.i�상.length� /divs.push(`s >
-    ${��</bu.i�상.ain(i=>`${i.���} ${i.qty}개`).join(', ')}`);nt:n4if (��</bu.�ay� /divs.push(`s �� ${PAY_LABELS[��</bu.�ay]||��</bu.�ay}`);nt:n4px}E�.iv clHTML = /divs.lengthnt:t:  ? ` cla/span>a" styl!"br>${/divs.join('"br>')}`nt:t:  :  lign:c cbtn btld-valyl <패. 아래 s="f�t-size��접��</div>
-      <div.';nt:n4px}E�.="cloLAst.add('/how');nt:n4:howT</di(/divs.length ? 'ass="btn btn-prima" styl!i :  e��접��</div>
-      <div'>een4} else {nt:t://�tl�d���메butatusheigss=괄r;justify-connt:t:docut ty.�(let tyById('��우기</bu').="cloLAst.remove(':how');nt:n4:howBlt" </butto"art��;nt:}�}�
-funiv cl ihowBlt" </butto"art�� {nt:window.__ult" P�우d = p��t�.ain(p => p�우제�T</d(p)ween4window.__ult" Skix:1d = new Set();nt:const d="pars = docut ty.�(let tyById('ult" id="pars');nt:const div>s = window.__ult" P�우d.ain((r, i) => {nt:t:const info = [];�t:n4if (�.��락) info.push(`s i�-${�.��락}`);nt:n4if (�.>
-  ess) info.push(`s i�-${�.>
-  ess}`);nt:n4if (�.i�상.length� info.push(`s >
-    ${�.i�상.ain(it=>`${it.���} ${it.qty}개`).join(', ')}`);nt:n4if (�.�ay� info.push(`s �� ${PAY_LABELS[�.�ay]||�.�ay}`);nt:n4pxturn `��</div>
-   ult" itat-laze:1�-�at-laze:19n4if (�.�ay� info.push(`s �� ${PA�<butth"�docut ty.`PA�<bs �� ${PA�<bu�_LABELSetur" type="seaiv cT>tsion �in('"b)'e="font결과 -->
-    <>
-i객>${
-i�}-bbu�_LABELSe1sult-but��`)ocaleSt&nbsp;·&nbsp;=>`iv "br>${/dn('"br>��/�ting:40p'e="font결과 -(o.�� 제 ===  u�_LAs��ba(0,:10px}
-los/div>
-B => p��( `��s=up��외'prepa:ceN-->Step</blsa>${>iv cls}-bre .__ult" f (!filicked.length� {nt:t u�_LApagr:5px()div>
-    �)}`"art� = splifontMS 항<
-      <span hod}an styl`:''}:break-�${o.�� �?`h="tp��외 APIlass��ngt��외' 버�trd">
-ut오/��핑
-      <sp="font결${et ty}
-i객>${
-i�}-bbu�_LA��) ══�제 ===  v class="fi) return `
-12px;display:none"><t:n4pu�_LAs비�>
-      <div cla비�B => ;nt:o.upaupstylx">
-  등���(}`"art� = splifont)'${o.id}a btn-��ata-filata-정하  <button class="der-pc-bt cldaB => P_ult" ()e="display:flex;gap:tep</blsa>$__ult" f접��</div>
-      <div.';� 제, upst   �)}`"art� = splifont의 >
-    <divS 항<bu��">
- 항<bu`)�Date()}rs="($iv>
-B => p��(i�═══�yById('ult" id="pap�우�t ty.�(let tSkix:1d = new Set();nt:const BELSe'+iut ty.�(l�하=let type= || 1,-left�> u�_LAs��ba(0 (erbE�) eromFb:i)0es(></ds.d 1,��icut ty.�t tyt ty.�(let tyByIbu�_LABELSes�욀우기<a(0t ty.�(let tyBt��외'��기<a(0tt ty.�(let tyByI (�lefe styl!i :  e��접��sv>
-  icut ty.�t tyt ty.�(l>
-   bu�_LABELSes�욀우기<a(0t ty.�(let tyB복원'��기<a(0tt ty.�(l>
-    (�lefe styl!i ty.�(leet ty(d('ult" id="pars');nn(', 'st.add(-�svbreat ty.�(lsbSkix:1d = new Set();nt:const d="pas비�>
-   (erbE�) erb)lsbcut ty.�(let tpstylx">
-  등���(}`eetfont).�Date()}rs="a비�B => ;nt:o.up═══�y�우제춀�t�.ain(p => p�우제queT</d(p)ween4window.toS비� ty(d('ult" id="pars');nn(', 'or('./d(_,iv>s =!y�우�omFb:i)0et tyById(oS비�d = nclickn></d'). type����� API>
-    <div cla
- 항<budi(' class="pa4window.n='') :o.�� 제 = s�(oS비�d/div>
-  st didxv>s = window.__ult:t:}styl <but tyd:='', q, <but t간 표butnt:ce="sea  ess �is="bt', <but terput",rleft>
-  ess', <but tt:caceome:n4if (�.  ess', <but te;colo .i�상., <but td,-leftth:16p.i�상.l);nt:consti)=>s+ ${��*ii�상|((s,, <but te �: [o.�� �,",rleton esock'ee}�
-f, <but t�v cla,-l�═funiv cl :, <but tess,-ls', <but t].'sms',(Boolean).join(n>문,-leftn>n=''put"x, th:16Id).seteftn>n=''put"x��앱 ;� 제:  <ds.unshif�data��it.���} ${���s()een4ren:16제�LAst()een4+st()etruent:t:ata��it.��} = s� 제;nt:o.upstyl cldaB => P_ult" ()styldAt = Date.ndiv>een4:n:16제�LAst()een══'p"🔍  = � 제, upstpsty[o.�S비�d = nclfontM else {</div>
- (/divs`)�Date()}rs=" cldaB => P_ult" () cT>tal()ee}�
-funiv cl remove�     <nt:t:docut ty.�(let tyById('ult" id=iv cl -top:8px">
-  {nt:const nort = docut tv class="funiv cl ihowBlt" </butnull = p��t�.ain(p => p�우제�T</d(p)ween�Date()}rs=" cear�═══�iv cl -top:8px">
-  {nt:const nort = docut tv class="></d);�> 보P�우d(
-x}
-.i);nt:n4const px}E� = docut trt ty.�(let tyById('ult" id=rt ty.�(let tyB';T>tal()ee}�
-funiv cl remove�     <nt:t:docut ty.�(let tyById('ult" id=funiv cl ihowBlt" </butnull = p��t�.ain(p => p�우제�T</d(p)ween�Date()}rs=".remove(':how');nt:ncv cT>tal()e"cloLAst{rAll('.���erput",���t:caceome���e;colo [],te �me��>talAmt═�">
-    <inp(점·se <in·s��백>고er">�� �">��((s10.nt:a.Id: px}
-10)nt:a-Id: px}
-10nt:app78� h��컬  erputM => iv cnt:len.get/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/0et tyByIerputM => )= window.__ul="f('yByIerputM => [0]et lass=(/[^\d]/gt=>'PAY_LABELS��</bu.��> �"f('yet lass=(/^(\d{3})(\d{3,4})(\d{4})$/t=>$1-$2-$3 styl!i Amt═� 주�(</div>� 주�;nen4��역�;nen4��략고er" 순rs=="par��도� h��컬  t:caPat'./n !o.fromFb/[서경dn(대부울iv>⠜강충�"경][울v cl��고ꂰ남종>
-  ��남 ��][\s\S]{2,50}(?:아파트|빌라|iv>
-�(대|v cla�>주��|APT|apt|동|<in|   �n| ��로|로|�n)\s*\d*/, th:1/(?:서울|경v c|dn('��|부산| ��고| ���"|4��주|울i��|iv>⢅|강원|충 ��|충 ��|�" ��|�" ��|경 ��|경 ��|╜주)[^\n,]{3,60}/, th:1/[가-힣]{2,6}(?:특별r��|4��역r��|특별r��치r��|도|r��|4��|군|동|읍|면|로|�n| ��로)[가-힣\d\s-]{0,20}/, thd.ain/di (-box">
-�ultf t:caPat'./n )= window.__ulmiv cnt:len.get
-�uit.���} ${m && m[0]est.add(>= 4EY = i�</bu.>
-  esiv m[0]e.�(le 
-    ="pa4wi Amt═stats"></div>t tyByI/en4//�/t ts');nt:n) ush(`s �� en/pan>문   :  e�yByI/ = e  /t ts');nt:n) ush(`s �� en/pansh��   :  e�yByI/', ias|nt:t://t ts');nt:n) ush(`s �� en/p:'d">����   :  e�yByI/계r��|>💵<|is=e  /t ts');nt:n) ush(`s �� en/pd">�두 'alAmt═══�(
-t:i��포함px}x곱셈 ��══�:t:/ "두부2개" "S 핞�3">채 ��/dn('"b� h��컬  sturn�T</d(p)ween4window.e;coPat'./n !o.fromFb/([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*(\d+)\s*(?:개|봉|팩|박스|묶음|병|캔|kg|g|L|ml)/gtromFb/([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,9}?)\s*[xX×\*]\s*(\d+)/gtromFb/([가-힣]{2,8})(\d+)/gt��</di��═�:t:/: 두부2, S 핞�3 thd.ain/di (-box">
-�ultf e;coPat'./n )= windoty.qm;>
-�u.ty.tIt =xelsetorA p�hile ((mbuttot.exec);nt:n) !=utnull)yl <but tindow.nmiv m[1]e.�(let lass=(/^[-•·*\s]+/t=>'Py.�(let t���} ${nmest.add(>= 2 && nmest.add(<= 15 && !/^\d/t ts')nm) && !sturomFb:nm))yl <but t  sturl>
-  nm); <but t  i�상.length�.join{rAll('.nm,etor('./divInt(m[2])||═funiv: 0�} = s��앱 
-�앱 
-�앱push(`s i�-${��</bu.>
-  e
-    =yl!i Amt═�>tsio: 라벨형�;nen독립줄gth ==��줄g4��략is="bt 맨앞 순
-y.�(let tyByIdcnt:l <div('\n4doengtl=>ly.�(l)rd"${n>talAmt.to.ain/di (-box">t tyltf t tyB)= window.__ulstat-M||��</blen.get/(?:�>tsio|m:16��|받는\s*er"|>
-    <��)[:\s]*([가-힣]{2,5})/it.���} ${stat-MEY = i�</buny.creastat-M[1]e 
-    ="pa4w tindow.ny.cM||��</blen.get/^[가-힣]{2,4}$/it.���} ${ny.cMEY = i�</buny.creany.cM[0]e 
-    ="pa4w t═�par��g4��략: "홍�n:n4:
-10-�</l0ff}
-.im"홍�n:n4:강 ��4���</lwindow.__ult"�</bM||��</blen.get/^([가-힣]{2,4})\s+(?:0\d|[가-힣])/it.���} ${t"�</bMEY = i�</buny.creat"�</bM[1]e 
-    ="pa4wi Amt ${PAY_ i�</btype= ||f (!��    <div'>e;nt:n4:er"t:/ate()}rs="a<div'); return;:}�= win ||1)' };�const톡o [�>tsio] [오�"/nst후 H:MM] 패턴
-y.�(le.�� �Rcrea/(?=\[[^\]]+\]\s*\[(?:오�"|nst후)\s*\d+:\d+\])/cut ty.q
-�ass=" cnt:l <div(.�� �Rcdoengts=>sy.�(l)rd"${n>talAmt.to.ainist "art� = spliy>|1)' ${PAY_"art�alAmt═2)>고er">�� (---,yMe ,t�/t=~~~� h�
-�ass=" cnt:l <div(/\n[ \t]*[-=\/~]{2,}[ \t]*\n/doengts=>sy.�(l)rd"${n>talAmt.to.ainist "art� = spliy>|1)' ${PAY_"art�alAmt═3)    <inp��═�(1. 2. 3.0ff}
-.im1)'2)>3)� h��컬  ��널v제�cnt:l <div(/(?=^\s*\d+[.\)]\s)/mdoengts=>sy.�(l)rd"${n>talAmt.to.ainist ��널v� = spliy>|1 && n�널v� e��═p=>/^\d+[.\)]/t ts')p)))' ${PAY_n�널v�alAmt═4EY빈ar��g ��/개">💃� h�
-�ass=" cnt:l <div(/\n[ \t]*\n[ \t]*\n+/doengts=>sy.�(l)rd"${n>talAmt.to.ainist "art� = spliy>|1)' ${PAY_"art�alAmt═5)��">
-    <inpf (!�� 개";nen�t:if ("��r��;nt:tr"t:/ah��컬  erputs=" (cnt:len.get/0\d{1,2}[-\s.()]*\d{3,4}[-\s.()]*\d{4}/g)n(', et tyByIerput� = spliy>|1)' windo
-�ass=" cnt:l <div(/\n[ \t]*\n/doengts=>sy.�(l)rd"${n>talAmt.to.aininist "art� = spliy>|1)' ${PAY_"art�al4wi Amt ${PAY_[cnt:]en�Date()}rs=" px}
-.i = p��join('')eert:n4con�메butatusheigss=괄r;justiinp-cnt:t:nut"::r=" rt:n4c;
-((r, i) => {nt:메butatusheigss=괄r;justiinp-=> {n:nut"::r=" rt=> {n;
-((r, i) .push(`s �butatusheigss=괄r;justiinp-.pus:nut"::r=" rt.push(`;
-((r, i) =qty}{���메butatush el) {nt:curren/Pay = peen4docut ty.querySelsetorAll('.ick="se').forEa" (b block'ee}�
-funi) =qterySelsetor('ayBtn !o.'d"=ilt0st PAY_1d=:'d">�� 2:'d">�두 �3� ;� 제�butatush el) {nt:curren/Pay = peen4d['ayBtn (�.�ay� i0]? c.="cloLAst.remove(' ═�'}Amt═══�|0), 0
-) info.push(`s i�-${�.{���메butatusheigss=괄r;justi<butto`;nt:d (!filicked.lass="c')push(`scut ty.qt:cons═══�.push(`�e;${���e;$funiv)ebaset연결 Clou�원 <hand Vision �;nt:}�}�
-//�═════════
-     Vision API 키 설정 모달
-     ═════════�">👥</�출��═══//�➕ 새/-amount"o주�
-//�═════════
-     Vision API 키 설정 모달
-     ═══════════�비�ve(':up═══�ny.crea�butatusheigss=괄r;justiinp-cnt:t:nut"::ry.�(let t�컬  erputrea�butatusheigss=괄r;justiinp-=> {n:nut"::ry.�(let t�컬  .pusrea�butatusheigss=괄r;justiinp-.pus:nut"::ry.�(lett tyById"sea  es!.pusickn></d'). typ"br>${/ox{bor명과�� 주
-.im필수is="��<budi(' class="pan4window.e;co !o.e="to.toLo${it.���} ${it.qth:1reat상.l);nt:constdiv>s =t =  ${�� * ii�상|((s, x.id === tt:t:}styl <butyd:='', q, <but간 표butnt:cnsy = ent:=> {n= ent:t:caceomet:ca= ent:�상., <but ${it.qth:1= ent:= �: [o.�� �,",ock'ee}�
-f, <but�v cla,-l�═funiv cl :, <butess,-l�butatusheigss=괄r;justiinp-ess,:nut"::row.querySelse].'sms',(Boolean).join(문,-leftn>talAm<spa:,
-:16Id).seteftn>talAm<spa: )>talAmt:  <ds.unshif�data��it.�� 제;nt:o.upstyl1">제�s()een4ren:16제�LAst()een4if st()etruent:t:ata��it.Amt═�= 1)��══�  i��etForm()styldAt = Date.ndiv>een4:n:16제�LAst()een══'p"🔍  = � 제, upstpsty[osh(`s ox{bord<">👥</div>
- (/divs`)�Date()}rs="i��etForm()yl <b[iinp-cnt:t:,iinp-=> {n:,iinp-.pus:,iinp-ess,:]scut ty.qtd>s = windoal()ee}�
-funiv cl remove/diocut tv class="= || 0;nt:n4)>tal += qty * ">ic<butto`;nt:d (!filicked.lass="iv cl -top:8px">
-  {nt:const nort = docut tv class="�butatusheigss=괄r;justify-connt:t:docut ty.�(let tyById('��우�al()ee}�
-funiv cl remove�     <nt:t:docut ty.�(let tyById('ult" id=lay:nonePa���" id=funiv cl ihowBlt" </butnull p��t�.ain(p => p�우제�T</d(p)ween4w;nt:n4)>tal += qty * ">ice;-le})een4docut ty.�(let tyById0ass="═══�i('═s��본 1개연결 Clou�원 <hand Vision �;nt:}�}�
-//�═════════
-     Vision API 키 설정 모달
-     ═════════ox{bord<��횼�(<�">
-    <inp���>tsioput cla� (�할��앱·대시볘�긐�� 샄송)
-//�═════════
-     Vision API 키 설정 모달
-     ═══════════norm:web:P> {n)p)caleSts="f()(p  ess')et lass=(/[^\d]/gt=>'PAY- = 'rd"' + e="C�� 표bHi�lefyIerput, :n4con{Amt═�">
-    <inpor��>tsiors=="pa과거d<">👥ut cla, 최신순
-y.ts="f()   = t>
-  Sg:9p();n{aininist "rputr&& norm:web:P> {n)o => {nt:Me  => {nt:ts="f()4upstyininist !"rputr&& nsea && onst d classy  && onst d classy iv>
- )een4:n4cot:ts="f()4upstyinin => o.caPay = >${>i !localIds.has(o.id)w-le]een4th:16s.s���((a- = 'rd"' + eroupC�� 표bsByP> {n)hint:}�}�
-═�">
-    <inpv cl��rs=="pa�{bord그룹>
- �(<��rs==>→>tsiopu cl��� h��컬  m��╶T</dMngt" id=lat`scut ty.qo>s = window.__ulkefuninorm:web:P> {n)o => {nt: esonst d classy tyininist !m��omFb:kefot:m��ot:t:kef, ', et t :m��og:t:kef)�.joinoit.��} = s�ts="f()ee}�
-funiv map�() || {)break`:''}:breatnP> {nI    (() ��Day()]})`ee"f('yByInorm:web:P> {n)() �styl1">�"f('yest.add(< 4EY =lay:nonePa���" ' class="pa4w═4;nt:��">💃�ass="btar���ut cla�(<���"M el�>
- ��선, 앞;nt:��"포함p포함� h��컬  h('yByI   = t>
-  Sg:9p();n{ainin === ttpuninorm:web:P> {n)o => {nttyinin => o.ctpu&& opiv>
- )een4�"f('y)= >${>i !localIds.has(o.id)w-le]een4th:16s.s���((ac');nt:n4if Pa���eroupC�� 표bsByP> {n)hint:break`:''}:breatnssy I    (() ��Day()]})`equnivaly.�(let tyByIqest.add(< 2EY =lay:nonePa���" ' class="pa4w�컬  h('yByI   = t>
-  Sg:9p();� 제:nst d classy  && onst d classy iv>
- )een4q� h�>i !localIds.has(o.id)w-le]een4th:16s.s���((ac');nt:n4if Pa���eroupC�� 표bsByP> {n)hint:break`:''}:brea);nt:n4if Pa���eroup��═funiv clpal :dspt:cacehoQuery = i';nt:t:coif -pal : (erbE�) e!eroup�d = nclicknlay:nonePa���" ' class="pa�funiv clMAX_GROUPall:5t ty.�(ls'ulrn�eroup�d"f(36)0,lMAX_GROUPait.Amtty.qhtmled.length� {nt:toif -pal :Apagr: id="ox{bord<��횼�nt:t${eroup�d = ncl}명div 칭 (탭cla ������n-prs="bt)tep</blsa>$s'ulrscut ty.qo= falsg();n{ainin === tla ts'ByI   = t_g[0]e ═o��═ 최근d<">�ainin === thi�lHtmled.   = t_gd"f(36)0,l4new Set(th:l <but tindow.dprice*it.qty||0), 0);nt:; <but tindow.d styl}styyId('-bar" styl')./C{font- =nt:t:`; <but tindow.h:16Id)een4if (!o) return;n
-tconst itush(`s   ${��>1?' '+ ${��+'개an>�상.ain(it=>`  ess class=�����'; <but tindow.aqty}�o. ${it.qth:1r? `ut" t ${it.qth:1Method]||'', )>tal원`leng'; <but t ${PAY_LABELS[�.�ay]oif -hi�l:''}:">div>
-   -${itemSt�?`ht:4${aqt"passwor}an style="fooif -hi�l:d�.iv�Mstyl}"passwor}--��요</div{>iv cls}-bre{it.���} ${it.qCth:1rea   = t_gd = ncl�</divhtmle+d.length� {nt:toif -en.ge="der-pc-bt
-  lFnivC�� 표b(${t:localStorage.t:localStorage.la ts'))})</div>
-   ult" itat-loif -en.geetur" typla ts'e="text" placeholder="상�y ult" itat-loif -en.gee1sult-o = [];la ts'e=> {n||'-'}t&nbsp;|&nbsp;=�}`);ntla ts'et:caceo||'-'}holder="상�y ult" itat-loif -hi�l:4pxts-m-��근d<">��(<��  <di��$Cth:1}횼).toLocaleSts="fhi�lHtmlid="ocv>iv clsa>${>re{itpal :d (!filicked.html;{itpal :d접��</div>
-      <div.add(' ═�');nlFnivC�� 표b(jsonyl}��═funiv cl :d cl load제jsonyl}�|| 0;nt:n4)>tal += qty * ">ic<np-cnt:t:nut"::r=" :nst d classy   ess'|| 0;nt:n4)>tal += qty * ">ic<np-=> {n:nut"::r=" -left>
-  ess'|| 0;nt:n4)>tal += qty * ">ic<np-.pus:nut"::r=" on4if (�.  ess' id=lay:nonePa���" id=� 제, upstpsty[odAt::o.upstyldAtox{bord<��/�tin��n-prs="bt
- (/div`:const f포커스div>══�|s="btrs=="pid=�e(); do  (=es/' �butatush el) {nt:curr('#<butto`;n docut t?scut::(), 100iv.add(' ═�'lay:nonePa���"═funiv clpdspt:cacehoQuery = i';nt:t:coif -pal : (erbE�) ep)cpt ty.�(let tyById('ult" i��결 패═�
-   ��t-dro">ar���paddin
-t:cacehoQ4ifEveho��(le!fi:co-pc-it=e═db.ref('th:pal :dspt:cacehoQuery = i';nt:t:coif -pal : (erbE�) epal :d&& !pal :d�ss="ems(e.taruer) &&aleSts=e.taruernt:r!=utc<np-=> {n:d&& e.taruernt:r!=utc<np-cnt:t:n:l <butlay:nonePa���" id=}een4ren:16 통�()een4upstylHhide"()ee});�
-//�═════════
-     Vision API 키 설정 모달
-     ═════════↵계 (�할��앱·대시볘�긐�� 샄송)
-//�═════════
-     Vision API 키 설정 모달
-     ═══════════d(' ═�');n�════funiv cl upstylHhide"() {nt:c n>
-   = t>
-  Sg:9p();nt:const e>
-  Oh:16s = th:16s��Date()}rs="(${d  s[d.�Day(-di��$cut ty.�(let tyty-da').portC{�Date()}rs="(${d  s[d.�Day(${o.caut ty.�(let tyty-da').:9p();nt=>iv>
-   herit;oid=).portC{�Date()}rs="(${d  s[d.�Day($:16Aiv clt ty.�(let tyty-da').:9p();nt=>  === iv cl) return fidiv>
- )een4iv>
-   h)).portC{� cT>tal()e"v tyty-da').:9p();nt=>iv>
-   herit;oid=).);nt:consto)=>s+( t ${it.qth:1duce(0)�Date()}rs="(${d  s[d.�Day($e"venuecut ty.�(let tyById('d=e"vl-labe').portC{font)een4e�.="cl별 ty.�(lehD6s').oells=:'n0CH_LAB0:'d">
- 0� ;� �ty-da').:ut ty.qo>s = 'sms',hD6s'��� 식�a!=uu' �fined) ,hD6s'��� 식�a++;�} = s��컬  m�xC iv  { rem�x(...nap"�() || {,hD6s'), 1ut ty.�(lehC.�� sancells=:'n #FEE500 CH_LABE#4CAF50
-:'d">
-  #2196F3' }t ty.�(lehtylds0>e(/' }t ty.�(lehtyl�const CH_LABELS = e ns">
-:'d">
-    <div c',e(0)�Date()}rs="(${d  s[dnst .="clotpal :d (!fil�x(...n(${t:if() || {,rs');n[k,v]do  (`ak-all;fon4pxtsiKnst .="'#<bs'))})</div>
- "�ce:nowrap"80px; styl`:''}:3px; stylweight:600eetu.�(le[k]o||'-'}holder="상�y ult" ist .="'bar)type="text" pla"상�y ult" ist .="'barr="�ce:nowrap"${v/�컬 *::(}%;�ayt tyMethtu.�(leh[k]oass="oc#eef0ffp||'-'}holder="상�"�ce:nowrap"30px;nuec-align:right; styl`:''}:3px; stylweight:700ak-�${o333eetuv}�꾸거�="-inner </div{>iv cls}-wi Amt═�.="cl별 typay��(lehD6">
- 0� ;� �ty-da').:ut ty.qopay��(l-',-left�� �: [o.:16Ipay��(l-',-left�� �: [o..qth+1��a++;�} = s���ck'ee}xC iv  { rem�x(...nap"�(pay��(l,hD6s'), 1ut typay��(lehC.�� all:'dd">
-  #2};�constH_LABE#4CAe  id=:'d#9C27B0', iash:'d">�#FF98 #F c',e(0)�Date()}rs="(${d  s[den/P .="clotpal :d (!fil�x(...n(${t:if(pay��(l,rs');n[k,v]do  (`ak-all;fon4pxtsiKnst .="'#<bs'))})</div>
- "�ce:nowrap"80px; styl`:''}:3px; stylweight:600eetu, ')}`);nt:k..qko||'-'}holder="상�y ult" ist .="'bar)type="text" pla"상�y ult" ist .="'barr="�ce:nowrap"${v/��ck'*::(}%;�ayt tyMethtupay��(leh:k..qd#999'oass="oc#eef0ffp||'-'}holder="상�"�ce:nowrap"30px;nuec-align:right; styl`:''}:3px; stylweight:700ak-�${o333eetuv}�꾸거�="-inner </div{>iv if (�"상�"�ce:nk-�${oaaa; styl`:''}:3px;nuec-align:c(${er;pace/div12px">:16s = Oy>��/�ti-inner")on ��a" styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ═══════토v cl═════//�pid="pcpx;���  �class="��
-//�═════════
-     Vision API 키 설정 모달
-     ═════════�" id=� �msg��');n�═�rb).="cloLAst.add(' ═�');n=� �-pal :tenuecut ty.�(msgal :teult" f접��</div>
-      <d"pid=�e(); do  (t ep)cpt ty.�(let tyById, 25:(), 100�a" styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ═══════PC�══핞�3���════//�pid="pcpx;���  �class="��
-//�═════════
-     Vision API 키 설정 모달
-     ═════════�" id(' �M:16l"to.toLoc�═d(' �M:16l"t� ${d.�Date()}rs="(${d  s[d.�Dam:16l')tpal :d접��</div>
-      <iv.add(' ═�d(' �M:16l"e = p��joine=> {n:d&& e.uerntd.�Date()}rs="(${d  s[d.�Dam:16l') = th:16s.'sd.�Date()}rs="(${d  s[d.�Dam:16l')tpal :d접��(let tyById('ul═════d(' �M:16l"to.toLn�════funiv cl upstylHhide"() {nt:c n>
-   = t>
-  Sg:9p();nt:const e>
-  Oh:16s = :16s.length}건`een4upstylPcLAstCy-da();�
-t:const d = new Date();nt:const 
-  s = ['일<but tindow.d styl}styyId('-bar" styl').portC{font- =nt:t:`${d.�M{foh()+1}월 ${<but tth:pal :dspt:cacehoQuery = i';.�Day()]am:16l')al : (er? '-& !nuecut ty.�(indow.dportC{� cTd"pt"�<═�I    ty.qo<but tt:pal :dspt:cacehoQuery = i') {n: ("e =e!nuecut ty.�(I  ; c',e(d"pt[d.�Day(-m', iet tyty-da').)',e(d"pt[d.� her-m', iet tyty-da').:9p();nt=>iv>
-   herit;oid=).)',e(d"pt[d.�nt=>  =-m', iet tyty-da').:9p();nt=>  === iv cl) return fidiv>
- )een4iv>
-   h)).�='', qty=1,tal()e"v tyty-da').:9p();nt=>iv>
-   herit;oid=).);nt:consto)=>s+( t ${it.qth:1duce(d"pt[d.�Day($e-m', let tyById('d=e"vl-labe').po��|((s, x.id.�(lehD6s').oells=:'n0CH_LAB0:'d">
- 0� ;� �ty-da').:ut ty.qo>s= 'sms',hD6s'��� 식�a!=uu' �fined) ,hD6s'��� 식�a++;�} = s��컬  m�xC iv  { rem�x(...nap"�() || {,hD6s'), 1ut ty.�(lehC.�� sancells=:'n #FEE500 CH_LABE#4CAF50
-:'d">
-  #2196F3' }t ty.�(lehtylds0>e(/' }t ty.�(leh�const CH_LABELS = e ns">
-:'d">
-    <div c',e( }t ty.�d);�left> 보P�우d(
-x}
-.i);ntnst .="c-m' = th:16s.hty.�.htytpal :d (!fil�x(...n(${t:if() || {,rs');n[k,v]do  (`ak-all;fon4pxtsiKnst .="'#<bs'))})</div>
- "�ce:nowrap"80px; styl`:''}:3px; stylweight:600eetu.�(le[k]o||'-'}holder="상�y ult" ist .="'bar)type=""상�y ult" ist .="'barr="�ce:nowrap"${v/�컬 *::(}%;�ayt tyMethtu.�(leh[k]oass="oc#||'-'}holder="상�"�ce:nowrap"30px;nuec-align:right; styl`:''}:3px; stylweight:700ak-�${o333eetuv}�꾸거�="-inner </div{>iv cls}-별 typay��(lehD6">
- 0� ;� �ty-da').:ut ty.qopay��(l-',-left�� �: [o.:16Ipay��(l-',-left�� �: [o..qth+1��a++;�} = s���ck'ee}xC iv  { rem�x(...nap"�(pay��(l,hD6s'), 1ut typay��(lehC.�� all:'dd">
-  #2};�constH_LABE#4CAe  id=:'d#9C27B0', iash:'d">�#FF98 #F }'), 1ut typayd);�left> 보P�우d(
-x}
-.i);nt:nyt .="c-m' = th:16spayd))ypayd)tpal :d (!fil�x(...n(${t:if(pay��(l,rs');n[k,v]do  (`ak-all;fon4pxtsiKnst .="'#<bs'))})</div>
- "�ce:nowrap"80px; styl`:''}:3px; stylweight:600eetu, ')}`);nt:k..qko||'-'}holder="상�y ult" ist .="'bar)type=""상�y ult" ist .="'barr="�ce:nowrap"${v/��ck'*::(}%;�ayt tyMethtupay��(leh:k..qd#999'oass="oc#||'-'}holder="상�"�ce:nowrap"30px;nuec-align:right; styl`:''}:3px; stylweight:700ak-�${o333eetuv}�꾸거�="-inner </div{>iv if (�"상�"�ce:nk-�${oaaa; styl`:''}:3px;nuec-align:c(${er;pace/div12px">x{bord<"�/�ti-inner")on ��a"PC����3노��서16Id른쪽i��결 ퟔ(l���╕�═════════class="${e>
- o.toLn�═�th:pal :dspt:cacehoQuery = i';his)"pc-cnt-pal : (erb? '- th:16s.'sn�════funiv cl upstylHhide"(ct.qCth:1reat>
-  Sg:9p();nt:const e>
-  Oh:16s ;oid=).port& !nuecut ty.�(ct.q+ '건")on ��a" styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ═══════tyldAtoDB��a" styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ══════it.A:16 통�()een4if (�═══buildnlFnivC�DB
- o.toLn�═�컬  m��╶T</dMngo;� �ty-da').:ut ty.qo>s = window.__ulkefuninorm:web:P> {n)o => {nt: esonst d classy tyini�og:- th:16s.'sy tyininist !m��omFb:et(th:l kefot:m��ot:t:nm))yl <b�ot:nm))yl <bn 표butnt:const d cif (�.  ess', o.caceomerput",-left>.  ess', o.= ent:t:caceomerpuleft>.  ess', o.�� 제,-left0  ess', o.>s+( Snt=eft0  ess', o.;>
-� ;� �{fonft0  ess', o.o;� �t�e;c 0�} = s-��a�할o>s = windoc��(mt t :m��og:i) =qte.o;� �ty:kef)�.joinqte.o;� �,-le식oinqte.>s+( Snt=eivhto)=>s+( t ${itat(rolAmt.to.ainnt:const e>
- te.;>
-� ;� �{fonutnull)yl <.;>
-� ;� �{fonut"::rconst e>�����'; < i�</bunutnt:const d cif (c:r=" rt:nt.to.ainnt {n)o =cELS��</buo:r=" rt=> t.to.ainntr, i) .puc i�</bu.>
- o:r=" rt.push할o>soit.��} = s�ts="f()ee}�
-funiv map�() q� h�>i !localIds.;>
-� ;� �{fonu-le];>
-� ;� �{fonugt=>'PAY- = 'rd"'Top!o.e="oAt = Dat o.toLn�═�freqehD6">
- 0oAt = Daty-da').:ut ty.Id)een4iif (');nnsh(`scut ty.qnull)yfreq[�═�..:16Ifreq[�═�..:t(rolv>s h(`�>iv clit.��} = s�t�x(...n(${t:if(freq">
-  �q� h�>i !localIds[1]u-le[1]">
-  �q� t_gd"f(3">
-  �qs');n[n]do  (n">
-  �q|[]).ain(it =nt:t:�ch === ar.�16 �(q, his)�══�16 통�()een4q.s���((ac');nt�(his)��hint:break`:''}:brea);nt�(his)��rn filickedeeroupC��en4buildnlFnivC�DB
- ;() ��Day()]})�16 통�()eut"::ry.�(let tqD]})`ee"fq=> [0]et lass=(/[^\d]/gt=>�(let tyById('tq
-}`);nteeroupC��t>
-  Sg:c Sg:9p()�'; < i�</lassy iv>
- ):t(:9p()�'; (qD]})`e} ${nmest.add(>= efuninorm:web:cELS��<)lassy iv>
- D]})`es">
-  �  ">
-  �:teeroupC��rtC{font)��약��════tC{� cTdum") rT══`>��(eeroupC��troup�d = nc·��(qst.atar���결bor�tyBy:const filickedq+ '= n(/divstpsty'}�� ${<but tmobSum;�left> 보P�우d(
-x}
-.i);ntndb-dum") r-mobile]/gt=>�(lemodSum;�left> 보P�우d(
-x}
-.i);ntndb-dum") r-mo16l')al : (ermobSum;(>=his)��ById('>db-��═'tmobSum!nuecut ty.�(dum") rT═al : (ermodSum;(>=his)��ById('>db-���-mo16l')emodSum!nuecut ty.�(dum") rT═al filickedee}�
-funiv cl ren:16제�LAst() {nt:his)��hiy tyiniee}�
-funi:16s.'snd(x =');nt:const filicked = nclick제�s();�
-t:if (!filicked.length� {nt:t:chis)�"�ce:npace/div40px 20px">>�.iv clHTML = `��</div>
-    </d��>
-  </div>
-  <div id="order-list-cont�(qst.atar��� 결bor�  <div cl(/divtyldAto:16s = Oy>��/�tieo||'-'}holder="상�y ult" ass="empty-x{bord<">👥</��<��/�tin cl��rs=="pa�DBty||v cl�����s=="� �꾸거�="-inner --��요</div>
-      <div class="empty-sub`;-le  return;nc falsg();n{ainin =6 �th}건`een4uc];>
-� ;� �{fonugtt:; <but tindow.d styl} =6 �tyyId('-bar" styl =6 �tyyI{font- =nt:t:`n�══p!o.e=.e;co Top!o.e="e.o;� �tugtt:; <but tsafeK.__ulencodeURIComp��<e>
-c.�og:i) =qt<but t ${PAY_LABELS[�db-||�.�a>
-      <dhow);nt�e cll   vsafeK._classholder="상�y ult" idb-||�.1�-�at-laze:19n4if (�.�ay� idb-av�(lrnt�((ctnt:ce="se?')[0]<butth"�docut ty.`PA�<bs �� idb-en.gee�docut tyty.`PA�<bs �� idb-en.geetuctnt:c<butth"�docut tyty.`PA�<bs �� idb-me cee1sult-ocput",-left>
- n||'-'}t&nbsp;|&마divS��: d�.iv�Msttth"�docut tyty.`PA�<bs �� idb-}-break:breakcceomerpuleft>ceo||'-'}holder=fp||'-'}holder=ty.`PA�<bs �� idb- .="cee�docut tyty.`PA�<bs �� idb-c:''}:bakcco;� �,-le} <span hod}an styl`:''}:brea stylweight:600ak-�${o.�� �회styl}"passwor�docut tyty.`PA�<bs �� idb-snt=e:bakcc>s+( Snt=ei? let tyBycc>s+( Snt=e'd=e"vl-labe').po/divceo||'-'}holder=fp||'-'}holder=1}횼).toLocale��p!o.e=.? ${PAY_LABELS[�db-��pbreak`:''}:break특�m-��근d:ale��p!o.e=aiv cls?al원:400" id="ocv>iv clsa>${>iv cls}-break`:''dhow);nt�e cll encodedKey�rn filickedw.__uldecodeURIComp��<e>
-encodedKey�; filickedeeroupC��en4buildnlFnivC�DB
- ;() ��Day(c]})�16 upC��t>
-oD classy(w.__uId(�og:i) =tyinie:16s.'snd(x => x.id� h�ed {nt:c n>[...e.o;� �t]q� h�>i !localIds.has(o.id)w-le]een4th:16s.s��{ainin === tO=== tt:� h�ed {nt:c = t
+  document.getElementById('cdb-detail-title').textContent = c.name + ' 고객';
+  document.getElementById('cdb-detail-modal').classList.add('show');
+}
 
-�ainin === thi�lH� h�ed {nt:c)0,l4new Set(th:<but tindow.dprice*it.qty||0), 0);nt:<but tindow.d styl}styyId('-bar" styl')./C{font- ').portCHou��;n}:${abe').pstyyIdinutp�() qpac cl up2,'0'- =nt:t:`n�═�indow.h:16Id)een4iif (');n return;n
-t:const itemSt� = (o.i�상||[]).ain(i(it=>`  ess  class=�����'<but tindow.aqty}�o. ${it.qthAY_LA? `ut" t ${it.qth:1Method]||'',tal원`leng'<but t ${PAY_LABELS[�db-]oif -hi�l:holder="상�y ult" idb-loif --�at-laze:19n4sswor}an stybadfilnadfi-stpsts'���}:bakCH�� || '-',6s'��� => {nt:s'���}S 항<
-     :19n4sswor}an stybadfilnadfi-stpsnt=>iv}:bak }>een4:howT</psnt=>iv => {ntnt=>iv}S 항<
-     :19n4sswor}an styidb-loif -hi�l:d�.iv�Mstyl}"p="font결과 -->
-    <>
-i객>${
-�db-]oif -hi�sSe1suitemSt���과 -->
-    <>
-i객>${
-�db-]oif bot upat-laze:19n?`ht:.? ${<span hod}an styl`:''}:3px; stylweight:700ak-�${o1a237�l:d�ht:4${aqt"p?al원:400" :19n?`��락 || '-',-left�� �: [o..? ${<span hod}an styl`:''}:2reak-�${o.�� �?`��락 || '-',-left�� �: [o.4${aqt"p?al원:400" :19n?`ss,-le.? ${<span hod}an styl`:''}:2reak-�${oaacee1su�n?`ss,-le4${aqt"p?al원:400" :1�꾸거�="-inner --��}</div{>iv cls}-별 tyavg} ${itcco;� �,-le.? xC ivtyMet(cc>s+( Snt=ei/tcco;� �,-leo/di0; filickedee}�y.�(ift> 보P�우d(
-x}
-.i);ntndb-de cll-ee}�y.�]/gt=>🔐y.�= i/div>
-  ';nt:row.상�"�ce:n�ayt tyMeth#E8EAF6;bo;� �-radius:14reapace/div16rea") gin bot up:14res'))})</div>
- "�ce:ne;-le}):ispl;align -hi�s:c(${er;gap:14rea") gin bot up:12res'))})</d9n4if (�.�ay� idb-av�(lrn�"�ce:nowrap"54reaheight:54rea styl`:''}24res'�((ctnt:ce="se?')[0]<butth"�docut ty.`PA�
-12px;display:r�docut tyty.`PA� hod}an styl`:''}:8px; stylweight:800ak-�${o1a237�l:d�ctnt:c<butth"�docut tyty.`PA� hod}an styl`:''}:3px;k-�${o555a") gin --�:3res'1sult-ocput",-left>
- nbutth"�docut tyty.`PA� hod}an styl`:''}:3px;k-�${o555eak:breakcceomerpuleft>ceo||'-'}holder=fp||'-'}holder=||'-'}holder="상�"�ce:ne;-le}):grid;gridst-mp ===-eelumns:1fr 1fr 1fr;gap:8res'))})</d9n4if ("�ce:n�ayt tyMeth#fff;bo;� �-radius:10reapace/div10px;nuec-align:c(${er:r�docut tyty.`PA� hod}an styl`:''}24px; stylweight:800ak-�${o1a237�l:d�cto;� �,-le} utth"�docut tyty.`PA� hod}an styl`:''}:break-�${o.��a") gin --�:2px">x� ox{bord||'-'}holder=fp||'-'}holder=ty.`PA�"�ce:n�ayt tyMeth#fff;bo;� �-radius:10reapace/div10px;nuec-align:c(${er:r�docut tyty.`PA� hod}an styl`:''}15px; stylweight:800ak-�${var(-s="fi)):bakcc>s+( Snt=ei? let tyBycc>s+( Snt=e'd=e"vl-labe').po/divceo||'-'}holder=fpty.`PA� hod}an styl`:''}:break-�${o.��a") gin --�:2px">누적 금액||'-'}holder=fp||'-'}holder=ty.`PA�"�ce:n�ayt tyMeth#fff;bo;� �-radius:10reapace/div10px;nuec-align:c(${er:r�docut tyty.`PA� hod}an styl`:''}15px; stylweight:800ak-�${var(-sorange):bakavg} ${? let tyByavg} $'d=e"vl-labe').po/divceo||'-'}holder=fpty.`PA� hod}an styl`:''}:break-�${o.��a") gin --�:2px">평균ox{bord||'-'}holder=fp||'-'}holder=�꾸거�="-innero.id}a btn-��ata-filata-정�pri") r-정�fuleaiv cT>tal()"o;� �');nlFn� 표b(${t:localStorage.t:localStorage. {nt:la ts� hod}an") gin bot up:16reapace/div14rea styl`:''}15px:r�docut '}:v'>e�rs=="par" 순rs��ox{bord<"�═��="-iont)'${o.id}a`PA� hod}an styl`:''}:3px; stylweight:700ak-�${o333a") gin bot up:10res'1su�ox{bord<"��n-pr(d�cto;� �,-le} splifnnero.id}leSts="fhi�lHt`= th:16s��Date()}rs="(${d  s[dndb-de cll--hi�l"venuecut ty.�(ctnt:ce+ 'rs=="pa
-  ess'|| 0;nt:n4)>tal += qty ndb-de cll-m:16l')tpal :d접��</div>
-      <0iv.add(' ═�'la�e cll �═══�iv cl -top:8px">
-  ndb-de cll-m:16l')tpal :d접��(let tyById('ultbreak`:''}:o;� �');nlFn� 표b(jsonyl}═�'la�e cll �  ess' id=laDBM:16l"t� ${═�');nlFnivC�� 표b(jsi) =tyinnull p� i/diWwrap < 768)st()een�newv cls}-break`:''dhow);nt�BM:16l"to.toLn16 통�()een4if (</lwindow.p;�left> 보P�우d(
-x}
-.i);ntndb-d ar.�-mo16l')al : (erw.p{it.prt = docut tv c}:brea);nt�('>db-���-mo16l')  ess'|| 0;nt:n4)>tal += qty n;ntdb-m:16l')tpal :d접��</div>
-      <0iv.add(' ═�'la�BM:16l"e = p��joine=> {n:d&& e.uerntd.�Date()}rs="(${d  s[dn;ntdb-m:16l') = th:16s.'sd.�Date()}rs="(${d  s[dn;ntdb-m:16l')tpal :d접��(let tyById('ult" i styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ═══════1su�0]e ⠸오═�(Imporeo/���Exceli/tCSV��a" styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ══════it.AimpRaw��(lehD[];  ="pa4[{k-� 표bt = d, ...}, ...]�it.Aimpn:16�sehD[];  ="pa4컬럼= ncl��열�it.AimpSteptIt =x��a"OMS주
-드ox{b의
-lwindoIMP_FIELDSt'./n !{(�ogdivign   (,ess', o.;>bt�v '���무/��<���' },n !{(�ogdivnt:const d c(,es;>bt�v 'br>${/ox{' },n !{(�ogdiv,iinp-= ess', o.;>bt�v '}�
-═�">
- ' },n !{(�ogdiveomerpu-= ess', ;>bt�v '}�과�' },n !{(�ogdiv-hi� d c(,ess', ;>bt�v '>
-<div cl' },n !{(�ogdivtqty= ess', o., ;>bt�v '}��량' },n !{(�ogdiv,ice: = ess', o.;>bt�v '단]e ' },n !{(�ogdiv`ut" t ${it = es;>bt�v '}��금액' },n !{(�ogdiv�.ivy= ess', o.,;>bt�v '날짜' },n !{(�ogdiv,left�� �: [oy= ;>bt�v 'bmt═�ats">' },n !{(�ogdivns'���-= ess', ;>bt�v '}een4e' },n !{(�ogdiv,iinp= ess', o.,;>bt�v '메모' },n]=x��a"div'>e;  <div 키워드o맵
-lwindoIMP_AUTO_MAPtt:t:}s'br>${/ox{':vnt:const d c(,'s==>�':vnt:const d c(,'s��ox{':vnt:const d c(,'s*er"|>
- ':vnt:const d c(,:}s'}�
-═�">
- ':v,iinp-='연락처':v,iinp-='�  <div:v,iinp-='핸드폰v:v,iinp-='휴대폰v:v,iinp-='폰v:v,iinp-='t�-:v,iinp-=',iinp-:v,iinp-='mobile]:v,iinp-=:}s'}�과�':veomerpu-='l��송div':veomerpu-='l��송d�과�':veomerpu-='}��령div':veomerpu-='eomerpu-:veomerpu-=:}s'>
-<div-:v-hi� d c(,'>
-<div cl':v-hi� d c(,'상>
-<dil':v-hi� d c(,'상>
-<':v-hi� d c(,'제>
-<':v-hi� d c(,'아s = ��':v-hi� d c(,'-hi�':v-hi� d c(,:}s'}��량':vtqty=vtqty:vtqty=vtuan-hity:vtqty=v개ate(:vtqty=:}s'단]e ':v,ice: =v가격':v,ice: =v,ice: :v,ice: =vunit ,ice: :v,ice: =:}s'b��액':v`ut" t ${it ='합계':v`ut" t ${it ='}��금액':v`ut" t ${it ='bmt═금액':v`ut" t ${it ='a ${it :v`ut" t ${it ='�Day(-:v`ut" t ${it =:}s'날짜':v�.ivy='s*er"|>��':v�.ivy='s*er"|날짜':v�.ivy='s��>
- ':v�.ivy='�.ivy:v�.ivy=' === t�.ivy:v�.ivy=:}s'bmt═ :v,left�� �: [oy='bmt═�ats">':v,left�� �: [oy='bmt═}��단':v,left�� �: [oy=',left��':v,left�� �: [oy=:}s'}een4e':vns'���-='s*er"|�� ���':vns'���-='�� ���':vns'���-='ns'���-:vns'���-=:}s'메모':v,iinp='비br>':v,iinp='참br>':v,iinp='특nt:���항':v,iinp=',iinp:v,iinp='m��(p:v,iinp='�arkp:v,iinp=
-} (�═══impAuto�e ect(h:16정rn filickedwfili:16�v m[1]e.d=e"wea)ase(it.��} = s�tIMP_AUTO_MAP[k => {IMP_AUTO_MAP[k=> [0]et l\s+/g,'') => {vign   (cls}-break`:''dhowImporeM:16l"to.toLimpR}rs=(s="fsonyl}�|| 0;nt:n4)>tal += qty *mpore-m:16l')tpal :d접��</div>
-      <0iv.add(' ═�ImporeM:16l"e = p��joine=> {n:d&& e.uerntd.�Date()}rs="(${d  s[d*mpore-m:16l') = th:16s.'sd.�Date()}rs="(${d  s[d*mpore-m:16l')tpal :d접��(let tyById('ultbreak`:''impR}rs=(f !=utnullimpRaw��(lehD[];ullimpn:16�sehD[];ullimpSteptIt =xm()ylmp-step-0(,'-mp-step-1(,'-mp-step-2(,'-mp-step-3p-ess,:]scu═�:contd>s = windoal()ee}�
-funiv cl remopal :d접�)}rs="LAst.remo, i===0)tv class="= || 0;nt:n4)>tal += qty *mp-nuec-ay = pdisabl��널v="f()4u= || 0;nt:n4)>tal += qty *mp-nuec-ay = p�<a(0t ty.�(le���tie()4u= || 0;nt:n4)>tal += qty *mp-foiinnp-. hod}.e;-le})��(lispl'gt=>�(let  =u= || 0;nt:n4)>tal += qty *mp-file-to`;n dt:o.upstyl)et rt = docut tvultbreak`:''impDragOvC��e = {n:p�Day(a�efa/but);u= || 0;nt:n4)>tal += qty *mp-dropzherit;pal :d접��</didrag(ler"��<}tbreak`:''impDragLealete = {= || 0;nt:n4)>tal += qty *mp-dropzherit;pal :d접��(let drag(ler"��<}tbreak`:''impDrop"e = p��n:p�Day(a�efa/but);)4u= || 0;nt:n4)>tal += qty *mp-dropzherit;pal :d접��(let drag(ler"��t=>�(let tdocu}.e�(lTash:'d"t>
- ec = t
-o.upstyll) =>mpLoadFll)tyll) ('ul═══>mpFll)h el) edrw.p{i{l : (erw.pt>
- ec =  =>mpLoadFll)tw.pt>
- ec =  tvultbreak`:''impLoadFll)tyll) );nt:ncv cT>ta== tt:w.dpFll)R:16제�LAs>ta== .onloadb`;-reak`:'(nutnull)ytrytnull)yl it.Ae�(lt=> t.to.ainyll) i�</l(cnt:le\.csv$/imFb:nm))yl <bncv cTw�(XLSG>>ta=s="ems(e..fy-con, {type:'binarty= raw:=> o.}>
-  nm); <bd�(lehDXLSG>utils.sheet_to_ 표(wb.Sheets[wb.Sheet��(le[0]], {deft =+'�v: 0�} = sstyl!i :  e�l <bncv cTw�(XLSG>>ta=sw.dpUint8s="f(s="ems(e..fy-con), {type:'a="f('}>
-  nm); <bd�(lehDXLSG>utils.sheet_to_ 표(wb.Sheets[wb.Sheet��(le[0]], {deft =+'�v: 0�} = s=> t.to.ain!d�(le> {d�(lilickedquId(0 = {aler/d')16s = Oyty||없거나 읽익고�|없� 죌�s��>
-�수is=.항<budi(' classt.to.mpRaw��(lehDe�(lt=> t.to.mpn:16�sehD�x(...n�ogs(e�(l =  tv=> t.to" i���s��ox{bord=> t.to= || 0;nt:n4)>tal += qty *mp-fc<np-cn�<a(0t ty.�(yll) i�</;=> t.to= || 0;nt:n4)>tal += qty *mp-fme c-cn�<a(0t ty.�(d�(lilickedq+s'>��c·�tyBy.mpn:16�silickedq+s'컬럼'tv=> t.to" i컬럼cl}�핑 테s==>������'; <but ttbody =u= || 0;nt:n4)>tal += qty *mp-map-tbody'v: 0�} = tbodyo`;nt:d (!filicked.lato.mpn:16�sess,:]scuhew Set(th:l t:<but tie ect��널impAuto�e ect(h>
-  nm); <b<but tsampleV> o��(d�(li� t_gd"f3;n retr=>abe').pr[h..qd'y.�(l)rd"${n>tal/div{>i / '>
-  nm); <b<but ttiv cl ren:16�.qty||)>tal +('tr' tv=> t.totC{� cTd"lOp`ee"fIMP_FIELDSn retf=}holder=fpty`<opk`:''t = d="${fn�og}"${fn�oguIdie ect��?'Td"lect���+'�>${fn;>bt�}</opk`:'>`holder=fp</div{>iv cls}-brll)ytr= i/div>
-  ';nt:rowolder=�td><strong>${h4${atrong></td>t:rowolder=�td>t:rowolder=9n4s"lect�ata-fil*mpore-map-s"l"(d�(l-eel="${h}">t:rowolder=9nd}led"lOp`e}t:rowolder=9n4/s"lect>t:rowolder=�/td>t:rowolder=�td>t:rowolder=9n4if (�.�ay� *mpore-sample:baksampleV> o�> {v���'o||'-'}holder=fpty./td>`
-  nm); <btbodyoapnt=>Child(trv: 0�} = s tv=> t.to" i, ias|ord═�테s==>������'; *mpBuildaB => P_ult=> t.to" iStept�  <d�=> t.to= || 0;nt:n4)>tal += qty *mp-step-0()uerySelsetorAll('.ick="se');=> t.to= || 0;nt:n4)>tal += qty *mp-step-1it;pal :d접��</dick="se');=> t.to= || 0;nt:n4)>tal += qty *mp-nuec-ay = pdisabl��널=> o.caPat.to= || 0;nt:n4)>tal += qty *mp-nuec-ay = p�<a(0t ty.�(l]e ⠸오═'tv=> t.} ccnt:lerrFb:nm))yl aler/d'���s��ox�울| 실패:�tyByerr.ma<div'-��a�할o>s}t
-o.upstyll) i�</l(cnt:le\.csv$/imFb:nm))y>ta== .>ta=AsBinartabe').pyll) ('= sstyl!i :  e�>ta== .>ta=Ass="f(Buf'd"pyll) ('= svultbreak`:''impBuildaB => P_uo.toLn�═�abl� =u= || 0;nt:n4)>tal += qty *mp-     <n-�abl�"��t=>�(le     <n널impRaw��(li� t_gd"f5);UPait.Amtty.qh'<ti:16><tr>tyBy.mpn:16�si reth=>`<ti>${h4${ti> </div{>iv i+s'${tr></ti:16><tbody>cked.     <ness,:]scurowew Set(th:�</divht'<tr>tyBy.mpn:16�si reth=>`<td>${row[h.??''o||td>`</div{>iv i+s'${tr> tv class="�</divht'</tbody>cked.�abl�tpal :d (!filicked.ultbreak`:''impN<a(Step({i{l : (erwmpSteptIId(pliy>|1)'wmpStartImpore( ('= svultasync break`:''impStartImpore( )hint:}�l}�핑 x�울|toLn�═��p').ehD6">
- 0;� 제�butatush el) {nt:curr*mpore-map-s"l= peen4docusth:p Set(th:��p').[sth.e�(lrs=.eel.:16sth.t = d>iv clsa>${" iStept2순rs  <d�=> = || 0;nt:n4)>tal += qty *mp-step-1it;pal :d접�rAll('.ick="se');=> = || 0;nt:n4)>tal += qty *mp-step-2it;pal :d접��</dick="se');=> = || 0;nt:n4)>tal += qty *mp-foiinnp-. hod}.e;-le})��(lnheri;ullimpSteptIt2cls}-별 ty`ut" 널impRaw��(lioid=).portit.Ae��</buls=:p => p��0ut",� p��0cls}-to.aiit.Ai��0cAi�<y`ut" cAi++ t tyB)= windorowew�impRaw��(l[i];   ="pa4��튓�ox�거d<"��체/n )= windowa=> p��{�� �3� �x(...n�ogs(��p'). peen4docueelew Set(th:l <but tfield��(mt p').[eel.t=> t.to.ainyleld�ernt:rgn   ()owa=> p[yleld.:16row[eel.:??licked.las tv=> t.pa4w 
-.im<"�� �>
- �(<��rs��킵.'sy tyininis> p� 제:nst d classinis> p� {n)o ={=:p => p식�e��<식�🔐in d>     <="pa4���짜 처nt:tr"l it.Ae�(ow.d stnis> p�e�(o ? abe').pnis> p�e�(o)al원`leng'.ain!d�(eb(jsoe�(ow.d st건`een4up.toISOabe').poi� t_gd"f1olAmt.totyl!i :  e�l " i숫자라�Exceli���짜 처nt:tr"l )>3)� h���le ((rseFloat(d�(eb(jst=> t.to.ain!isNaNaini)liy>|1 = sp000liy>|1 =< 99999Fb:nm))yl <bncv cTdehDXLSG>SSF:d cl _d�(e_codeaini)
-  nm); <b �sty)tindow.d styl}sty}-${abe').pstm qpac cl up2,'0'- -${abe').pstd qpac cl up2,'0'- =nt:t:`= s��앱 
-=> t.pa4w  ess ���s��t:t:`n�═�indoN�</bunnis> p�indoN�</b? abe').pnis> p�indoN�</)al�]e ⠸온4w  ess=�����'<but tt = =,etor('./diis> p�t =i(it=1i) =qterySelsice:le ((rseFloat(abe').pnis> p�sice:.qd'y=> [0]et las0-9.]/g,'')i(it=0;s}-bre{it.���} } ${it.qt((rseFloat(abe').pnis> p�>s+( t ${it.qd'y=> [0]et las0-9.]/g,'')i(it=sice:l* `�>iv ��(let t�컬  er efuninorm:web:abe').pnis> p�s ts'e=>') cls}-bre{it.� === tt:t:}stytyl <b *mp_tyByteftn>talAi+s'_tyByi  ess', , <but간 표babe').pnis> p�, <but간 �.qd'y= m[1]e�> {vinpor��/�tie  ess', caceome= ent:=> {no.= ent:t:cabe').pnis> p�a ts'et:ca'y= m[1]e:=> {no.-hi�s: [�.join{rindoN�</l('.nm,`�e;)||═fsice:l}]:=> {no.>s+( t ${it: >s+( t ${itat(ro  ess', c ent:= �: [o.�abe').pnis> p�s ent:= �: [o.qd'y= m[1]e�> {ve  ess', , <but�v abe').pnis> p�, <but�.qd'y= m[1]e�> {ve  ess', , <butabe').pnis> p�, <b:ca'y= m[1]e:=> {no.dfonftindow.d:=> {no.ySelse].'dinp-=:}sean).join(문,-leftn>talAyByi  ess'}cls}-brtrytnull)yl awaitn4ren:16제�LAst()een4if st()etruent:t:ats', o.o;� �t:  <ds.unshif�data�{no.= e p식=> t.} ccnt:leFb:nm))yl :p => p식��앱 
-=> t.e��<식iv ��(let t�ctee}xC ivtyMet(e��<//y`ut" �*t::(), t.to= || 0;nt:n4)>tal += qty *mp-prog'barp-. hod}.owrap.qt(c.q+ '%', t.to= || 0;nt:n4)>tal += qty *mp-progs'etonst nor�<a(0t ty.�(d��</+ 'r/�tyBy`ut" �+ 'rs��")o=> t.pa4UI >��순킹 방지�])/it.��� %t::quId(0 =awaitn건`Promise(rnstdi"pid=�e();ri��)e
-    =yl!i A="bt
-orm()styldAt =�;nt:o.buildnlFnivC�DB
- ;() >een4:n:16제�L=> = || 0;nt:n4)>tal += qty *mp-step-2it;pal :d접�rAll('.ick="se');=> = || 0;nt:n4)>tal += qty *mp-step-3it;pal :d접��</dick="se');=> = || 0;nt:n4)>tal += qty *mp- her-
-   nor�<a(0t ty.�(",� p�> 0{? le�n(/div). typ';=> = || 0;nt:n4)>tal += qty *mp- her--hi�l"venuecut ty.�(",� p�> 0{? l]e ⠸오═�/div>
- 'al�]e ⠸온4:16s = Oy>��/�tie;=> = || 0;nt:n4)>tal += qty *mp- her-sub"venuecut ty.�
-{no.= e pq+ '건══�됨tyBy(:p => p�> 0{? lc·�tyBy:p => p�+ '건�건너뜀'al�');=> = || 0;nt:n4)>tal += qty *mp-foiinnp-. hod}.e;-le})��(lispl'gt=>= || 0;nt:n4)>tal += qty *mp-nuec-ay = p hod}.e;-le})��(lnheri;ullimpSteptIt3('ult" i styln class="btn bt`;nt:return i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ═══════1su� OCR</��s��템 (Googl� Cloud Vis`:''AIut cla� (�할��앱·대시볘�긐�� 샄송)
-//�═════════
-     Vision API 키 설정 모달
-     ══════
-lwindoVISION_KEY_STORAGE��(lwellb')._vis`:'_api_�ogi;uit.AocrRawT══'i;uit.Aocr ihowBRy-con��{�� t cla��a�� API 키 �a�omerpu-='eomer���it.�� 제;nt:o.upstyl1">제�s()een�a�� API ��r`Keycl upstylHhide"() )een)
-  l=fptScusage.qth:1re(is`:'_api_�ogi;uit)ty * ">ic<np-.pus:nut"::r=" on4if (��'i;u-t.A-cr  tvultbrOvC��e = )een)>ic<np-.pus:nut"::r=" on4if (t.Acr  -leftnSteptIt3('ult" i styln class=np-.pus:nut"::r=" on4if (t.Acr  ('ultbreak`:''impR}rs=(f !n:d&to.toLn�══�close�r`Keycl upstylHhinp-.pus:nut"::r=" on4if (t.Acr  ('ultbreak`:''impRal +=n:d&to.toLn�══�)een�r`Key(�<e>
-encodedKey�; fp-.pus:nut"::r=" on4if (��'i;u-t.A-cr  tvultbrOvC��e2EY =lay:nonePaomFb:e{API ��r`KeySleftn��
-.im필�� 제;�e()od}an 해di(' ��o||', '#c62828De�(lt=> t.to.mpl=fptScusage.sth:1re(is`:'_api_�ogi;uit,id� h�ed PI ��r`KeySleftn��
-�� �= thi��/�tie`:''AI��비p =>, '#2E7D32ty.�(let tyByIdclose�r`Keycl upnePa�0o.toLn�══�)I ��r`KeySleftn�msg, su�oxuery = i';his)"pc-cnt-pal : (erb? '- th:16t.Acr  -leftnSt)on ��a" styln class= <d" ��aptIt3(su�oxnt:nu�ox" ��aptIt3('ult" i stybl=fkt:return i���it.카참b'-���=> P_���s()een�a�� AopenOcrC> {ra(�<e>
-encodedKey�; l=fptScusage.qth:1re(is`:'_api_�ogi;uit)y:nonePaomFb:e{`Promise(  h)).�('할���시볘�� 제;���s�:o.up되_MAP않았습w��(leh\n_MA금s�:o.uplsa>��겠tieo||?��  PI ��r`Keycl upstempty-sub`;-le  rehinp-.pus:nut"::r=" on4if ( APdocut tvultbrgss=괄r;justify-connt:t:docut ty.�(le APdocut tvultbrg:loca():return i���it.�:=>��_MAP선택 후loat(d�_���s()een�a�� A, <dleOcrImage(tvultaty-da').:ut .upstytvultl)tyll) ('ul═�!)R:16� upstylHhide"(ct== .onloadb`;-reak`:'(nutnull)ytrytnull)yl iteqty||0), 0);nt:<bataUrlstyll  nm); <bd�(l)= windowauildaB => Pe').pnis> p�sait.Amtty-connt:t:docut ty.�(le APd널impRaimgty *mp-ndivht'<tsrcpr[h..qUrl;ndivht'<tstIt3('ult" i stybl=fkt:r windowayl1">쀗=> P_&loat(d�_Iut ��p-progs'etonst nor�<a(0t ty.� APd('ultbreak`:''impR}rs=(f !n:d&to.t-progs'etonst nor�<a(0t ty.� APd�</+ 'r/SteptIt3('ult" i stybl=fkt:r wings'etonst nor�<a(0t ty.� APd<bd�(l-a)ytSteptIt3('ult" i styln class=ings'etonst nor�<a(0t ty.� APderror-a)ytSteptIt3('ult" i styln class=ings'etonst nor�<a(0t ty.� APd-leftn�tyBy`ut" �+ 'rs��")o='�:=>��_MAP분석AI��...lass=ings'etonst nor�<a(0t ty.� APd-leftn�'건══�됨tyBy( '할���시볘��I���s���수증��<bu��고)od�습w��(let:r windown4if64 rd=> :image/...;n4if64,.�:=후l부분만)e').pnis> pn4if64 r[h..qUrl.lt"it(',')[1owa=> pd);�시볘�r`(n4if64=�;nt:null)ytrytnbreak`�체URLedrw.p{i{lurn i���it.할��앱·대시볘�� 젘�출_���s()hint:}�l}�핑 xd);�시볘�r`(n4if64=<e>
-encodedKey�; l=fptScusage.qth:1re(is`:'_api_�ogi;uit)y:nost()een4ifde"(ct==y`<o);ri��fe=> t<식iv `https://��'i;u.g�����t.As(sum/v1/images:anno>�.?{fn;${���+`i  ess'}l _d�(e_com[o.qd'y'POSTo.>s+( Snt= = s�ts: {'�됨tyB-Type'�' }pt"ica핑 /, {d'}.>s+( Snt=d.ul:  hod}an") gin b{oapnt=>Chilrequest)||�sample:baksamimage: = i')t  essn4if64 }.>s+( Snt=..:t(eeft==y||═LSG>u 'TEXT\DETECT:'_>, max�a�omy||1 }]>s+( Snt=..}]>s+( Snt=})�s��t:t:`n��;� �{fonutn!==y.ok)el.t=> t.to.ainerr`<o);ri��==y., {de.lato.mpn:h��oxdb`;Error�| �.error? i�</l(cty *`HTTP ${==y. styidb`og:i) =qte.o;� �ty:wb.Shee);ri��==y., {de.lato.m ivtyMenno>🕑 xr[h..qd==ypivtes?.) (?.n:16�{��Anno>🕑 x16s = Oy==ypivtes?.) (?.t{��Anno>🕑 s?.) (� �{fonutn!enno>🕑 )n:h��oxdb`;Error�'텍���  �e()o��식lsa>MAP못했습w��(let.lato.m ivtyMt{�� t enno>🕑 .t{��x16senno>🕑 .descrip��� x16s건`een4up.tot{��2EY =la)n:h��oxdb`;Error�'���수증���═�텍���  �e()o��>MAP못했습w��(let.lato.m-con��{�� t t'>db-��ings'etonst nor�<a(0t ty.� APd-leftn�tyBy`ut" �+ 'rs��")o='GPS 위��p�확o��AI��...lass=ings'etonst nor�<a(0t ty.� APd-leftn�'건══�됨tyBy( 'omerpu B =nt:��<bu��해d현재 위��p�e()��4:16s =lassI��t:r windowGPS 위��p혨4:16s = Oy>후l p�indoN�</b? abegpsAddr`<o);ri�� noGpsAbreInfoe.lato.m ivtyM${it.d t ${it.Receip��{��(�═,egpsAddr.lato.m-coI 키 �a�omerp${it.dlato.mPI �Ocr�a�om(${it.d, !!gpsAddr.lato�� 
-=>  t.e��<식iPI �OcrError�| i�</l(cnt:le}i{lurn i���it.�PS 현재 지역v`:const/tCSV��a" stylNomin�m쀗�지오코딩,st d�ti)_���s()een�a�� A noGpsAbreInfoe.Date()}_MAP[�)e
-    =yl!iesolveqty||0), 0up.tonavigacust nol=fp��� )n{ iesolve(n:16�(lt=> t.to.mpn:navigacust nol=fp��� t noCurrtyBPosi(lt=>nm))yl :int:}posmpAuto�e ect(hst()een4if sto.m ivtyM{
-�itud>u �, l= gitud>u �� A}erp$os(suords;en4if sto.m ivtyM==y`<o);ri��fe=> t<식iv 식iv `https://nomin�m.openan"eet>
-� org/>talit.?�=er="�}&�� =er=on}&f'e=>t=, {d&accept-langul(c=ko`.>s+( Snt=..:t{= = s�ts: { 'User-Ag:vns' 'WRawT═MartOMS/1.우d r=�/td>t:row);en4if sto.m ivtyMwb.Shee);ri��==y., {de.lato.mqth:1r? `ut" ddr`<o = Oy'-'}holder=4docueel| 0;nt:n4)��국 행`:c --���v`��출:_Iut/도,r --/군,.�:�/면/동ato.mqth:1r? `ut"${ittep-0(,'-m-${abe').pst'-'}.cityx16se-'}.�</vince)"${ittqte.>s'-'}.cityx16se-'}.�</vince),'-m-${abe').pst'-'}.cabe'yx16se-'}.city_'ulEY ctx16se-'}.'�urb)"${ittqte.>s'-'}.cabe'yx16se-'}.city_'ulEY ctx16se-'}.'�urb),'-m-${abe').pst'-'}.qu{itonl16se-'}.nup:1bourhood)"${ittqte.>s'-'}.qu{itonl16se-'}.nup:1bourhood);oapnt=>Chilresolve(${ittq럼cl}�? { �═:"${ittql ren:1tn b�, l= SG>uti" ddr`} : n:16�>s+( Snt=}� 
-=>  { iesolve(n:16�(r=�/td>t}.>s+( Sn, 25:(iesolve(n:16�i  ess'}l t tyByI: 5000, maximumAge: 60v cT:`n��;� �{}):return i���it.영수증�텍���  l p�ind_���s()een�a�� A${it.Receip��{��(�═,egpsAddr.<e>
-encodedlin=y`<ot{��2lt"it('\pSte/div).[eel2EY =la)m); <b<but ttiv lHhide"(ct==a�omerpu�fsice:'#FF9).pnis'#FFa'y= m[1]'#FF�e;)||�]SG>uti"t{��x}0;nt:n4)1) ':v,iinp-='�v`��출
-be').pnis> p�Rpsty/0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/g;
-be').pnis> p�y`<ot{��2ta=AsBs> p�Rpil�x(...n(> p�y.pyll) ('=a�om i) .puc (> p�y) (:l* `�>iv \s.`);nte-t.lato.mildn��속된"l )>3)r --분�3)r`:cod�(eb(j'=a�om i) .puc '=a�om i) .p:l* `�>iv(\d{3})-?(\d{3,4})-?(\d{4})/nte$1-$2-$3'=�;nt:o.build2) omerpu `��출
-be:n4)��국 omerpu 패턴:_Iut/도 +r --/군/ c(,+ 로/길/동,+ 번건`Pr? `ut" ddrRpsty/(?:═울|부산|대 --|o��천|광ome|대':v|울산| ��o��|�제�|강원|충북|충남|':v북|�:v남|��됶�|��됂�|':�ome)[^\n]*?(?:동|로|길|가|번건|='�)[^\n]*/g;
-be').pni ddry`<ot{��2ta=AsB ddrRpil�x(...n ddry.pyll) (n bt�= thi긴 omerpu `��택(eb(j'=a�om .��} = s�t ddryqth:1duce16s.s��{asilickedqfonug��cl}�? a : bnteeroupCuf'd"pyll) ('ildnut/도 qty *� 동/로/길/�tyty.`�)od�lass����Pe').pnis> pPI rtAddrRpsty/(?:\d+번건|\d+[-]\d+|(?:[t�=-힣]+)(?:동|로|길|가)\s*\d+(?:[-]\d+)?)/g;
-be.pnis> pPI rtAddry`<ot{��2ta=AsBPI rtAddrRp;� �{fonutnPI rtAddry)j'=a�om .��} = s�tPI rtAddry) (� �{:o.build�PS= qtymerpu B =nt::tymerpu���s��>
-�수is=��은s����PwGPS 지역v`:const앞��� 붙임�x(...ngpsAddr.<e>
-efonutn!==y�om .��} = )el.t=> t.'=a�om .��} = s�tgpsAddr.t'>db-��int.'=a�om gpseroulet= qty *mp-nuepCuf'd"pynutn'=a�om .��} = ug��cl}�< 10)�� 처nt:tr"l��은symerpu (동,t:=> {.`�)등):wGPS 지역v+r ��존 omerpu.t=> t.to.ainalbreayHasReg�� xr[/═울|부산|대 --|o��천|광ome|대':v|울산| ��o��|�제�|강원|충북|충남|':v북|�:v남|��됶�|��됂�|':�ome/. up:n'=a�om .��} =  sp000liy>|1 =albreayHasReg��  cl _d�(e_co'=a�om .��} = s�tgpsAddr.t'>d방�x.id.�a�om .��} = ; _d�(e_co'=a�om gpseroulet= qty *mp-nuepC:t:`n�═��{:o.build3),t:=> { `��출
-be:n4t:=> {:t앞��� 붙lass라벨,st��lassI:v,iinp-='�v바= qty�����,st��lass)��doIM��4)��글 2~4doI
-be').pnifsicLv clRpsty/(?:�:=> {|수신|받las\s*분|수신o��|�':vnt:co| ��함)[:\s]*([t�=-힣]{2,5})/;
-be').pnifsicLv cl`<ot{��2ta=AsBfsicLv clRpil�x(...nfsicLv cl.pyll) ('=a�om t:nt.tofsicLv cl[1owa=>uf'd"pyll) ('ildn:v,iinp-='�v`d�lass���의v바= qty��������═�:=> { `��> Pe').pnis> p�) .pLin=Idx�; lin=ynie:1Indexv).[ees> p�Rp. up:nl);� �{fonutn�) .pLin=Idx�> 0)el.t=> t.to.aindivhLin=�; lin=y[�) .pLin=Idx�- 1(,'-m-${a').pnifain!iivhLin=>ta=AsBi^([t�=-힣]{2,5})$/ sp000liy>|1 nm)('=a�om t:nt.tofm[1owa=> p}r windoway�)o��>�:nst 텍���  l 보P����═╧�은s)��글 단어>
-efonutn!==y�om nbut tl.t=> t.to.ainnbutGu = s�tt{��2ta=AsB/(?:^|\s)([t�=-힣]{2,4})(?:\s|$)/m sp000liy>|1 nbutGu = )('=a�om t:nt.tofsicGu = [1o2EY =lay:no═��{:o.build4)splifnner d c( `��출
-be:n4thi� d c( 패턴:_)��글(+영fnnwaitl )>3)r+ 단위(개/kg/g/박스)등)aitl��택olderunit 
-</b? abe').pRpsty/([t�=-힣a-zA-Z][t�=-힣a-zA-Z\s]{1,15})\s*(\d+)\s*(?:개|박스|묶음|봉|팩|kg|g|L|병|캔| th|판| =vꞅ)?(?:\s*[×x*]\s*)?(?:\s*([\d,]+)\s*원?)?/g;
-be�a��m;
-bewh.ups((ain!').pRp.exec(�═))ow[een:16�sehDt.to.ainnbutss= [1o2EY =lay:no�:n4tmerpu/�:=> {/n:v,ii 관련 단어 ':�o��>
-efonutn/배달|iv':ve|tmerpu|n:v,ii|np-='�|�:=> {|수신|left��|':v`ut|총|�':vnt|plifnn|카쓬|'��금|�'��u|n��불/. up:nnbut )t:tr"l it.
-0liy>|1 nbutug��cl}�< 2)t:tr"l it.
-0liy(it=1i) =qterySelsice:[2]loat(abe').pnis> p�sice:.qm[3ak-�rySelsice:[3(:l* `�>iv, t�컬  b-]oif -hi�la�om �e;)qte.>su�fsic,( t ${it: >l�tpal :o.buildn��복 ':�
-��v및4thi위 5 =v
-hi�la�om �e;)uc '=a�om �e;)ar.�1); <b<b(�e;FF�dxFFa 실�{asrrnie:1Indexvi��{ai t:nt.t=n!').p nbut tt=n!'dxdo  (n">
-  �q|[]5mp-ste)}_MAP[<bd�(l)=eturn i���it.:''A = Oy>�표 c(,e��s()een�a�� API �Ocr�a�om(${it.d, gpsUsedtylHhinp-.pus:nut"::r=" on4if ( APd�</+ 'r/SteptIt3('ult" i styln class=np-.pus:nut"::r=" on4if ( APderror-a)ytSteptIt3('ult" i styln class=gs'etonst nor�<a(0t ty.� APd<bd�(l-a)ytSteptIt3('ult" i stybl=fkt:rss=gs'etonst nor�<a(0t ty.� APd> t.to=ss=괄r;${it.d.`PA�
-12pxlass=gs'etonst nor�<a(0t ty.� APd�송dio=ss=괄r;${it.d.eomerpuleftass=gs'etonst nor�<a(0t ty.� APd.��}io=ss=괄r;${it.d.eft0  ess', oass=gs'etonst nor�<a(0t ty.� APd�e;)io=ss=괄r;${it.d.�e;)q�상|[]).ain((it=>`  es  class= es it: >l?��x.ids it: >lder=fpty.`PA� hod핑 ��qty *m}�����'<but tiass=gs'etonst nor�<a(0t ty.� APd<aw�tyBy`ut" �+ 'rs��")o=${it.d.<awss', oas
-</b? abegpsB4:howtty-connt:t:docut ty.�(le APdgps-T</pstiass=gpsB4:hoeptIt3('ult" i st(gpsUsedTdeh${it.d.gpseroulet= )l?��inlin=-y *mp :tyln claseturn i���it.:''A���러�표 c(,e��s()een�a�� API �OcrError�d(' ═�np-.pus:nut"::r=" on4if ( APd�</+ 'r/SteptIt3('ult" i styln class=np-.pus:nut"::r=" on4if ( APd<bd�(l-a)ytSteptIt3('ult" i styln class=np-.pus:nut"::r=" on4if ( APderror-a)ytSteptIt3('ult" i stybl=fkt:r wnp-.pus:nut"::r=" on4if ( APderror-tyBy`ut" �+ 'rs��")o=':''A���식o>s}t
-ot:r wnp-.pus:nut"::r=" on4if ( APderror-'건══�됨tyBy(  <d"peturn i���it.:''A = Oy>�e()olifnne폼��� old용,e��s()een�a�� A}pt"yOcr�a�om(.<e>
-encodednbutss=gs'etonst nor�<a(0t ty.� APd> t.to=ss=�0]et lass=(/[^\d]i) .puc gs'etonst nor�<a(0t ty.� APd�송dio=ss=�0]et lass=(/[^\d] ddr`<o s'etonst nor�<a(0t ty.� APd.��}io=ss=�0]et lass=(/[^\d]�e;)�{�� t gs'etonst nor�<a(0t ty.� APd�e;)io=ss=�0]et lass�x(...nfsic)ec-ay = p hod}.e;-le})��(lnnp-c> t.to=ss=괄r; qty *mpnutn�) .p)ec-ay = p hod}.e;-le})��(lnnp-�송dio=ss=괄r;$/bu.>
- o...n ddr)ec-ay = p hod}.e;-le})��(lnnp-.��}io=ss=괄r;.��}� cTdum") d c(  p�ind_및4폼 old용
- o...n-coI 키 �a�om �e;)udeh-coI 키 �a�om �e;)ilickedqfo0)el.t=> c-ay = p hod}.e;-le})��(ln�e;0px;)io=ess,:]scuhew Set(th:-coI 키 �a�om �e;)i.:16Ifreq[�═.��:1reRow((i(it=>,(${t:if,(${tit: >ls', o);� �{fofptcT킹 (tpal :o.bucloseOcrcl upstemptPI �Toap:n' Vis`영수증�`:cons���s�lifnne폼��� old용되_��습w��(le!tiass=n bt`;nt:rro.id}l�══�  ���
-��*mpnutn�) .p)eonls}-bIvultn�) .p))on ��"pynutnfsic)eon=> {Ivultnfsic):return i���it.원fnne토글 e��s()een�a�� A"= || Ocon��(.<e>
-encodedf t gs'etonst nor�<a(0t ty.� APd<aw�v=> ttiass=feptIt3('ult" i stfeptIt3('ult" i s=styln cll?��y *mp :tyln claseturn i���it.:''Aayl1">�닫> P_���s()een�a�� AcloseOcrcl upst═�np-.pus:nut"::r=" on4if ( APd('ultbreak`:''impRal +=n:d&to.thinp-.pus:nut"::r=" on4if ( APdocut tvultbrgss=괄r;justeturn :''Aayl1">�배경 �=> ��닫> P
-np-.pus:nut"::r=" on4if ( APd('ultbreal Eal +'impes,:(':locaut .Ae�(lt=> t.to.a)}rs=  s[d*mps=stthi>soiloseOcrcl upstem�tpanp-.pus:nut"::r=" on4if (t.Acr  ('ultbreal Eal +'impes,:(':locaut .Ae�(lt=> t.to.a)}rs=  s[d*mps=stthi>soilose�r`Keycl upstemrs���rn i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ═══════1su� OCR</��s��템 (Googl� Cloud초> P,iiurn i';n}�
-//�═════════
-     Vision API 키 설정 모달
-     ══════it.AimpRaw��(lehD[];  ="pa4[{k-�oad >een4:n:1>tal += qty *mp-.��:1reRow(s���</scrip�>�</d.ult�</{l :>
+function hideCustDetail() {
+  document.getElementById('cdb-detail-modal').classList.remove('show');
+}
+
+function reorderFromCust(jsonStr) {
+  hideCustDetail();
+  hideCustDBModal();
+  fillFromCustomer(jsonStr);
+  if (window.innerWidth < 768) goTab('new');
+}
+
+function showCustDBModal() {
+  custDBQuery = '';
+  const inp = document.getElementById('cdb-search-modal');
+  if (inp) inp.value = '';
+  renderCustDB('cdb-list-modal');
+  document.getElementById('custdb-modal').classList.add('show');
+}
+
+function hideCustDBModal(e) {
+  if (e && e.target !== document.getElementById('custdb-modal')) return;
+  document.getElementById('custdb-modal').classList.remove('show');
+}
+
+// ══════════════════════════════════════════
+// 📥 가져오기 (Import) — Excel / CSV
+// ══════════════════════════════════════════
+let impRawData = [];    // [{colName: value, ...}, ...]
+let impHeaders = [];    // 컬럼명 배열
+let impStep = 0;
+
+// OMS 필드 정의
+const IMP_FIELDS = [
+  { key: 'ignore',        label: '— 무시 —' },
+  { key: 'customerName',  label: '고객명' },
+  { key: 'phone',         label: '전화번호' },
+  { key: 'address',       label: '주소' },
+  { key: 'itemName',      label: '품목명' },
+  { key: 'qty',           label: '수량' },
+  { key: 'price',         label: '단가' },
+  { key: 'totalAmount',   label: '총금액' },
+  { key: 'date',          label: '날짜' },
+  { key: 'paymentMethod', label: '결제방법' },
+  { key: 'channel',       label: '채널' },
+  { key: 'note',          label: '메모' },
+];
+
+// 자동 감지 키워드 맵
+const IMP_AUTO_MAP = {
+  '고객명':'customerName','이름':'customerName','성명':'customerName','주문자':'customerName',
+  '전화번호':'phone','연락처':'phone','전화':'phone','핸드폰':'phone','휴대폰':'phone','폰':'phone','tel':'phone','phone':'phone','mobile':'phone',
+  '주소':'address','배송지':'address','배송주소':'address','수령지':'address','address':'address',
+  '품목':'itemName','품목명':'itemName','상품명':'itemName','상품':'itemName','제품':'itemName','아이템':'itemName','item':'itemName',
+  '수량':'qty','qty':'qty','quantity':'qty','개수':'qty',
+  '단가':'price','가격':'price','price':'price','unit price':'price',
+  '금액':'totalAmount','합계':'totalAmount','총금액':'totalAmount','결제금액':'totalAmount','amount':'totalAmount','total':'totalAmount',
+  '날짜':'date','주문일':'date','주문날짜':'date','일자':'date','date':'date','order date':'date',
+  '결제':'paymentMethod','결제방법':'paymentMethod','결제수단':'paymentMethod','payment':'paymentMethod',
+  '채널':'channel','주문경로':'channel','경로':'channel','channel':'channel',
+  '메모':'note','비고':'note','참고':'note','특이사항':'note','note':'note','memo':'note','remark':'note',
+};
+
+function impAutoDetect(header) {
+  const k = header.trim().toLowerCase();
+  return IMP_AUTO_MAP[k] || IMP_AUTO_MAP[k.replace(/\s+/g,'')] || 'ignore';
+}
+
+function showImportModal() {
+  impReset(true);
+  document.getElementById('import-modal').classList.add('show');
+}
+
+function hideImportModal(e) {
+  if (e && e.target !== document.getElementById('import-modal')) return;
+  document.getElementById('import-modal').classList.remove('show');
+}
+
+function impReset(full) {
+  impRawData = [];
+  impHeaders = [];
+  impStep = 0;
+  ['imp-step-0','imp-step-1','imp-step-2','imp-step-3'].forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('active', i===0);
+  });
+  document.getElementById('imp-next-btn').disabled = true;
+  document.getElementById('imp-next-btn').textContent = '다음';
+  document.getElementById('imp-footer').style.display = 'flex';
+  const fi = document.getElementById('imp-file-input');
+  if (fi) fi.value = '';
+}
+
+function impDragOver(e) { e.preventDefault(); document.getElementById('imp-dropzone').classList.add('dragover'); }
+function impDragLeave(e) { document.getElementById('imp-dropzone').classList.remove('dragover'); }
+function impDrop(e) {
+  e.preventDefault();
+  document.getElementById('imp-dropzone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) impLoadFile(file);
+}
+function impFileSelected(inp) {
+  if (inp.files[0]) impLoadFile(inp.files[0]);
+}
+
+function impLoadFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let data;
+      if (file.name.match(/\.csv$/i)) {
+        const wb = XLSX.read(e.target.result, {type:'binary', raw:false});
+        data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      } else {
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      }
+      if (!data || data.length === 0) { alert('데이터가 없거나 읽을 수 없는 파일입니다.'); return; }
+      impRawData = data;
+      impHeaders = Object.keys(data[0]);
+
+      // 파일 정보
+      document.getElementById('imp-fname').textContent = file.name;
+      document.getElementById('imp-fmeta').textContent = data.length + '행 · ' + impHeaders.length + '컬럼';
+
+      // 컬럼 매핑 테이블
+      const tbody = document.getElementById('imp-map-tbody');
+      tbody.innerHTML = '';
+      impHeaders.forEach(h => {
+        const detected = impAutoDetect(h);
+        const sampleVals = data.slice(0,3).map(r=>String(r[h]||'')).filter(Boolean).join(' / ');
+        const tr = document.createElement('tr');
+
+        const selOpts = IMP_FIELDS.map(f=>
+          `<option value="${f.key}"${f.key===detected?' selected':''}>${f.label}</option>`
+        ).join('');
+
+        tr.innerHTML = `
+          <td><strong>${h}</strong></td>
+          <td>
+            <select class="import-map-sel" data-col="${h}">
+              ${selOpts}
+            </select>
+          </td>
+          <td>
+            <div class="import-sample">${sampleVals || '—'}</div>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      // 미리보기 테이블
+      impBuildPreview();
+
+      // Step 전환
+      document.getElementById('imp-step-0').classList.remove('active');
+      document.getElementById('imp-step-1').classList.add('active');
+      document.getElementById('imp-next-btn').disabled = false;
+      document.getElementById('imp-next-btn').textContent = '가져오기';
+
+    } catch(err) {
+      alert('파일 읽기 실패: ' + err.message);
+    }
+  };
+  if (file.name.match(/\.csv$/i)) {
+    reader.readAsBinaryString(file);
+  } else {
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function impBuildPreview() {
+  const table = document.getElementById('imp-preview-table');
+  const preview = impRawData.slice(0,5);
+  let html = '<thead><tr>' + impHeaders.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+  preview.forEach(row => {
+    html += '<tr>' + impHeaders.map(h=>`<td>${row[h]??''}</td>`).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function impNextStep() {
+  if (impStep === 1) {
+    impStartImport();
+  }
+}
+
+async function impStartImport() {
+  // 매핑 읽기
+  const mapping = {};
+  document.querySelectorAll('.import-map-sel').forEach(sel => {
+    mapping[sel.dataset.col] = sel.value;
+  });
+
+  // Step 2로 전환
+  document.getElementById('imp-step-1').classList.remove('active');
+  document.getElementById('imp-step-2').classList.add('active');
+  document.getElementById('imp-footer').style.display = 'none';
+  impStep = 2;
+
+  const total = impRawData.length;
+  let done = 0, skipped = 0, added = 0;
+
+  for (let i = 0; i < total; i++) {
+    const row = impRawData[i];
+    // 빌드 주문 객체
+    const mapped = {};
+    Object.keys(mapping).forEach(col => {
+      const field = mapping[col];
+      if (field !== 'ignore') mapped[field] = row[col] ?? '';
+    });
+
+    // 필수 값 없으면 스킵
+    if (!mapped.customerName && !mapped.phone) { skipped++; done++; continue; }
+
+    // 날짜 처리
+    let dateStr = mapped.date ? String(mapped.date) : '';
+    if (!dateStr) dateStr = new Date().toISOString().slice(0,10);
+    else {
+      // 숫자형 Excel 날짜 처리
+      const num = parseFloat(dateStr);
+      if (!isNaN(num) && num > 1000 && num < 99999) {
+        const d = XLSX.SSF.parse_date_code(num);
+        if (d) dateStr = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      }
+    }
+
+    // 품목 파싱
+    const itemName = mapped.itemName ? String(mapped.itemName) : '가져온 품목';
+    const qty = parseInt(mapped.qty) || 1;
+    const price = parseFloat(String(mapped.price||'').replace(/[^0-9.]/g,'')) || 0;
+    const totalAmount = parseFloat(String(mapped.totalAmount||'').replace(/[^0-9.]/g,'')) || price * qty;
+    const phone = normalizePhone(String(mapped.phone||''));
+
+    const order = {
+      id: 'imp_' + Date.now() + '_' + i,
+      customerName: String(mapped.customerName||'').trim() || '이름없음',
+      phone: phone,
+      address: String(mapped.address||'').trim(),
+      items: [{ name: itemName, qty: qty, price: price }],
+      totalAmount: totalAmount || 0,
+      paymentMethod: String(mapped.paymentMethod||'').trim() || '',
+      channel: String(mapped.channel||'').trim() || '',
+      note: String(mapped.note||'').trim(),
+      date: dateStr,
+      status: 'done',
+      createdAt: Date.now() + i,
+    };
+
+    try {
+      await db.ref('orders/' + order.id).set(order);
+      orders.unshift(order);
+      added++;
+    } catch(e) {
+      skipped++;
+    }
+
+    done++;
+    const pct = Math.round(done / total * 100);
+    document.getElementById('imp-prog-bar').style.width = pct + '%';
+    document.getElementById('imp-progress-text').textContent = done + ' / ' + total + ' 건';
+
+    // UI 블로킹 방지
+    if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  // 완료
+  renderOrders();
+  buildCustomerDB();
+  updateHeader();
+
+  document.getElementById('imp-step-2').classList.remove('active');
+  document.getElementById('imp-step-3').classList.add('active');
+  document.getElementById('imp-done-icon').textContent = added > 0 ? '✅' : '⚠️';
+  document.getElementById('imp-done-title').textContent = added > 0 ? '가져오기 완료!' : '가져온 데이터 없음';
+  document.getElementById('imp-done-sub').textContent =
+    added + '건 추가됨' + (skipped > 0 ? ' · ' + skipped + '건 건너뜀' : '');
+  document.getElementById('imp-footer').style.display = 'flex';
+  document.getElementById('imp-next-btn').style.display = 'none';
+  impStep = 3;
+}
+
+// ══════════════════════════════════════════
+// 📷 OCR 시스템 (Google Cloud Vision AI)
+// ══════════════════════════════════════════
+
+const VISION_KEY_STORAGE = 'wellbing_vision_api_key';
+let ocrRawText = '';
+let ocrParsedResult = {};
+
+// ── API 키 설정 모달 ──
+function showApiKeyModal() {
+  const saved = localStorage.getItem(VISION_KEY_STORAGE) || '';
+  document.getElementById('vision-api-key-input').value = saved;
+  document.getElementById('apikey-status').style.display = 'none';
+  document.getElementById('apikey-modal').classList.remove('hide');
+}
+function closeApiKeyModal() {
+  document.getElementById('apikey-modal').classList.add('hide');
+}
+function saveApiKey() {
+  const key = document.getElementById('vision-api-key-input').value.trim();
+  if (!key) { showApiKeyStatus('⚠️ API 키를 입력해 주세요', '#c62828'); return; }
+  localStorage.setItem(VISION_KEY_STORAGE, key);
+  showApiKeyStatus('✅ 저장 완료! OCR 준비됨', '#2E7D32');
+  setTimeout(closeApiKeyModal, 1000);
+}
+function showApiKeyStatus(msg, color) {
+  const el = document.getElementById('apikey-status');
+  el.textContent = msg; el.style.color = color; el.style.display = 'block';
+}
+
+// ── 카메라 열기 ──
+function openOcrCamera() {
+  const key = localStorage.getItem(VISION_KEY_STORAGE);
+  if (!key) {
+    if (confirm('Google Vision API 키가 설정되지 않았습니다.\n지금 설정하시겠어요?')) showApiKeyModal();
+    return;
+  }
+  document.getElementById('ocr-file-input').value = '';
+  document.getElementById('ocr-file-input').click();
+}
+
+// ── 이미지 선택 후 처리 ──
+function handleOcrImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    // 미리보기
+    const preview = document.getElementById('ocr-preview-img');
+    preview.src = dataUrl; preview.style.display = 'block';
+    // 모달 열기 & 처리 시작
+    document.getElementById('ocr-modal').classList.remove('hide');
+    document.getElementById('ocr-progress').style.display = 'block';
+    document.getElementById('ocr-result-area').style.display = 'none';
+    document.getElementById('ocr-error-area').style.display = 'none';
+    document.getElementById('ocr-status-text').textContent = '이미지 분석 중...';
+    document.getElementById('ocr-status-sub').textContent = 'Google Vision AI가 영수증을 읽고 있습니다';
+    // base64 (data:image/...;base64, 이후 부분만)
+    const base64 = dataUrl.split(',')[1];
+    callVisionApi(base64);
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Google Cloud Vision API 호출 ──
+async function callVisionApi(base64) {
+  const key = localStorage.getItem(VISION_KEY_STORAGE);
+  try {
+    const res = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${key}`,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64 },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }]
+          }]
+        })
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const annotation = data.responses?.[0]?.fullTextAnnotation || data.responses?.[0]?.textAnnotations?.[0];
+    if (!annotation) throw new Error('텍스트를 인식하지 못했습니다');
+    const text = annotation.text || annotation.description || '';
+    if (!text.trim()) throw new Error('영수증에서 텍스트를 찾지 못했습니다');
+    ocrRawText = text;
+    document.getElementById('ocr-status-text').textContent = 'GPS 위치 확인 중...';
+    document.getElementById('ocr-status-sub').textContent = '주소 보완을 위해 현재 위치를 가져오는 중';
+    // GPS 위치 가져오기 후 파싱
+    const gpsAddr = await getGpsAreaInfo();
+    const parsed = parseReceiptText(text, gpsAddr);
+    ocrParsedResult = parsed;
+    showOcrResult(parsed, !!gpsAddr);
+  } catch (e) {
+    showOcrError(e.message);
+  }
+}
+
+// ── GPS 현재 지역 정보 가져오기 (Nominatim 역지오코딩, 무료) ──
+function getGpsAreaInfo() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        try {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`,
+            { headers: { 'User-Agent': 'WellbingMartOMS/1.0' } }
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          // 한국 행정구역 추출: 시/도, 구/군, 읍/면/동
+          const parts = [];
+          if (addr.city || addr.province) parts.push(addr.city || addr.province);
+          if (addr.county || addr.city_district || addr.suburb) parts.push(addr.county || addr.city_district || addr.suburb);
+          if (addr.quarter || addr.neighbourhood) parts.push(addr.quarter || addr.neighbourhood);
+          resolve(parts.length ? { text: parts.join(' '), lat, lon, raw: addr } : null);
+        } catch { resolve(null); }
+      },
+      () => resolve(null),
+      { timeout: 5000, maximumAge: 60000 }
+    );
+  });
+}
+
+// ── 영수증 텍스트 파싱 ──
+function parseReceiptText(text, gpsAddr) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const result = { name: '', phone: '', address: '', items: [], raw: text };
+
+  // 1) 전화번호 추출
+  const phoneRe = /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/g;
+  const phones = text.match(phoneRe);
+  if (phones) {
+    result.phone = phones[0].replace(/[\s.]/g, '-');
+    // 연속된 숫자 구분자 정리
+    result.phone = result.phone.replace(/(\d{3})-?(\d{3,4})-?(\d{4})/, '$1-$2-$3');
+  }
+
+  // 2) 주소 추출
+  // 한국 주소 패턴: 시/도 + 구/군/시 + 로/길/동 + 번지
+  const addrRe = /(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)[^\n]*?(?:동|로|길|가|번지|호)[^\n]*/g;
+  const addrs = text.match(addrRe);
+  if (addrs) {
+    // 가장 긴 주소 선택
+    result.address = addrs.reduce((a, b) => a.length > b.length ? a : b, '');
+  } else {
+    // 시/도 없이 동/로/길/번지만 있는 경우
+    const shortAddrRe = /(?:\d+번지|\d+[-]\d+|(?:[가-힣]+)(?:동|로|길|가)\s*\d+(?:[-]\d+)?)/g;
+    const shortAddrs = text.match(shortAddrRe);
+    if (shortAddrs) result.address = shortAddrs[0];
+  }
+
+  // GPS로 주소 보완: 주소가 없거나 짧은 경우 GPS 지역 정보 앞에 붙임
+  if (gpsAddr) {
+    if (!result.address) {
+      result.address = gpsAddr.text;
+      result.gpsCompleted = true;
+    } else if (result.address.length < 10) {
+      // 짧은 주소 (동 이름만 등): GPS 지역 + 기존 주소
+      const alreadyHasRegion = /서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주/.test(result.address);
+      if (!alreadyHasRegion) {
+        result.address = gpsAddr.text + ' ' + result.address;
+        result.gpsCompleted = true;
+      }
+    }
+  }
+
+  // 3) 이름 추출
+  // 이름: 앞에 붙는 라벨, 또는 전화번호 바로 앞줄, 또는 한자리 한글 2~4자
+  const nameLabelRe = /(?:이름|수신|받는\s*분|수신인|고객명|성함)[:\s]*([가-힣]{2,5})/;
+  const nameLabel = text.match(nameLabelRe);
+  if (nameLabel) {
+    result.name = nameLabel[1];
+  } else {
+    // 전화번호 있는 줄의 바로 앞줄에서 이름 찾기
+    const phoneLineIdx = lines.findIndex(l => phoneRe.test(l));
+    if (phoneLineIdx > 0) {
+      const prevLine = lines[phoneLineIdx - 1];
+      const nm = prevLine.match(/^([가-힣]{2,5})$/);
+      if (nm) result.name = nm[1];
+    }
+    // 못 찾으면 텍스트 전체에서 짧은 한글 단어
+    if (!result.name) {
+      const nameGuess = text.match(/(?:^|\s)([가-힣]{2,4})(?:\s|$)/m);
+      if (nameGuess) result.name = nameGuess[1].trim();
+    }
+  }
+
+  // 4) 주문 상품 추출
+  // 상품명 패턴: 한글(+영문) + 숫자 + 단위(개/kg/g/박스 등) + 선택적 가격
+  const itemRe = /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,15})\s*(\d+)\s*(?:개|박스|묶음|봉|팩|kg|g|L|병|캔|장|판|개입)?(?:\s*[×x*]\s*)?(?:\s*([\d,]+)\s*원?)?/g;
+  let m;
+  while ((m = itemRe.exec(text)) !== null) {
+    const name = m[1].trim();
+    // 주소/이름/전화 관련 단어 제외
+    if (/배달|배송|주소|전화|연락|이름|수신|결제|합계|총|고객|주문|카드|현금|계좌|선불/.test(name)) continue;
+    if (name.length < 2) continue;
+    const qty = parseInt(m[2]) || 1;
+    const price = m[3] ? parseInt(m[3].replace(/,/g,'')) : '';
+    result.items.push({ name, qty, price });
+  }
+
+  // 중복 제거 및 상위 5개
+  result.items = result.items
+    .filter((item, idx, arr) => arr.findIndex(i => i.name === item.name) === idx)
+    .slice(0, 5);
+
+  return result;
+}
+
+// ── OCR 결과 표시 ──
+function showOcrResult(parsed, gpsUsed) {
+  document.getElementById('ocr-progress').style.display = 'none';
+  document.getElementById('ocr-error-area').style.display = 'none';
+  document.getElementById('ocr-result-area').style.display = 'block';
+
+  document.getElementById('ocr-name').value = parsed.name || '';
+  document.getElementById('ocr-phone').value = parsed.phone || '';
+  document.getElementById('ocr-addr').value = parsed.address || '';
+  document.getElementById('ocr-items').value = parsed.items.map(i => `${i.name} ${i.qty}개${i.price ? ' ' + i.price.toLocaleString() + '원' : ''}`).join(', ');
+  document.getElementById('ocr-raw-text').textContent = parsed.raw || '';
+
+  const gpsBadge = document.getElementById('ocr-gps-badge');
+  gpsBadge.style.display = (gpsUsed && parsed.gpsCompleted) ? 'inline-flex' : 'none';
+}
+
+// ── OCR 에러 표시 ──
+function showOcrError(msg) {
+  document.getElementById('ocr-progress').style.display = 'none';
+  document.getElementById('ocr-result-area').style.display = 'none';
+  document.getElementById('ocr-error-area').style.display = 'block';
+  document.getElementById('ocr-error-text').textContent = 'OCR 인식 실패';
+  document.getElementById('ocr-error-sub').textContent = msg;
+}
+
+// ── OCR 결과를 주문 폼에 적용 ──
+function applyOcrResult() {
+  const name = document.getElementById('ocr-name').value.trim();
+  const phone = document.getElementById('ocr-phone').value.trim();
+  const addr = document.getElementById('ocr-addr').value.trim();
+  const itemsText = document.getElementById('ocr-items').value.trim();
+
+  if (name) document.getElementById('inp-cname').value = name;
+  if (phone) document.getElementById('inp-phone').value = phone;
+  if (addr) document.getElementById('inp-addr').value = addr;
+
+  // 상품 파싱 및 폼 적용
+  if (ocrParsedResult.items && ocrParsedResult.items.length > 0) {
+    document.getElementById('item-rows').innerHTML = '';
+    ocrParsedResult.items.forEach(it => addItemRow(it.name, it.qty, it.price || ''));
+    calcTotal();
+  }
+
+  closeOcrModal();
+  showToast('📷 영수증 정보가 주문 폼에 적용되었습니다!');
+  // 고객 이력 패널 트리거
+  if (phone) onPhoneInput(phone);
+  else if (name) onNameInput(name);
+}
+
+// ── 원문 토글 ──
+function toggleOcrRaw() {
+  const f = document.getElementById('ocr-raw-field');
+  f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+}
+
+// ── OCR 모달 닫기 ──
+function closeOcrModal() {
+  document.getElementById('ocr-modal').classList.add('hide');
+  document.getElementById('ocr-file-input').value = '';
+}
+
+// OCR 모달 배경 클릭 닫기
+document.getElementById('ocr-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeOcrModal();
+});
+document.getElementById('apikey-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeApiKeyModal();
+});
+
+// ══════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════
+loadOrders();
+updateHeader();
+addItemRow();
+
+</script>
+</body>
+</html>
