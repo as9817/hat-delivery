@@ -366,11 +366,11 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .import-map-table tr:hover td{background:#fafbff}
 .import-map-sel{width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:#fff;cursor:pointer;outline:none}
 .import-map-sel:focus{border-color:#3949AB}
-.import-sample{font-size:11px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.import-sample{font-size:11px;color:#888;margin-top:2px;white-space:nowraw;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .import-preview-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);margin-top:4px}
 .import-preview-table{width:100%;border-collapse:collapse;font-size:12px}
-.import-preview-table th{background:#1a237e;color:#fff;padding:8px 10px;white-space:nowrap}
-.import-preview-table td{padding:7px 10px;border-bottom:1px solid #eee;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.import-preview-table th{background:#1a237e;color:#fff;padding:8px 10px;white-space:nowraw}
+.import-preview-table td{padding:7px 10px;border-bottom:1px solid #eee;white-space:nowraw;max-width:140px;overflow:hidden;text-overflow:ellipsis}
 .import-preview-table tr:nth-child(even) td{background:#f8f9ff}
 .import-progress{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin:12px 0}
 .import-progress-bar{height:100%;background:linear-gradient(90deg,#3949AB,#2196F3);border-radius:3px;transition:width .3s}
@@ -404,7 +404,39 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .apikey-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px}
 .apikey-modal.hide{display:none}
 .apikey-box{background:#fff;border-radius:18px;width:100%;max-width:380px;padding:24px;box-shadow:0 16px 50px rgba(0,0,0,.35)}
+
+/* ══════════════════════════════════════
+   TMS 지도 & 배송 테이블
+══════════════════════════════════════ */
+#tms-map-container{height:260px;position:relative;flex-shrink:0;background:#e8eaf6;border-bottom:2px solid var(--border);display:none}
+#tms-map{width:100%;height:100%}
+#tms-legend{position:absolute;bottom:8px;left:8px;z-index:1000;background:rgba(255,255,255,.93);border-radius:8px;padding:7px 10px;font-size:11px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.18);line-height:2;pointer-events:none}
+.tms-legend-row{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.tms-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
+#tms-table-wrap{display:none;flex:1;overflow-y:auto;min-height:0;background:#fff}
+.tms-table{width:100%;border-collapse:collapse;font-size:12px}
+.tms-table thead th{background:#E8EAF6;color:#1a237e;font-size:11px;font-weight:700;padding:9px 8px;white-space:nowrap;position:sticky;top:0;z-index:5;border-bottom:2px solid #c5cae9;text-align:left}
+.tms-table tbody td{padding:8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.tms-table tbody tr:hover td{background:#f5f7ff;cursor:pointer}
+.tms-tr-delivering td:first-child{border-left:3px solid var(--blue)}
+.tms-tr-done td{opacity:.55}
+.tms-tr-pending td:first-child{border-left:3px solid var(--orange)}
+.tms-tr-confirmed td:first-child{border-left:3px solid var(--green)}
+.tms-actions{display:flex;flex-direction:column;gap:3px}
+#tms-driver-status{display:flex;gap:6px;flex-wrap:wrap;padding:7px 12px;background:#f0f4ff;border-bottom:1px solid var(--border);flex-shrink:0}
+.tms-driver-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #c5cae9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#1a237e;white-space:nowrap}
+.tms-driver-chip.online{border-color:#4CAF50;background:#E8F5E9;color:#2E7D32}
+@media (min-width:768px){
+  #list{display:flex!important;flex-direction:column!important;overflow:hidden!important}
+  #list .screen-inner{padding:0!important;display:flex!important;flex-direction:column!important;flex:1!important;overflow:hidden!important;min-height:0!important}
+  #list #filter-bar-wrap{padding:6px 10px;margin-bottom:0;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
+  #list .filter-bar{margin-bottom:0}
+  #tms-map-container{display:block!important}
+  #tms-table-wrap{display:flex!important;flex-direction:column}
+  #order-list-container{display:none!important}
+}
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
 
@@ -449,11 +481,27 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <div class="screen active" id="list">
   <!-- PC 패널 헤더 -->
   <div class="pc-panel-hdr">
-    📋 오늘 주문 목록
+    🗺️ TMS 배송 현황
     <span class="pc-panel-hdr-cnt" id="list-pc-cnt">0건</span>
   </div>
   <div class="screen-inner">
-  <div style="margin-bottom:8px">
+
+  <!-- ── TMS 지도 (PC 전용) ── -->
+  <div id="tms-map-container">
+    <div id="tms-map"></div>
+    <div id="tms-legend">
+      <div class="tms-legend-row"><span class="tms-dot" style="background:#1a237e;border:2px solid #fff;width:12px;height:12px;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>기사 실시간 위치</div>
+      <div class="tms-legend-row"><span class="tms-dot" style="background:#FF9800"></span>배달 대기</div>
+      <div class="tms-legend-row"><span class="tms-dot" style="background:#2196F3"></span>배달 중</div>
+      <div class="tms-legend-row"><span class="tms-dot" style="background:#4CAF50"></span>배달 완료</div>
+    </div>
+  </div>
+
+  <!-- ── 온라인 기사 현황 바 (PC 전용) ── -->
+  <div id="tms-driver-status"></div>
+
+  <!-- ── 필터바 ── -->
+  <div id="filter-bar-wrap">
     <div class="filter-bar" id="filter-bar">
       <div class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">전체</div>
       <div class="filter-chip" data-filter="pending" onclick="setFilter('pending',this)">🟡 접수</div>
@@ -465,6 +513,25 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="filter-chip" data-filter="call" onclick="setFilter('call',this)">📞 전화</div>
     </div>
   </div>
+
+  <!-- ── PC: TMS 주문 테이블 ── -->
+  <div id="tms-table-wrap">
+    <table class="tms-table">
+      <thead>
+        <tr>
+          <th style="width:36px;text-align:center">#</th>
+          <th style="min-width:150px">고객명 / 주소</th>
+          <th style="min-width:110px">배정기사 / 상태</th>
+          <th style="min-width:120px">주문시간 / 예상도착</th>
+          <th style="min-width:130px">연락처 / 메모</th>
+          <th style="min-width:130px">액션</th>
+        </tr>
+      </thead>
+      <tbody id="tms-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- ── 모바일: 기존 카드 목록 ── -->
   <div id="order-list-container">
     <div class="empty-state">
       <div class="empty-icon">📭</div>
@@ -472,6 +539,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="empty-sub">새주문 탭에서 주문을 입력해주세요</div>
     </div>
   </div>
+
   </div><!-- /screen-inner -->
 </div>
 
@@ -505,7 +573,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     </div>
     <div class="parse-box">
       <div class="parse-hint">카카오/문자 내용을 붙여넣으세요 · 여러 건을 한꺼번에 넣으면 자동 분리됩니다<br><span style="color:#aaa">구분: 빈 줄 두 개 | --- | 번호목록 | 카카오톡 묶어서 복사</span></div>
-      <textarea class="form-input form-textarea" id="paste-text" placeholder="📦 단일 주문&#10;홍길동&#10;010-1234-5678&#10;경기도 남양주시 청학로 123&#10;두부 2개 계란 1판 카드&#10;&#10;📦 전화 주문 (한 줄 간략 입력)&#10;홍길동 010-1234-5678 강남구 두부2 카드&#10;&#10;📦 여러 건 (빈 줄 두 개로 구분)&#10;김철수 010-0000-1111 수원시 감자3개 현금&#10;&#10;&#10;이영희 010-2222-3333 강동구 계란1판 카드" style="min-height:120px"></textarea>
+      <textarea class="form-input form-textarea" id="paste-text" placeholder="📦 단일 주문&#10;홍길동&#10;010-1234-5678&#10;경기도 남양주시 청학로 123&#10;65Q 2개 계란 1판 카드&#10;&#10;📦 전화 주문 (한 줄 간략 입력)&#10;홍길동 010-1234-5678 강남구 두부2 카드&#10;&#10;📦 여러 건 (빈 줄 두 개로 구분)&#10;김철수 010-0000-1111 수원시 감자3개 현금&#10;&#10;&#10;이영희 010-2222-3333 강동구 계란1판 카드" style="min-height:120px"></textarea>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-primary btn-sm" onclick="parsePaste()" style="flex:1">✨ 자동 파싱</button>
         <button class="btn btn-gray btn-sm" onclick="clearPaste()">지우기</button>
@@ -863,6 +931,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <!-- SheetJS -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -1215,16 +1286,16 @@ function showBatchResult(parts) {
     </div>`;
   }).join('');
   preview.innerHTML = `<div class="batch-hdr">
-    <span>📋 ${parts.length}건 감지</span>
+    <span>📋 ${parts.length}z�l 감지</span>
     <span style="font-size:11px;color:#888">제외할 건은 '제외' 버튼을 누르세요</span>
   </div>
   ${cards}
   <div class="batch-bar">
-    <button class="btn btn-green btn-sm" style="flex:1" id="batch-submit-btn" onclick="submitBatchOrders()">✅ 전체 등록 (${parts.length}건)</button>
+    <button class="btn btn-green btn-sm" style="flex:1" id="batch-submit-btn" onclick="submitBatchOrders()">✅ 전체 등록 (${parts.length}z�l)</button>
     <button class="btn btn-gray btn-sm" onclick="closeBatchPreview()">취소</button>
   </div>`;
   preview.classList.add('show');
-  showToast(`📋 ${parts.length}건의 주문이 감지되었습니다`);
+  showToast(`📋 ${parts.length}z�l의 주문이 감지되었습니다`);
 }
 
 function toggleBatchSkip(i) {
@@ -1244,7 +1315,7 @@ function toggleBatchSkip(i) {
   }
   const cnt = (window.__batchParsed||[]).length - s.size;
   const sb = document.getElementById('batch-submit-btn');
-  if (sb) sb.textContent = `✅ 전체 등록 (${cnt}건)`;
+  if (sb) sb.textContent = `✅ 전체 등록 (${cnt}개)`;
 }
 
 function submitBatchOrders() {
@@ -1838,9 +1909,9 @@ function showCustDetail(encodedKey) {
       </div>
     </div>
     <button class="btn btn-primary btn-full" onclick="reorderFromCust(${JSON.stringify(JSON.stringify(latestOrder))})" style="margin-bottom:16px;padding:14px;font-size:15px">
-      🛒 이 고객으로 새 주문 입력
+      🛒 이 고객으로 새 주문 입�%
     </button>
-    <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px">📋 주문 이력 (${c.orderCount}건)</div>
+    <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px">📋 주문 이�% (${c.orderCount}건)</div>
     ${histHtml}
   `;
 
@@ -1882,10 +1953,10 @@ let impStep = 0;
 // OMS 필드 정의
 const IMP_FIELDS = [
   { key: 'ignore',        label: '— 무시 —' },
-  { key: 'customerName',  label: '고객명' },
+  { key: 'customerName',  label: '고객명';},
   { key: 'phone',         label: '전화번호' },
   { key: 'address',       label: '주소' },
-  { key: 'itemName',      label: '품목명' },
+  { key: 'itemName',      label: '품목명';},
   { key: 'qty',           label: '수량' },
   { key: 'price',         label: '단가' },
   { key: 'totalAmount',   label: '총금액' },
@@ -2033,14 +2104,14 @@ function impNextStep() {
   }
 }
 
-async function impStartImport() {
+always function impStartImport() {
   // 매핑 읽기
   const mapping = {};
   document.querySelectorAll('.import-map-sel').forEach(sel => {
     mapping[sel.dataset.col] = sel.value;
   });
 
-  // Step 2로 전환
+  // Step 2롖 숄환
   document.getElementById('imp-step-1').classList.remove('active');
   document.getElementById('imp-step-2').classList.add('active');
   document.getElementById('imp-footer').style.display = 'none';
@@ -2055,7 +2126,7 @@ async function impStartImport() {
     const mapped = {};
     Object.keys(mapping).forEach(col => {
       const field = mapping[col];
-      if (field !== 'ignore') mapped[field] = row[col] ?? '';
+      if (field !== 'ignore) mapped[field] = row[col] ?? '';
     });
 
     // 필수 값 없으면 스킵
@@ -2113,7 +2184,7 @@ async function impStartImport() {
   }
 
   // 완료
-  renderOrders();
+  renderOrderList();
   buildCustomerDB();
   updateHeader();
 
@@ -2304,7 +2375,7 @@ function parseReceiptText(text, gpsAddr) {
   }
 
   // 3) 이름 추출
-  // 이름: 앞에 붙는 라벨, 또는 전화번호 바로 앞줄, 또는 한자리 한글 2~4자
+  // 이름: 앝에 붙는 라벨, 또는 전화번호 바로 앞줄, 또는 한자리 한글 2~4자
   const nameLabelRe = /(?:이름|수신|받는\s*분|수신인|고객명|성함)[:\s]*([가-힣]{2,5})/;
   const nameLabel = text.match(nameLabelRe);
   if (nameLabel) {
@@ -2326,7 +2397,7 @@ function parseReceiptText(text, gpsAddr) {
 
   // 4) 주문 상품 추출
   // 상품명 패턴: 한글(+영문) + 숫자 + 단위(개/kg/g/박스 등) + 선택적 가격
-  const itemRe = /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,15})\s*(\d+)\s*(?:개|박스|묶음|봉|팩|kg|g|L|병|캔|장|판|개입)?(?:\s*[×x*]\s*)?(?:\s*([\d,]+)\s*원?)?/g;
+  const itemRe = /([가-힣a-zA-Z][가-힣a-zA-Z\s]{1,15})\s*(\d+)\s*(?:개|박스|묶음|봉|팩|kg|g|L|병|캔|장|판|개입)?(?:\s*[×x)]\s*)?(?:\s*([\d,]+)\s*원?)?/g;
   let m;
   while ((m = itemRe.exec(text)) !== null) {
     const name = m[1].trim();
@@ -2415,6 +2486,199 @@ document.getElementById('ocr-modal').addEventListener('click', function(e) {
 document.getElementById('apikey-modal').addEventListener('click', function(e) {
   if (e.target === this) closeApiKeyModal();
 });
+
+// ══════════════════════════════════════════
+// TMS 지도 & 실시간 배송 테이블
+// ══════════════════════════════════════════
+let tmsMap = null;
+let tmsDriverMarkers = {};   // driverId → L.marker
+let tmsDeliveryData = {};    // orderId  → delivery object
+let tmsDriverData = {};      // driverId → driver object
+
+// ── 지도 초기화 (PC 전용) ──
+function initTmsMap() {
+  if (tmsMap || typeof L === 'undefined') return;
+  const el = document.getElementById('tms-map');
+  if (!el) return;
+  tmsMap = L.map('tms-map', { zoomControl: true, attributionControl: false })
+    .setView([37.5665, 126.9780], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
+  }).addTo(tmsMap);
+  // 지도 크기 새로고침 (flexbox 높이 확정 후)
+  setTimeout(() => tmsMap.invalidateSize(), 200);
+}
+
+// ── 기사 마커 아이콘 생성 ──
+function makeDriverIcon(name) {
+  const label = (name || '?')[0];
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:#1a237e;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);letter-spacing:0">${label}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  });
+}
+
+// ── 배달 위치 마커 아이콘 ──
+function makeDeliveryIcon(num, status) {
+  const colors = { pending:'#FF9800', confirmed:'#4CAF50', delivering:'#2196F3', done:'#9E9E9E', cancelled:'#F44336' };
+  const bg = colors[status] || '#FF9800';
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${bg};color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3)">${num}</div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+}
+
+// ── Firebase: 기사 실시간 위치 구독 ──
+db.ref('drivers').on('value', snap => {
+  tmsDriverData = snap.val() || {};
+
+  // 기존 기사 마커 제거
+  Object.values(tmsDriverMarkers).forEach(m => { if (tmsMap) m.remove(); });
+  tmsDriverMarkers = {};
+
+  const onlineDrivers = [];
+
+  Object.entries(tmsDriverData).forEach(([driverId, driver]) => {
+    const loc = driver.location;
+    const isOnline = driver.online || driver.status === 'online' || !!loc;
+    if (isOnline) onlineDrivers.push({ id: driverId, ...driver });
+
+    if (!tmsMap || !loc || !loc.lat || !loc.lng) return;
+
+    const marker = L.marker([loc.lat, loc.lng], {
+      icon: makeDriverIcon(driver.name || driverId),
+      zIndexOffset: 1000
+    }).addTo(tmsMap);
+
+    const deliveries = Object.values(tmsDeliveryData)
+      .filter(d => d.driverId === driverId || d.driverName === driver.name)
+      .map(d => d.customerName || d.address)
+      .join('<br>') || '배달 없음';
+
+    marker.bindPopup(
+      `<b>🚗 ${driver.name || driverId}</b><br>` +
+      `상태: ${driver.status || '이동중'}<br>` +
+      `<small>배달: ${deliveries}</small>`
+    );
+    tmsDriverMarkers[driverId] = marker;
+  });
+
+  // 기사 현황 바 업데이트
+  updateDriverStatusBar(onlineDrivers);
+
+  // 지도 뷰 조정
+  if (tmsMap && Object.keys(tmsDriverMarkers).length > 0) {
+    const group = L.featureGroup(Object.values(tmsDriverMarkers));
+    try { tmsMap.fitBounds(group.getBounds().pad(0.3), { maxZoom: 14 }); } catch(e) {}
+  }
+
+  renderTmsTable();
+});
+
+// ── Firebase: 배달 정보 구독 ──
+db.ref('deliveries').on('value', snap => {
+  tmsDeliveryData = snap.val() || {};
+  renderTmsTable();
+});
+
+// ── 기사 현황 바 ──
+function updateDriverStatusBar(drivers) {
+  const bar = document.getElementById('tms-driver-status');
+  if (!bar) return;
+  if (!drivers.length) {
+    bar.innerHTML = '<span style="font-size:11px;color:#aaa">📡 연결된 기사 없음 — Firebase realtime 대기중</span>';
+    return;
+  }
+  bar.innerHTML = drivers.map(d => {
+    const dCount = Object.values(tmsDeliveryData)
+      .filter(dl => dl.driverId === d.id || dl.driverName === d.name)
+      .filter(dl => dl.status !== 'done').length;
+    return `<div class="tms-driver-chip online">🟢 ${d.name || d.id}${dCount ? ` (${dCount}건)` : ''}</div>`;
+  }).join('');
+}
+
+// ── TMS 주문 테이블 렌더링 ──
+function renderTmsTable() {
+  const tbody = document.getElementById('tms-tbody');
+  if (!tbody) return;
+
+  const filtered = filterOrders();
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px 20px;color:#aaa;font-size:13px">📭 주문이 없습니다</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((o, i) => {
+    const delivery = tmsDeliveryData[o.id] || {};
+    const driverName = delivery.driverName || delivery.assignedDriver || '';
+    const eta = delivery.eta
+      ? new Date(delivery.eta).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
+      : '-';
+    const orderTime = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
+    const statusClass = `tms-tr-${o.status || 'pending'}`;
+
+    let actionHtml = '';
+    if (o.status === 'pending') actionHtml = `
+      <button class="btn btn-green btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','confirmed')">✅ 주문확인</button>
+      <button class="btn btn-orange btn-sm" style="width:100%;padding:5px 8px;font-size:11px;margin-top:2px" onclick="sendToDelivery('${o.id}')">🚀 배달발송</button>`;
+    else if (o.status === 'confirmed') actionHtml = `
+      <button class="btn btn-primary btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="sendToDelivery('${o.id}')">🚀 배달 배정</button>`;
+    else if (o.status === 'delivering') actionHtml = `
+      <button class="btn btn-green btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','done')">✅ 배달완료</button>`;
+    else if (o.status === 'done') actionHtml = `
+      <button class="btn btn-gray btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
+
+    const itemSummary = (o.items||[]).map(it=>`${it.name} ${it.qty}개`).join(', ');
+
+    return `<tr class="${statusClass}">
+      <td style="text-align:center;font-weight:700;color:#aaa;font-size:11px">${i+1}</td>
+      <td>
+        <div style="font-weight:700;color:#1a237e;font-size:13px">${o.customerName}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;line-height:1.4">📍 ${o.address}</div>
+        ${itemSummary ? `<div style="font-size:10px;color:#999;margin-top:2px">🛍 ${itemSummary}</div>` : ''}
+      </td>
+      <td>
+        <div style="font-size:12px;font-weight:600;color:${driverName ? '#1a237e' : '#ccc'}">
+          ${driverName ? '🚗 ' + driverName : '미배정'}
+        </div>
+        <div style="margin-top:4px"><span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span></div>
+      </td>
+      <td>
+        <div style="font-size:12px;font-weight:600">${orderTime}</div>
+        <div style="font-size:11px;color:#888;margin-top:3px">예상 → ${eta}</div>
+      </td>
+      <td>
+        <div style="font-size:12px">${o.phone || '-'}</div>
+        ${o.note ? `<div style="font-size:11px;color:#888;margin-top:2px">📝 ${o.note}</div>` : ''}
+        ${PAY_LABELS[o.paymentMethod] ? `<div style="font-size:10px;color:#aaa;margin-top:1px">${PAY_LABELS[o.paymentMethod]}</div>` : ''}
+      </td>
+      <td>
+        <div class="tms-actions">${actionHtml}</div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// renderOrderList 후크: PC에서 TMS 테이블도 함께 갱신
+const _origRenderOrderList = renderOrderList;
+renderOrderList = function() {
+  _origRenderOrderList();
+  renderTmsTable();
+};
+
+// ── PC 접속 시 지도 초기화 ──
+if (window.innerWidth >= 768) {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(initTmsMap, 150));
+  // DOMContentLoaded가 이미 발화된 경우 대비
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(initTmsMap, 200);
+  }
+}
 
 // ══════════════════════════════════════════
 // 초기화
