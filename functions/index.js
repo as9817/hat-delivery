@@ -1,4 +1,4 @@
-// v2 - fixed auth
+// v3 - direct credentials
 /**
  * 햇배달 - 영수증 OCR 파이프라인
  * Firebase Cloud Functions (2세대 HTTP)
