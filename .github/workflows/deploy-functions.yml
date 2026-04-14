@@ -31,11 +31,11 @@ jobs:
 
       - name: Create env file
         run: |
-          cat > functions/.env << 'EOF'
+          cat > functions/.env << 'ENVEOF'
           GOOGLE_VISION_KEY=${{ secrets.GOOGLE_VISION_KEY }}
           GEMINI_KEY=${{ secrets.GEMINI_KEY }}
           KAKAO_KEY=${{ secrets.KAKAO_KEY }}
-          EOF
+          ENVEOF
 
       - name: Deploy Functions
         run: firebase deploy --only functions --project wellbingmart-d5ee1
