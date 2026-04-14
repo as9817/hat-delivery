@@ -18,6 +18,11 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
@@ -26,11 +31,11 @@ jobs:
 
       - name: Create env file
         run: |
-          cat > functions/.env << EOF
+          cat > functions/.env << 'EOF'
           GOOGLE_VISION_KEY=${{ secrets.GOOGLE_VISION_KEY }}
           GEMINI_KEY=${{ secrets.GEMINI_KEY }}
           KAKAO_KEY=${{ secrets.KAKAO_KEY }}
           EOF
 
       - name: Deploy Functions
-        run: firebase deploy --only functions --token "${{ secrets.FIREBASE_TOKEN }}" --project wellbingmart-d5ee1
+        run: firebase deploy --only functions --project wellbingmart-d5ee1
