@@ -1160,39 +1160,65 @@ function setStep(id, state) {
 }
 
 async function startOCR(file) {
-  const apiKey = localStorage.getItem(VISION_KEY_STORAGE);
-  if (!apiKey) { showVisionKeyModal(); return; }
-  setStep('step-load', 'active');
-  // Convert image to base64
-  const b64 = await new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result.split(',')[1]);
-    reader.readAsDataURL(file);
+  if (!file) return;
+  const CLOUD_FN_URL = 'https://asia-northeast3-wellbingmart-d5ee1.cloudfunctions.net/processReceipt';
+
+  setStep(1);
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      // 이미지 압축 (800px / 0.6 품질)
+      const base64 = await compressAndGetBase64(e.target.result, 800, 0.6);
+
+      setStep(2);
+      const resp = await fetch(CLOUD_FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64 })
+      });
+
+      setStep(3);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || 'OCR 서버 오류');
+      }
+      const json = await resp.json();
+      if (json.status !== 'success') throw new Error(json.message || '인식 실패');
+
+      const { customer, location } = json.data;
+      window._ocrResult = { ...customer, ...location };
+
+      // UI 채우기
+      const nEl = document.getElementById('res-name');
+      const pEl = document.getElementById('res-phone');
+      const aEl = document.getElementById('res-addr');
+      if (nEl) nEl.value = customer.name || '';
+      if (pEl) pEl.value = customer.phone || '';
+      if (aEl) aEl.value = [location.road_address, location.detail_address].filter(Boolean).join(' ');
+
+      setStep(4);
+    } catch (err) {
+      console.error('OCR 오류:', err);
+      setStep(-1);
+      alert('영수증 인식 실패: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function compressAndGetBase64(dataUrl, maxWidth, quality) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.width  * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+    };
+    img.src = dataUrl;
   });
-  setStep('step-load', 'done');
-  setStep('step-init', 'active');
-  await sleep(200);
-  setStep('step-init', 'done');
-  setStep('step-ocr', 'active');
-  try {
-    const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({requests:[{image:{content:b64},features:[{type:'DOCUMENT_TEXT_DETECTION'}]}]})
-    });
-    const json = await res.json();
-    const text = json.responses?.[0]?.fullTextAnnotation?.text || '';
-    setStep('step-ocr', 'done');
-    setStep('step-parse', 'active');
-    await sleep(200);
-    const parsed = parseReceiptText(text);
-    setStep('step-parse', 'done');
-    setStep('step-done', 'active');
-    await sleep(300);
-    showResult(parsed);
-  } catch(e) {
-    showResult({ name: '', addr: '', phone: '' });
-  }
 }
 
 function parseReceiptText(text) {
