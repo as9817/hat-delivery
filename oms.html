@@ -2104,7 +2104,7 @@ function impNextStep() {
   }
 }
 
-always function impStartImport() {
+async function impStartImport() {
   // 매핑 읽기
   const mapping = {};
   document.querySelectorAll('.import-map-sel').forEach(sel => {
