@@ -24,18 +24,14 @@ jobs:
       - name: Install Functions dependencies
         run: cd functions && npm install
 
-      - name: Setup credentials
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa-key.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json" >> $GITHUB_ENV
-
       - name: Create env file
+        env:
+          GOOGLE_VISION_KEY: ${{ secrets.GOOGLE_VISION_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          KAKAO_KEY: ${{ secrets.KAKAO_KEY }}
         run: |
-          cat > functions/.env << 'ENVEOF'
-          GOOGLE_VISION_KEY=${{ secrets.GOOGLE_VISION_KEY }}
-          GEMINI_KEY=${{ secrets.GEMINI_KEY }}
-          KAKAO_KEY=${{ secrets.KAKAO_KEY }}
-          ENVEOF
+          printf 'GOOGLE_VISION_KEY=%s\nGEMINI_KEY=%s\nKAKAO_KEY=%s\n' \
+            "$GOOGLE_VISION_KEY" "$GEMINI_KEY" "$KAKAO_KEY" > functions/.env
 
       - name: Deploy Functions
-        run: firebase deploy --only functions --project wellbingmart-d5ee1
+        run: firebase deploy --only functions --project wellbingmart-d5ee1 --token "${{ secrets.FIREBASE_TOKEN }}"
