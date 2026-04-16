@@ -850,6 +850,8 @@ async function startOCR(file) {
     await sleep(300);
 
     const d = result.data;
+    console.log('OCR 결과:', JSON.stringify(d));
+    console.log('showResult 호출 직전');
     showResult({
       name:  d.customer?.name  || '',
       phone: d.customer?.phone || '',
@@ -857,6 +859,7 @@ async function startOCR(file) {
       lat:   d.location?.lat  || null,
       lng:   d.location?.lng  || null,
     });
+    console.log('showResult 호출 완료');
   } catch(e) {
     console.error('OCR 오류:', e);
     alert('영수증 인식 실패: ' + e.message);
@@ -909,6 +912,7 @@ function cleanName(s) { return s.replace(/[^[가-힣a-zA-Z\s]/g,'').trim(); }
 function cleanAddr(s)  { return s.replace(/[\w가-힣\s\-\.]/g,'').trim(); }
 
 function showResult(parsed) {
+  console.log('showResult 실행중, parsed:', JSON.stringify(parsed));
   document.getElementById('res-name').value  = parsed.name  || '';
   document.getElementById('res-addr').value  = parsed.addr  || '';
   document.getElementById('res-phone').value = parsed.phone || '';
@@ -917,7 +921,9 @@ function showResult(parsed) {
   window._ocrLng = parsed.lng  || null;
   const warn = document.getElementById('ocr-warn');
   warn.style.display = (!parsed.name || !parsed.addr) ? 'block' : 'none';
+  console.log('goTab result 호출');
   goTab('result');
+  console.log('goTab result 완료');
 }
 
 function toggleEdit() {
