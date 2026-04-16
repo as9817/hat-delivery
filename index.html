@@ -859,7 +859,8 @@ async function startOCR(file) {
     });
   } catch(e) {
     console.error('OCR 오류:', e);
-    showResult({ name: '', addr: '', phone: '', lat: null, lng: null });
+    alert('영수증 인식 실패: ' + e.message);
+    goTab('scan');
   }
 }
 
