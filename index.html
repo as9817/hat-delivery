@@ -8,9 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="햇배달">
   <meta name="theme-color" content="#FF6B00">
   <title>햇배달</title>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  <!-- Google Vision API (Tesseract 대체) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <style>
@@ -21,40 +19,6 @@
       -webkit-font-smoothing: antialiased;
       -webkit-tap-highlight-color: transparent;
     }
-
-    /* ── 로그인 화면 ── */
-    #login-wrap {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; min-height: 100vh;
-      background: linear-gradient(135deg, #FF6B00, #FF9040);
-      padding: 32px 24px;
-    }
-    .login-logo { font-size: 64px; margin-bottom: 8px; }
-    .login-title { font-size: 28px; font-weight: 900; color: #fff; margin-bottom: 4px; letter-spacing: -1px; }
-    .login-sub { font-size: 14px; color: rgba(255,255,255,0.8); margin-bottom: 40px; }
-    .login-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 14px; }
-    .driver-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 320px; }
-    .driver-btn {
-      background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5);
-      border-radius: 16px; padding: 24px 16px; color: #fff; font-size: 22px;
-      font-weight: 900; cursor: pointer; font-family: inherit;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      transition: background 0.15s, transform 0.1s;
-    }
-    .driver-btn:active { transform: scale(0.96); }
-    .driver-btn:hover { background: rgba(255,255,255,0.32); }
-    .driver-btn span { font-size: 12px; font-weight: 600; opacity: 0.85; }
-    .driver-colors { display: flex; gap: 6px; margin-top: 6px; }
-    .dc { width: 12px; height: 12px; border-radius: 50%; }
-
-    /* ── 기사 배지 ── */
-    .driver-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(255,255,255,0.2); border-radius: 20px;
-      padding: 4px 10px; font-size: 12px; font-weight: 700; color: #fff;
-      cursor: pointer;
-    }
-
     #app { max-width: 440px; margin: 0 auto; min-height: 100vh; background: #F4F4FB; position: relative; }
 
     /* ── 스크린 ── */
@@ -112,15 +76,6 @@
     .progress-fill { height: 100%; background: #fff; border-radius: 20px; transition: width .4s; }
     .progress-label { font-size: 13px; font-weight: 700; opacity: .95; }
 
-    /* ── GPS 상태 표시 ── */
-    .gps-bar {
-      background: rgba(255,255,255,0.15); border-radius: 8px;
-      padding: 5px 10px; font-size: 11px; color: rgba(255,255,255,0.9);
-      display: flex; align-items: center; gap: 6px; margin-top: 8px;
-    }
-    .gps-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
-
     /* ── 배달 목록 ── */
     #none { padding: 16px 0; }
     .delivery-item {
@@ -128,7 +83,6 @@
       margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
     }
     .delivery-item.done { opacity: .55; }
-    .delivery-item.delivering { border-left: 4px solid #4A90E2; }
     .dl-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     .dl-num {
       background: #FF6B00; color: #fff; border-radius: 50%;
@@ -136,7 +90,6 @@
       justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;
     }
     .delivery-item.done .dl-num { background: #4CAF50; }
-    .delivery-item.delivering .dl-num { background: #4A90E2; }
     .dl-name { font-size: 16px; font-weight: 700; }
     .dl-addr { font-size: 13px; color: #555; margin-bottom: 4px; }
     .dl-phone { font-size: 12px; color: #888; }
@@ -144,13 +97,6 @@
       width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
       cursor: pointer; margin-left: auto; border: 1.5px solid #eee;
     }
-    .status-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 10px;
-      font-size: 10px; font-weight: 700; margin-left: 6px;
-    }
-    .badge-pending   { background: #fff3e0; color: #FF6B00; }
-    .badge-delivering{ background: #e3f2fd; color: #1976D2; }
-    .badge-done      { background: #e8f5e9; color: #388E3C; }
 
     /* ── 탭바 ── */
     .tab-bar {
@@ -203,6 +149,7 @@
     .ocr-step.active .step-dot { background: #FF6B00; color: #fff; }
 
     /* ── 경로 최적화 화면 ── */
+    #mapview { }
     .route-item {
       display: flex; align-items: center; gap: 12px;
       padding: 12px 0; border-bottom: 1px solid #F5F5F5;
@@ -216,14 +163,14 @@
     .route-name { font-size: 14px; font-weight: 700; }
     .route-addr { font-size: 12px; color: #777; }
 
-    /* ── 지도 화면 ── */
+    /* ── 秀도 화면 ── */
     #mapzone {
       padding: 0; overflow: hidden; position: relative;
       height: 100vh;
     }
     #map-container { height: calc(100vh - 56px); width: 100%; background: #e8e8e8; }
     .map-controls {
-      position: absolute; top: 10px; right: 10px; z-index: 1000;
+      position: absolute; top: 10px; right: 10px: z-index: 1000;
       display: flex; flex-direction: column; gap: 6px;
     }
     .map-btn {
@@ -238,6 +185,7 @@
     .map-btn.purple { background: #7B1FA2; }
     .map-btn.red    { background: #C62828; animation: pulse 1s infinite; }
     .map-btn.grey   { background: #616161; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.7} }
     .map-result {
       position: absolute; bottom: 70px; left: 10px; right: 10px;
       z-index: 1000; background: #fff; border-radius: 14px;
@@ -331,35 +279,7 @@
   </style>
 </head>
 <body>
-
-<!-- ══════════════ 로그인 화면 ══════════════ -->
-<div id="login-wrap">
-  <div class="login-logo">🌞</div>
-  <div class="login-title">햇배달</div>
-  <div class="login-sub">웰빙마트 배달 관리 시스템</div>
-  <div class="login-label">기사를 선택하세요</div>
-  <div class="driver-btns">
-    <button class="driver-btn" onclick="doLogin('A')">
-      🚗
-      <span>기사 A</span>
-    </button>
-    <button class="driver-btn" onclick="doLogin('B')">
-      🚙
-      <span>기사 B</span>
-    </button>
-    <button class="driver-btn" onclick="doLogin('C')">
-      🚕
-      <span>기사 C</span>
-    </button>
-    <button class="driver-btn" onclick="doLogin('D')">
-      🛻
-      <span>기사 D</span>
-    </button>
-  </div>
-</div>
-
-<!-- ══════════════ 메인 앱 ══════════════ -->
-<div id="app" style="display:none">
+<div id="app">
 
   <!-- ══════════════ 홈: 배송 목록 ══════════════ -->
   <div id="home" class="screen active">
@@ -369,18 +289,11 @@
           <div class="app-logo">🌞 햇배달</div>
           <div class="app-date" id="today-date"></div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="driver-badge" id="driver-badge" onclick="logoutConfirm()">기사 ?  ↩</div>
-          <button class="btn-reset" onclick="resetAll()">🗑 초기화</button>
-        </div>
+        <button class="btn-reset" onclick="resetAll()">🗑 초기화</button>
       </div>
       <div id="progress-label" class="progress-label">5건 남음 · 완료 0/5건</div>
       <div class="progress-strip" style="margin-top:6px">
         <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-      </div>
-      <div class="gps-bar">
-        <div class="gps-dot" id="gps-dot"></div>
-        <span id="gps-status">GPS 연결 중...</span>
       </div>
     </div>
 
@@ -393,12 +306,9 @@
       <button class="btn btn-dark" style="width:auto;padding:10px 16px;font-size:13px" onclick="goTab('mapview')">경로 최적화 →</button>
     </div>
 
-    <!-- 미배정 배달 풀 -->
-    <div id="unassigned-pool" style="display:none"></div>
-
     <!-- 배송 목록 -->
     <div id="delivery-list"></div>
-    <div id="none" style="display:none" class="card">
+    <div id="none" style="display:none" class="card" style="text-align:center">
       <div style="text-align:center;color:#bbb;padding:20px 0">
         <div style="font-size:40px;margin-bottom:8px">📦</div>
         <div style="font-weight:700">오늘 배송 건이 없습니다</div>
@@ -409,36 +319,19 @@
 
   <!-- ══════════════ 스캔: 영수증 OCR ══════════════ -->
   <div id="scan" class="screen">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div style="font-size:18px;font-weight:800">📷 영수증 추가</div>
-      <button onclick="showVisionKeyModal()" style="background:#fff3e0;border:1.5px solid #FF9800;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#E65100;cursor:pointer">🔑 Vision API 설정</button>
-    </div>
-    <div id="scan-api-warning" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#856404">
-      ⚠️ Google Vision API 키가 설정되지 않았습니다. 위 버튼을 눌러 API 키를 설정하세요.
-    </div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:16px">📷 영수증 추가</div>
 
+    <!-- 카메라 버튼 -->
     <div id="scan-btn" onclick="document.getElementById('file-input').click()">
       <div class="scan-icon">📷</div>
       <div class="scan-title">탭하여 카메라로 영수증 찍기</div>
-      <div class="scan-sub">Google Vision AI로 자동 인식</div>
+      <div class="scan-sub">영수증 촬영</div>
     </div>
     <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(event)">
 
-  <!-- Vision API 키 모달 -->
-  <div id="vision-key-modal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
-    <div style="background:#fff;border-radius:16px;padding:24px;width:min(380px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:17px;font-weight:800;margin-bottom:6px">🔑 Google Vision API 키</div>
-      <div style="font-size:12px;color:#888;margin-bottom:16px">Google Cloud Console에서 Vision API 키를 발급받아 입력하세요</div>
-      <input id="vision-key-input" type="text" placeholder="AIzaSy..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:12px;outline:none">
-      <div style="display:flex;gap:8px">
-        <button onclick="hideVisionKeyModal()" style="flex:1;padding:10px;border:1.5px solid #ddd;border-radius:8px;background:#fff;font-size:14px;font-weight:600;cursor:pointer">취소</button>
-        <button onclick="saveVisionKey()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#FF6B00;color:#fff;font-size:14px;font-weight:700;cursor:pointer">저장</button>
-      </div>
-    </div>
-  </div>
-
     <hr class="divider">
 
+    <!-- 직접 입력 -->
     <div style="font-weight:700;font-size:14px;margin-bottom:12px">✏️ 직접 입력</div>
     <label class="form-label">고객명</label>
     <input class="form-input" id="inp-name" type="text" placeholder="예) 홍길동">
@@ -446,8 +339,6 @@
     <input class="form-input" id="inp-addr" type="text" placeholder="예) 경기도 남양주시 화도읍…">
     <label class="form-label">연락처</label>
     <input class="form-input" id="inp-phone" type="tel" placeholder="예) 010-1234-5678">
-    <label class="form-label">메모 (선택)</label>
-    <input class="form-input" id="inp-note" type="text" placeholder="예) 문 앞 놓아주세요">
     <button class="btn btn-orange" onclick="addManual()">+ 배송 목록에 추가</button>
 
     <hr class="divider">
@@ -508,9 +399,11 @@
     </div>
   </div>
 
-  <!-- ══════════════ 배송 지도 ══════════════ -->
+  <!-- ══════════════ 배송 지도 (NEW) ══════════════ -->
   <div id="mapzone" class="screen" style="padding:0;height:100vh;overflow:hidden;position:relative">
     <div id="map-container" style="height:calc(100vh - 56px);width:100%"></div>
+
+    <!-- 오른쪽 컨트롤 패널 -->
     <div class="map-controls">
       <button class="map-btn orange" id="btn-mode-route"  onclick="mapZone.showMode('route')">📍 배송 순서</button>
       <button class="map-btn blue"   id="btn-mode-zone"   onclick="mapZone.showMode('zone')">🗾 구역 관리</button>
@@ -519,12 +412,20 @@
       <button class="map-btn purple" id="btn-check-pip"   onclick="mapZone.checkPIP()" style="display:none">✅ 구역 배정 확인</button>
       <button class="map-btn" id="btn-auto-cluster" onclick="mapZone.autoCluster()" style="display:none;background:#E65100">🤖 기사 자동 배분</button>
     </div>
+
+    <!-- 결과 패널 -->
     <div class="map-result" id="map-result"></div>
+
+    <!-- 그리기 힌트 -->
     <div class="map-hint" id="map-hint">클릭으로 꼭짓점 추가 · 더블클릭으로 완료</div>
+
+    <!-- 범례 -->
     <div class="map-legend" id="map-legend">
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
     </div>
+
+    <!-- 하단 모드 바 -->
     <div class="map-mode-bar">
       <button class="mode-btn active" id="modeBtn-route" onclick="mapZone.showMode('route')">
         <div class="mode-icon">🛣️</div>최적경로
@@ -541,7 +442,7 @@
     </div>
   </div>
 
-  <!-- ══════════════ 탭바 ══════════════ -->
+  <!-- ═════════════╀ 탭바 ══════════════ -->
   <div class="tab-bar">
     <button class="tab-item active" id="tab-home"    onclick="goTab('home')">
       <div class="tab-icon">📦</div><div>배송목록</div>
@@ -579,105 +480,9 @@
 
   <!-- 토스트 -->
   <div class="toast" id="toast"></div>
-
-</div><!-- #app -->
+</div>
 
 <script>
-// ══════════════════════════════════════════════════════
-// Firebase 초기화
-// ══════════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey: "AIzaSyB5Go7l-xjB6XOegGPGYwXuCOaypz6cj-o",
-  authDomain: "wellbingmart-d5ee1.firebaseapp.com",
-  databaseURL: "https://wellbingmart-d5ee1-default-rtdb.firebaseio.com",
-  projectId: "wellbingmart-d5ee1",
-  storageBucket: "wellbingmart-d5ee1.firebasestorage.app",
-  messagingSenderId: "948810299813",
-  appId: "1:948810299813:web:10856267d9016df490104c"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ══════════════════════════════════════════════════════
-// 드라이버 세션
-// ══════════════════════════════════════════════════════
-let currentDriver = null;
-let gpsTimer = null;
-const DRIVER_COLORS = { A: '#ef4444', B: '#3b82f6', C: '#f59e0b', D: '#8b5cf6' };
-
-function doLogin(id) {
-  currentDriver = id;
-  localStorage.setItem('currentDriver', id);
-  document.getElementById('login-wrap').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  document.getElementById('driver-badge').textContent = '기사 ' + id + '  ↩';
-  markOnline(id);
-  startGPS(id);
-  subscribeFirebaseDeliveries(id);
-  initApp();
-}
-
-function logoutConfirm() {
-  if (!confirm('로그아웃 하시겠습니까?')) return;
-  doLogout();
-}
-
-function doLogout() {
-  if (currentDriver) {
-    db.ref('drivers/' + currentDriver + '/online').set(false);
-    if (gpsTimer) clearInterval(gpsTimer);
-    db.ref('deliveries').off(); // Firebase 리스너 해제
-  }
-  currentDriver = null;
-  firebaseActive = false;
-  unassignedDeliveries = [];
-  deliveries = [];
-  localStorage.removeItem('currentDriver');
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-wrap').style.display = 'flex';
-}
-
-function markOnline(id) {
-  db.ref('drivers/' + id).update({
-    name: '기사 ' + id,
-    online: true,
-    lastSeen: Date.now()
-  });
-  window.addEventListener('beforeunload', () => {
-    db.ref('drivers/' + id + '/online').set(false);
-  });
-}
-
-// ══════════════════════════════════════════════════════
-// GPS 추적
-// ══════════════════════════════════════════════════════
-function startGPS(id) {
-  const gpsDot = document.getElementById('gps-dot');
-  const gpsStatus = document.getElementById('gps-status');
-
-  function updateGPS() {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        db.ref('drivers/' + id + '/location').set({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          updatedAt: Date.now()
-        });
-        if (gpsDot) gpsDot.style.background = '#4ade80';
-        if (gpsStatus) gpsStatus.textContent = '위치 전송됨 · ' + new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
-      },
-      err => {
-        if (gpsDot) gpsDot.style.background = '#f87171';
-        if (gpsStatus) gpsStatus.textContent = 'GPS 오류 - 위치 권한을 허용해주세요';
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  }
-
-  updateGPS();
-  gpsTimer = setInterval(updateGPS, 30000);
-}
-
 // ══════════════════════════════════════════════════════
 // 상태 & 유틸
 // ══════════════════════════════════════════════════════
@@ -685,8 +490,6 @@ let deliveries = [];
 let currentNavId = null;
 let currentPhotoId = null;
 let routeOrder = [];
-let unassignedDeliveries = [];
-let firebaseActive = false;
 
 const STORAGE_KEY = 'deliveries_v2';
 
@@ -702,120 +505,25 @@ function showToast(msg, duration = 2000) {
   setTimeout(() => t.classList.remove('show'), duration);
 }
 
+// ── 날짜 표시
+(function() {
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('today-date').textContent =
+    `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+})();
+
 // ══════════════════════════════════════════════════════
-// 저장/로드 (localStorage + Firebase 동기화)
+// 저장/로드
 // ══════════════════════════════════════════════════════
 function saveDeliveries() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(deliveries));
-  // Firebase 동기화
-  if (currentDriver) {
-    deliveries.forEach(d => {
-      db.ref('deliveries/' + d.id).update({
-        customerName: d.customerName,
-        address: d.address,
-        phone: d.phone || '-',
-        note: d.note || '',
-        status: fbStatus(d.status),
-        driverId: currentDriver,
-        createdAt: d.addedAt || Date.now()
-      });
-    });
-  }
-}
-
-function fbStatus(s) {
-  if (s === 'done') return 'completed';
-  if (s === 'delivering') return 'delivering';
-  return 'pending';
 }
 
 function loadDeliveries() {
-  if (firebaseActive) return; // Firebase 실시간 동기화 중 → 로컬 로드 불필요
   try {
     deliveries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   } catch(e) { deliveries = []; }
-}
-
-// ══════════════════════════════════════════════════════
-// Firebase 실시간 배달 구독
-// ══════════════════════════════════════════════════════
-function localStatus(s) {
-  if (s === 'completed' || s === 'done') return 'done';
-  if (s === 'delivering') return 'delivering';
-  return 'pending';
-}
-
-function subscribeFirebaseDeliveries(driverId) {
-  firebaseActive = true;
-  db.ref('deliveries').on('value', snap => {
-    const assigned = [];
-    const unassigned = [];
-    snap.forEach(child => {
-      const d = child.val();
-      const item = {
-        id: child.key,
-        customerName: d.customerName || '',
-        address: d.address || '',
-        phone: d.phone || '-',
-        note: d.note || '',
-        lat: d.lat || null,
-        lng: d.lng || null,
-        status: localStatus(d.status),
-        addedAt: d.createdAt || Date.now(),
-        photoId: d.completionPhoto || null
-      };
-      if (d.driverId === driverId) {
-        assigned.push(item);
-      } else if (!d.driverId) {
-        unassigned.push(item);
-      }
-    });
-    assigned.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
-    unassigned.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
-    deliveries = assigned;
-    unassignedDeliveries = unassigned;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(deliveries));
-    renderHome();
-  });
-}
-
-function claimDelivery(id) {
-  if (!currentDriver) return;
-  db.ref('deliveries/' + id).update({
-    driverId: currentDriver,
-    assignedAt: Date.now()
-  });
-  showToast('📦 배달을 내 목록에 추가했습니다!');
-}
-
-function renderUnassignedPool() {
-  const pool = document.getElementById('unassigned-pool');
-  if (!pool) return;
-  if (!unassignedDeliveries.length) {
-    pool.style.display = 'none';
-    pool.innerHTML = '';
-    return;
-  }
-  pool.style.display = 'block';
-  pool.innerHTML = `
-    <div class="card" style="border-left:4px solid #f59e0b;padding:12px 14px">
-      <div style="font-weight:800;font-size:14px;color:#d97706;margin-bottom:10px">
-        📦 미배정 배달 <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:12px">${unassignedDeliveries.length}건</span>
-      </div>
-      ${unassignedDeliveries.map(d => `
-        <div style="background:#fffbeb;border-radius:10px;padding:10px 12px;margin-bottom:8px;border:1px solid #fde68a">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:14px;color:#1f2937;margin-bottom:2px">👤 ${d.customerName}</div>
-              <div style="font-size:12px;color:#6b7280;margin-bottom:2px">📍 ${d.address}</div>
-              <div style="font-size:12px;color:#9ca3af">📞 ${d.phone}${d.note ? ' · ' + d.note : ''}</div>
-            </div>
-            <button class="btn btn-orange" style="width:auto;padding:8px 14px;font-size:13px;white-space:nowrap;flex-shrink:0" onclick="claimDelivery('${d.id}')">가져오기</button>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
 }
 
 // ══════════════════════════════════════════════════════
@@ -830,7 +538,6 @@ function goTab(tab) {
 
   if (tab === 'home') renderHome();
   if (tab === 'mapzone') setTimeout(() => mapZone.init(), 80);
-  if (tab === 'scan') checkVisionKey();
 }
 
 // ══════════════════════════════════════════════════════
@@ -838,45 +545,41 @@ function goTab(tab) {
 // ══════════════════════════════════════════════════════
 function renderHome() {
   loadDeliveries();
-  renderUnassignedPool(); // 미배정 풀 항상 렌더링
   const list = document.getElementById('delivery-list');
   const none = document.getElementById('none');
   const done = deliveries.filter(d => d.status === 'done').length;
-  const delivering = deliveries.filter(d => d.status === 'delivering').length;
   const total = deliveries.length;
 
+  // 진행률
   const pct = total ? Math.round(done / total * 100) : 0;
   document.getElementById('progress-fill').style.width = pct + '%';
   document.getElementById('progress-label').textContent =
-    `${total - done}건 남음 · 배송중 ${delivering}건 · 완료 ${done}/${total}건`;
+    `${total - done}건 남음 · 완료 ${done}/${total}건`;
 
   if (!total) { list.innerHTML = ''; none.style.display = 'block'; return; }
   none.style.display = 'none';
 
-  list.innerHTML = deliveries.map((d, i) => {
-    const statusLabel = d.status === 'done' ? '완료' : d.status === 'delivering' ? '배송중' : '대기중';
-    const statusClass = d.status === 'done' ? 'badge-done' : d.status === 'delivering' ? 'badge-delivering' : 'badge-pending';
-    const itemClass = d.status === 'done' ? 'done' : d.status === 'delivering' ? 'delivering' : '';
-    return `
-    <div class="delivery-item ${itemClass}" id="item-${d.id}">
+  list.innerHTML = deliveries.map((d, i) => `
+    <div class="delivery-item ${d.status === 'done' ? 'done' : ''}" id="item-${d.id}">
       <div class="dl-top">
         <div class="dl-num">${i+1}</div>
         <div style="flex:1">
-          <div class="dl-name">${d.customerName}<span class="status-badge ${statusClass}">${statusLabel}</span></div>
+          <div class="dl-name">${d.customerName}</div>
           <div class="dl-addr">${d.address}</div>
-          <div class="dl-phone">📞 ${d.phone}${d.note ? ' · ' + d.note : ''}</div>
+          <div class="dl-phone">📞 ${d.phone}</div>
         </div>
         ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : ''}
       </div>
       <div class="row-btns">
         <button class="btn btn-blue" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
-        ${d.status === 'pending' ? `<button class="btn btn-orange" onclick="startDelivering('${d.id}')">🚗 출발</button>` : ''}
-        ${d.status === 'delivering' ? `<button class="btn btn-green" onclick="toggleDone('${d.id}')">✅ 완료</button>` : ''}
-        ${d.status === 'done' ? `<button class="btn btn-outline" onclick="toggleDone('${d.id}')">↩ 되돌리기</button>` : ''}
+        <button class="btn ${d.status==='done'?'btn-outline':'btn-green'}" onclick="toggleDone('${d.id}')">
+          ${d.status==='done' ? '↩ 되돌리기' : '완료 체크'}
+        </button>
       </div>
-    </div>`;
-  }).join('');
+    </div>
+  `).join('');
 
+  // 사진 썸네일 로드
   deliveries.filter(d => d.photoId).forEach(d => {
     getPhoto(d.id).then(url => {
       const img = document.getElementById('thumb-' + d.id);
@@ -886,37 +589,20 @@ function renderHome() {
 }
 
 // ══════════════════════════════════════════════════════
-// 배달 상태 관리
+// 배달 완료 토글
 // ══════════════════════════════════════════════════════
-function startDelivering(id) {
-  const d = deliveries.find(x => x.id === id);
-  if (!d) return;
-  d.status = 'delivering';
-  d.startedAt = Date.now();
-  saveDeliveries();
-  // Firebase 업데이트
-  if (currentDriver) {
-    db.ref('deliveries/' + id).update({ status: 'delivering', startedAt: d.startedAt });
-  }
-  renderHome();
-  showToast('🚗 배송 출발!');
-}
-
 function toggleDone(id) {
   const d = deliveries.find(x => x.id === id);
   if (!d) return;
   if (d.status === 'done') {
     d.status = 'pending';
-    delete d.completedAt;
     saveDeliveries();
-    if (currentDriver) db.ref('deliveries/' + id).update({ status: 'pending', completedAt: null });
     renderHome();
     return;
   }
+  // 완료 처리 + 사진 촬영
   d.status = 'done';
-  d.completedAt = Date.now();
   saveDeliveries();
-  if (currentDriver) db.ref('deliveries/' + id).update({ status: 'completed', completedAt: d.completedAt });
   capturePhoto(id);
   renderHome();
   showToast('✅ 배송 완료!');
@@ -929,13 +615,11 @@ function addManual() {
   const name  = document.getElementById('inp-name').value.trim();
   const addr  = document.getElementById('inp-addr').value.trim();
   const phone = document.getElementById('inp-phone').value.trim();
-  const note  = document.getElementById('inp-note').value.trim();
   if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
-  geocodeAndAdd({ customerName: name, address: addr, phone: phone || '-', note });
+  geocodeAndAdd({ customerName: name, address: addr, phone: phone || '-' });
   document.getElementById('inp-name').value = '';
   document.getElementById('inp-addr').value = '';
   document.getElementById('inp-phone').value = '';
-  document.getElementById('inp-note').value = '';
 }
 
 // ══════════════════════════════════════════════════════
@@ -951,20 +635,11 @@ async function geocodeAndAdd(info) {
   } catch(e) {}
   const item = {
     id: uid(), customerName: info.customerName, address: info.address,
-    phone: info.phone || '-', note: info.note || '', lat, lng,
-    status: 'pending', addedAt: Date.now()
+    phone: info.phone || '-', lat, lng, status: 'pending', addedAt: Date.now()
   };
   loadDeliveries();
   deliveries.push(item);
   saveDeliveries();
-  // Firebase에 추가
-  if (currentDriver) {
-    db.ref('deliveries/' + item.id).set({
-      customerName: item.customerName, address: item.address,
-      phone: item.phone, note: item.note,
-      status: 'pending', driverId: currentDriver, createdAt: item.addedAt
-    });
-  }
   renderHome();
   goTab('home');
   showToast(`✅ ${info.customerName} 추가 완료`);
@@ -977,11 +652,13 @@ function loadSamples() {
   if (deliveries.length && !confirm('기존 목록을 지우고 샘플 10건을 불러올까요?')) return;
   const now = Date.now();
   deliveries = [
+    // ── 북동쪽 그룹 (기사 A 예정 구역)
     { id: uid(), customerName: '박지수', address: '경기도 남양주시 화도읍 묵현리 240-5',  phone: '010-4567-8901', lat: 37.6412, lng: 127.3245, status: 'pending', addedAt: now },
     { id: uid(), customerName: '김소연', address: '경기도 남양주시 화도읍 가곡리 167',    phone: '010-3456-7890', lat: 37.6451, lng: 127.3312, status: 'pending', addedAt: now },
     { id: uid(), customerName: '정유진', address: '경기도 남양주시 화도읍 구암리 88-3',   phone: '010-6789-0123', lat: 37.6498, lng: 127.3278, status: 'pending', addedAt: now },
     { id: uid(), customerName: '오세훈', address: '경기도 남양주시 화도읍 녹촌리 312',    phone: '010-2222-3333', lat: 37.6532, lng: 127.3195, status: 'pending', addedAt: now },
     { id: uid(), customerName: '한미경', address: '경기도 남양주시 화도읍 답내리 76',     phone: '010-5555-6666', lat: 37.6370, lng: 127.3380, status: 'pending', addedAt: now },
+    // ── 남서쪽 그룹 (기사 B 예정 구역)
     { id: uid(), customerName: '이동현', address: '경기도 남양주시 화도읍 마석우리 525',  phone: '010-2345-6789', lat: 37.6380, lng: 127.3189, status: 'pending', addedAt: now },
     { id: uid(), customerName: '최민준', address: '경기도 남양주시 화도읍 월산리 384',    phone: '010-5678-9012', lat: 37.6335, lng: 127.3156, status: 'pending', addedAt: now },
     { id: uid(), customerName: '윤상철', address: '경기도 남양주시 화도읍 금남리 105',    phone: '010-7777-8888', lat: 37.6288, lng: 127.3098, status: 'pending', addedAt: now },
@@ -1000,16 +677,21 @@ function loadSamples() {
 function optimizeRoute() {
   loadDeliveries();
   goTab('mapview');
+
   const pending = deliveries.filter(d => d.lat && d.lng && d.status !== 'done');
   if (!pending.length) {
     document.getElementById('route-list').innerHTML = '<div style="color:#999;text-align:center;padding:20px">배송 예정 건이 없습니다</div>';
     return;
   }
+
+  // Haversine 거리
   function dist(a, b) {
     const R = 6371, dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
     const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
   }
+
+  // 최근점 탐욕 정렬 (출발지: 경기도 남양주시 화도읍 중심)
   const start = { lat: 37.641, lng: 127.322 };
   let remain = [...pending], ordered = [];
   let cur = start;
@@ -1020,6 +702,7 @@ function optimizeRoute() {
   }
   routeOrder = ordered;
 
+  // 경로 순서 렌더링
   const list = document.getElementById('route-list');
   list.innerHTML = ordered.map((d, i) => `
     <div class="route-item">
@@ -1032,7 +715,8 @@ function optimizeRoute() {
     </div>
   `).join('');
 }
-function renderMap() { optimizeRoute(); }
+
+function renderMap() { /* 레거시 호환 */ optimizeRoute(); }
 
 // ══════════════════════════════════════════════════════
 // 내비게이션
@@ -1097,10 +781,6 @@ function tryOpenApp(app, address, lat, lng) {
 // ══════════════════════════════════════════════════════
 function resetAll() {
   if (!confirm('모든 배송 데이터를 초기화하시겠습니까?')) return;
-  // Firebase에서도 내 배달 삭제
-  if (currentDriver && firebaseActive) {
-    deliveries.forEach(d => db.ref('deliveries/' + d.id).remove());
-  }
   deliveries = [];
   saveDeliveries();
   routeOrder = [];
@@ -1109,37 +789,15 @@ function resetAll() {
 }
 
 // ══════════════════════════════════════════════════════
-// OCR (Google Cloud Vision API)
+// OCR (Tesseract.js)
 // ══════════════════════════════════════════════════════
-const VISION_KEY_STORAGE = 'hatdelivery_vision_key';
-
-function showVisionKeyModal() {
-  const saved = localStorage.getItem(VISION_KEY_STORAGE) || '';
-  document.getElementById('vision-key-input').value = saved;
-  document.getElementById('vision-key-modal').style.display = 'flex';
-}
-function hideVisionKeyModal() {
-  document.getElementById('vision-key-modal').style.display = 'none';
-}
-function saveVisionKey() {
-  const key = document.getElementById('vision-key-input').value.trim();
-  if (key) localStorage.setItem(VISION_KEY_STORAGE, key);
-  hideVisionKeyModal();
-  checkVisionKey();
-}
-function checkVisionKey() {
-  const key = localStorage.getItem(VISION_KEY_STORAGE);
-  const warn = document.getElementById('scan-api-warning');
-  if (warn) warn.style.display = key ? 'none' : 'block';
-}
-
 let ocrImageFile = null;
 
 function handleFile(event) {
   const file = event.target.files[0];
   if (!file) return;
   ocrImageFile = file;
-  goTab('scanning');
+  goTab('scanning'); // scanning 화면으로
   resetSteps();
   startOCR(file);
   event.target.value = '';
@@ -1148,10 +806,9 @@ function handleFile(event) {
 function resetSteps() {
   ['step-load','step-init','step-ocr','step-parse','step-done'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.classList.remove('done','active');
+    if (el) { el.classList.remove('done','active'); }
   });
 }
-
 function setStep(id, state) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -1160,87 +817,103 @@ function setStep(id, state) {
 }
 
 async function startOCR(file) {
-  if (!file) return;
-  const CLOUD_FN_URL = 'https://asia-northeast3-wellbingmart-d5ee1.cloudfunctions.net/processReceipt';
+  const CLOUD_FN = 'https://asia-northeast3-wellbingmart-d5ee1.cloudfunctions.net/processReceipt';
 
-  setStep(1);
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      // 이미지 압축 (800px / 0.6 품질)
-      const base64 = await compressAndGetBase64(e.target.result, 800, 0.6);
+  setStep('step-load', 'active');
+  await sleep(300);
+  setStep('step-load', 'done');
+  setStep('step-init', 'active');
 
-      setStep(2);
-      const resp = await fetch(CLOUD_FN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64 })
-      });
+  try {
+    // 이미지를 base64로 변환 (800px, 압축)
+    const base64 = await compressAndGetBase64(file, 800, 0.6);
+    setStep('step-init', 'done');
+    setStep('step-ocr', 'active');
 
-      setStep(3);
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.message || 'OCR 서버 오류');
-      }
-      const json = await resp.json();
-      if (json.status !== 'success') throw new Error(json.message || '인식 실패');
+    // Cloud Function 호출
+    const response = await fetch(CLOUD_FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: base64 })
+    });
 
-      const { customer, location } = json.data;
-      window._ocrResult = { ...customer, ...location };
+    setStep('step-ocr', 'done');
+    setStep('step-parse', 'active');
 
-      // UI 채우기
-      const nEl = document.getElementById('res-name');
-      const pEl = document.getElementById('res-phone');
-      const aEl = document.getElementById('res-addr');
-      if (nEl) nEl.value = customer.name || '';
-      if (pEl) pEl.value = customer.phone || '';
-      if (aEl) aEl.value = [location.road_address, location.detail_address].filter(Boolean).join(' ');
+    if (!response.ok) throw new Error('서버 오류: ' + response.status);
+    const result = await response.json();
+    if (result.status !== 'success') throw new Error(result.message || '인식 실패');
 
-      setStep(4);
-    } catch (err) {
-      console.error('OCR 오류:', err);
-      setStep(-1);
-      alert('영수증 인식 실패: ' + err.message);
-    }
-  };
-  reader.readAsDataURL(file);
+    await sleep(200);
+    setStep('step-parse', 'done');
+    setStep('step-done', 'active');
+    await sleep(300);
+
+    const d = result.data;
+    showResult({
+      name:  d.customer?.name  || '',
+      phone: d.customer?.phone || '',
+      addr:  (d.location?.road_address || '') + (d.location?.detail_address ? ' ' + d.location.detail_address : ''),
+      lat:   d.location?.lat  || null,
+      lng:   d.location?.lng  || null,
+    });
+  } catch(e) {
+    console.error('OCR 오류:', e);
+    showResult({ name: '', addr: '', phone: '', lat: null, lng: null });
+  }
 }
 
-async function compressAndGetBase64(dataUrl, maxWidth, quality) {
-  return new Promise((resolve) => {
+async function compressAndGetBase64(file, maxPx, quality) {
+  return new Promise((resolve, reject) => {
     const img = new Image();
+    const url = URL.createObjectURL(file);
     img.onload = () => {
-      const scale = Math.min(1, maxWidth / img.width);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
       const canvas = document.createElement('canvas');
-      canvas.width  = img.width  * scale;
-      canvas.height = img.height * scale;
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+      URL.revokeObjectURL(url);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(dataUrl.split(',')[1]); // base64 부분만
     };
-    img.src = dataUrl;
+    img.onerror = reject;
+    img.src = url;
   });
 }
 
 function parseReceiptText(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   let name = '', addr = '', phone = '';
+
   for (const line of lines) {
+    // 전화번호 패턴
     const phoneMatch = line.match(/0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/);
     if (phoneMatch && !phone) phone = phoneMatch[0].replace(/\s/g, '-');
+
+    // 주소 패턴 (시/도 포함)
     if (!addr && /서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주/.test(line)) {
-      addr = line.trim();
+      addr = cleanAddr(line);
     }
+
+    // 이름 패턴 (한글 2-4���, 전화번호/주소 아닌 줄)
     if (!name && /^[가-힣]{2,4}$/.test(line.replace(/\s/g,''))) {
-      name = line.trim();
+      name = cleanName(line);
     }
   }
   return { name, addr, phone };
 }
 
+function cleanName(s) { return s.replace(/[^[가-힣a-zA-Z\s]/g,'').trim(); }
+function cleanAddr(s)  { return s.replace(/[\w가-힣\s\-\.]/g,'').trim(); }
+
 function showResult(parsed) {
   document.getElementById('res-name').value  = parsed.name  || '';
   document.getElementById('res-addr').value  = parsed.addr  || '';
   document.getElementById('res-phone').value = parsed.phone || '';
+  // 좌표 임시 저장
+  window._ocrLat = parsed.lat  || null;
+  window._ocrLng = parsed.lng  || null;
   const warn = document.getElementById('ocr-warn');
   warn.style.display = (!parsed.name || !parsed.addr) ? 'block' : 'none';
   goTab('result');
@@ -1253,6 +926,12 @@ function toggleEdit() {
   if (!readOnly) inputs[0].focus();
 }
 
+function setEditMode(on) {
+  ['res-name','res-addr','res-phone'].forEach(id => {
+    document.getElementById(id).readOnly = !on;
+  });
+}
+
 function confirmAdd() {
   const name  = document.getElementById('res-name').value.trim();
   const addr  = document.getElementById('res-addr').value.trim();
@@ -1262,7 +941,7 @@ function confirmAdd() {
 }
 
 // ══════════════════════════════════════════════════════
-// 사진 (IndexedDB 로컬 + Firebase 원격)
+// 사진 (IndexedDB)
 // ══════════════════════════════════════════════════════
 let photoDB = null;
 
@@ -1312,7 +991,7 @@ async function compressPhoto(dataUrl, maxW = 800) {
       canvas.width  = img.width  * scale;
       canvas.height = img.height * scale;
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.62));
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
     };
     img.src = dataUrl;
   });
@@ -1327,23 +1006,30 @@ function capturePhoto(deliveryId) {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const compressed = await compressPhoto(ev.target.result);
-      // 로컬 IndexedDB 저장
       await savePhoto(deliveryId, compressed);
       const d = deliveries.find(x => x.id === deliveryId);
       if (d) { d.photoId = deliveryId; saveDeliveries(); }
-      // Firebase 업로드 (대시보드 조회용)
-      if (currentDriver) {
-        db.ref('deliveries/' + deliveryId).update({
-          completionPhoto: compressed,
-          completedAt: Date.now()
-        });
-      }
       renderHome();
       showToast('📸 사진 저장 완료');
     };
     reader.readAsDataURL(file);
   };
   input.click();
+}
+
+function onPhotoSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const deliveryId = event.target.dataset.id;
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const compressed = await compressPhoto(ev.target.result);
+    await savePhoto(deliveryId, compressed);
+    const d = deliveries.find(x => x.id === deliveryId);
+    if (d) { d.photoId = deliveryId; saveDeliveries(); }
+    renderHome();
+  };
+  reader.readAsDataURL(file);
 }
 
 async function viewPhoto(deliveryId) {
@@ -1364,46 +1050,72 @@ async function deletePhotoConfirm() {
   await removePhoto(currentPhotoId);
   const d = deliveries.find(x => x.id === currentPhotoId);
   if (d) { delete d.photoId; saveDeliveries(); }
-  if (currentDriver) db.ref('deliveries/' + currentPhotoId).update({ completionPhoto: null });
   closePhotoViewer();
   renderHome();
   showToast('🗑 사진 삭제 완료');
 }
 
 // ══════════════════════════════════════════════════════
-// K-Means 클러스터링
+// K-Means 클러스터링 (배송 구역 자동 분배)
 // ══════════════════════════════════════════════════════
+
+/** Haversine 거리 (km) */
 function haversine(a, b) {
   const R = 6371;
   const dLat = (b.lat - a.lat) * Math.PI / 180;
   const dLng = (b.lng - a.lng) * Math.PI / 180;
-  const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLng/2)**2;
+  const x = Math.sin(dLat/2)**2
+           + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLng/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
 }
 
+/**
+ * K-Means 클러스터링
+ * @param {Array} points  - [{lat, lng, ...}]
+ * @param {number} k      - 클러스터 수
+ * @param {number} maxIter
+ * @returns {Array}       - 각 point 의 클러스터 인덱스 배열
+ */
 function kMeans(points, k, maxIter = 100) {
   if (points.length <= k) return points.map((_, i) => i % k);
+
+  // ① 초기 중심: K-Means++ 방식 (더 균형있는 초기화)
   const centroids = [];
+  // 첫 중심: 무작위 선택 (재현성 위해 첫 번째 포인트 사용)
   centroids.push({ lat: points[0].lat, lng: points[0].lng });
   for (let c = 1; c < k; c++) {
-    const dists = points.map(p => Math.min(...centroids.map(c => haversine(p, c))) ** 2);
+    // 각 포인트에서 가장 가까운 기존 중심까지의 거리 제곱을 가중치로 확률적 선택
+    const dists = points.map(p =>
+      Math.min(...centroids.map(c => haversine(p, c))) ** 2
+    );
     const total = dists.reduce((s, d) => s + d, 0);
-    let r = Math.random() * total, acc = 0, chosen = points.length - 1;
+    let r = Math.random() * total, acc = 0;
+    let chosen = points.length - 1;
     for (let i = 0; i < points.length; i++) {
       acc += dists[i];
       if (acc >= r) { chosen = i; break; }
     }
     centroids.push({ lat: points[chosen].lat, lng: points[chosen].lng });
   }
+
   let labels = new Array(points.length).fill(0);
+
   for (let iter = 0; iter < maxIter; iter++) {
+    // ② 할당: 각 포인트를 가장 가까운 중심에 배정
     const newLabels = points.map(p => {
       let minDist = Infinity, minIdx = 0;
-      centroids.forEach((c, i) => { const d = haversine(p, c); if (d < minDist) { minDist = d; minIdx = i; } });
+      centroids.forEach((c, i) => {
+        const d = haversine(p, c);
+        if (d < minDist) { minDist = d; minIdx = i; }
+      });
       return minIdx;
     });
+
+    // ③ 수렴 확인
     if (newLabels.every((l, i) => l === labels[i])) break;
     labels = newLabels;
+
+    // ④ 중심 재계산 (위경도 평균)
     for (let c = 0; c < k; c++) {
       const group = points.filter((_, i) => labels[i] === c);
       if (group.length) {
@@ -1417,23 +1129,39 @@ function kMeans(points, k, maxIter = 100) {
   return labels;
 }
 
+/**
+ * Convex Hull (Graham Scan) - 클러스터 경계 다각형 생성
+ * @param {Array} pts - [{lat, lng}]
+ * @returns {Array} 볼록 껍질 꼑짓점 배열
+ */
 function convexHull(pts) {
   if (pts.length < 3) return pts;
+  // 가장 아래(남쪽) 포인트를 기준점으로
   const base = pts.reduce((b, p) => p.lat < b.lat || (p.lat === b.lat && p.lng < b.lng) ? p : b);
   const sorted = pts.filter(p => p !== base).sort((a, b) => {
     const angA = Math.atan2(a.lat - base.lat, a.lng - base.lng);
     const angB = Math.atan2(b.lat - base.lat, b.lng - base.lng);
     return angA - angB;
   });
-  const cross = (O, A, B) => (A.lng - O.lng) * (B.lat - O.lat) - (A.lat - O.lat) * (B.lng - O.lng);
+
+  const cross = (O, A, B) =>
+    (A.lng - O.lng) * (B.lat - O.lat) - (A.lat - O.lat) * (B.lng - O.lng);
+
   const hull = [base];
   for (const p of sorted) {
-    while (hull.length >= 2 && cross(hull[hull.length-2], hull[hull.length-1], p) <= 0) hull.pop();
+    while (hull.length >= 2 && cross(hull[hull.length-2], hull[hull.length-1], p) <= 0) {
+      hull.pop();
+    }
     hull.push(p);
   }
   return hull;
 }
 
+/**
+ * Convex Hull 을 margin만큼 팽창 (시각적 여유)
+ * @param {Array} hull - [{lat, lng}]
+ * @param {number} margin - 도(degree) 단위 여유 (기본 0.003 ≈ 300m)
+ */
 function expandHull(hull, margin = 0.003) {
   const cLat = hull.reduce((s, p) => s + p.lat, 0) / hull.length;
   const cLng = hull.reduce((s, p) => s + p.lng, 0) / hull.length;
@@ -1458,18 +1186,35 @@ const mapZone = (() => {
   let drawDots   = [];
   let lastClick  = 0;
   let currentMode = 'route';
+
   const ZONE_COLORS = ['#2196F3','#9C27B0','#F44336','#009688','#FF9800','#795548'];
 
+  // 배달 마커 아이콘
   function makeMarkerIcon(color, label, size = 32) {
     return L.divIcon({
-      html: `<div style="background:${color};color:#fff;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.38)}px;font-weight:800;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);font-family:-apple-system,sans-serif;">${label}</div>`,
+      html: `<div style="
+        background:${color};color:#fff;border-radius:50%;
+        width:${size}px;height:${size}px;
+        display:flex;align-items:center;justify-content:center;
+        font-size:${Math.round(size*0.38)}px;font-weight:800;
+        border:2.5px solid #fff;
+        box-shadow:0 3px 10px rgba(0,0,0,.3);
+        font-family:-apple-system,sans-serif;
+      ">${label}</div>`,
       className: '', iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2-4]
     });
   }
 
+  // 출발점 아이콘 (마트)
   function makeStoreIcon() {
     return L.divIcon({
-      html: `<div style="background:#1a1a2e;color:#fff;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);">🏪</div>`,
+      html: `<div style="
+        background:#1a1a2e;color:#fff;border-radius:10px;
+        width:40px;height:40px;
+        display:flex;align-items:center;justify-content:center;
+        font-size:20px;border:2.5px solid #fff;
+        box-shadow:0 3px 10px rgba(0,0,0,.3);
+      ">🏪</div>`,
       className: '', iconSize: [40, 40], iconAnchor: [20, 20]
     });
   }
@@ -1486,29 +1231,47 @@ const mapZone = (() => {
     routeMarkers = [];
   }
 
+  // 지도 초기화
   async function init() {
     const container = document.getElementById('map-container');
     if (!container) return;
+
+    // Leaflet 로드 대기 (최대 5초)
     if (typeof L === 'undefined') {
       container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;gap:12px"><div style="font-size:40px">🗺️</div><div style="font-weight:700">지도 로딩 중…</div></div>';
       for (let i = 0; i < 50; i++) {
         await new Promise(r => setTimeout(r, 100));
         if (typeof L !== 'undefined') { container.innerHTML = ''; break; }
       }
-      if (typeof L === 'undefined') return;
+      if (typeof L === 'undefined') {
+        container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#e53935;gap:10px;padding:24px;text-align:center"><div style="font-size:44px">⚠️</div><div style="font-weight:800;font-size:16px">지도 라이브러리 로드 실패</div><div style="font-size:13px;color:#999;line-height:1.6">인터넷 연결을 확인하고<br>새로고침(F5) 해주세요</div></div>';
+        return;
+      }
     }
+
     const data = loadData();
-    if (map) { map.remove(); map = null; }
+
+    if (map) {
+      map.remove(); map = null;
+    }
+
+    // 중심 계산
     const withCoords = data.filter(d => d.lat && d.lng);
     let cLat = 37.641, cLng = 127.322, zoom = 13;
     if (withCoords.length) {
       cLat = withCoords.reduce((s, d) => s + d.lat, 0) / withCoords.length;
       cLng = withCoords.reduce((s, d) => s + d.lng, 0) / withCoords.length;
     }
-    map = L.map('map-container', { zoomControl: true, doubleClickZoom: false }).setView([cLat, cLng], zoom);
+
+    map = L.map('map-container', { zoomControl: true, doubleClickZoom: false })
+            .setView([cLat, cLng], zoom);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
+      attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
     }).addTo(map);
+
+    // 클릭 이벤트 (구역 그리기용)
     map.on('click', e => {
       if (!drawing) return;
       const now = Date.now();
@@ -1516,25 +1279,39 @@ const mapZone = (() => {
       lastClick = now;
       const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
       drawPoints.push(pt);
-      const dot = L.circleMarker([pt.lat, pt.lng], { radius: 6, color: '#e53935', fillColor: '#e53935', fillOpacity: 1, weight: 2 }).addTo(map);
+      const dot = L.circleMarker([pt.lat, pt.lng], {
+        radius: 6, color: '#e53935', fillColor: '#e53935', fillOpacity: 1, weight: 2
+      }).addTo(map);
       drawDots.push(dot);
       if (drawPoints.length >= 2) {
         if (drawLine) drawLine.remove();
-        drawLine = L.polyline(drawPoints.map(p => [p.lat, p.lng]), { color: '#e53935', dashArray: '6,5', weight: 2.5 }).addTo(map);
+        drawLine = L.polyline(drawPoints.map(p => [p.lat, p.lng]),
+          { color: '#e53935', dashArray: '6,5', weight: 2.5 }).addTo(map);
       }
     });
-    map.on('dblclick', e => { if (!drawing || drawPoints.length < 3) return; finishDraw(); });
+    map.on('dblclick', e => {
+      if (!drawing || drawPoints.length < 3) return;
+      finishDraw();
+    });
+
+    // 기존 구역 복원
     zones.forEach(z => { if (z.polygon) z.polygon.addTo(map); });
+
     showMode(currentMode);
   }
 
+  // ── 모드 전환 ──────────────────────────────────────
   function showMode(mode) {
     currentMode = mode;
     if (!map) { init(); return; }
+
+    // 모드 버튼 활성화
     ['route','all','zone'].forEach(m => {
       const btn = document.getElementById('modeBtn-' + m);
       if (btn) btn.classList.toggle('active', m === mode);
     });
+
+    // 컨트롤 버튼 표시
     const isZone = mode === 'zone';
     document.getElementById('btn-mode-route').style.display    = isZone ? 'none' : 'flex';
     document.getElementById('btn-mode-zone').style.display     = isZone ? 'none' : 'flex';
@@ -1542,93 +1319,144 @@ const mapZone = (() => {
     document.getElementById('btn-clear-zones').style.display   = isZone ? 'flex' : 'none';
     document.getElementById('btn-check-pip').style.display     = isZone ? 'flex' : 'none';
     document.getElementById('btn-auto-cluster').style.display  = isZone ? 'flex' : 'none';
+
+    // 결과 패널 숨기기
     const result = document.getElementById('map-result');
     if (result) result.style.display = 'none';
+
+    // 범례 업데이트
     const legend = document.getElementById('map-legend');
+
     clearMap();
     const data = loadData();
-    if (mode === 'route') showRouteMode(data, legend);
-    else if (mode === 'all') showAllMode(data, legend);
-    else if (mode === 'zone') showZoneMode(data, legend);
+
+    if (mode === 'route') {
+      showRouteMode(data, legend);
+    } else if (mode === 'all') {
+      showAllMode(data, legend);
+    } else if (mode === 'zone') {
+      showZoneMode(data, legend);
+    }
   }
 
+  // 📍 배송 순서 모드: 최적 경로 + 번호 마커 + 연결선
   function showRouteMode(data, legend) {
     const pending = data.filter(d => d.lat && d.lng && d.status !== 'done');
     const done    = data.filter(d => d.lat && d.lng && d.status === 'done');
+
     if (!pending.length) {
       if (legend) legend.innerHTML = `<div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>`;
-      done.forEach(d => {
-        const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓') }).bindPopup(`<b>${d.customerName}</b><br>${d.address}`).addTo(map);
+      done.forEach((d, i) => {
+        const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓') })
+          .bindPopup(`<b>${d.customerName}</b><br>${d.address}`)
+          .addTo(map);
         deliveryMarkers.push(m);
       });
       return;
     }
+
+    // Nearest Neighbor 최적ՙ�
     function dist(a, b) {
       const dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
       const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
       return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
     }
     const start = { lat: 37.641, lng: 127.322 };
-    let remain = [...pending], ordered = [], cur = start;
+    let remain = [...pending], ordered = [];
+    let cur = start;
     while (remain.length) {
       remain.sort((a, b) => dist(cur, a) - dist(cur, b));
       cur = remain.shift();
       ordered.push(cur);
     }
-    const storeM = L.marker([start.lat, start.lng], { icon: makeStoreIcon() }).bindPopup('<b>🏪 출발점 (마트)</b>').addTo(map);
+
+    // 출발점 마커 (마트)
+    const storeM = L.marker([start.lat, start.lng], { icon: makeStoreIcon() })
+      .bindPopup('<b>🏪 출발점 (마트)</b>')
+      .addTo(map);
     routeMarkers.push(storeM);
+
+    // 배달지 마커 (번호 순서)
     const latlngs = [[start.lat, start.lng]];
     ordered.forEach((d, i) => {
-      const color = d.status === 'delivering' ? '#4A90E2' : '#FF6B00';
+      const color = '#FF6B00';
       const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1, 34) })
-        .bindPopup(`<b>${i+1}번째 · ${d.customerName}</b><br><span style="color:#666">${d.address}</span><br><span style="color:#888;font-size:11px">📞 ${d.phone}</span>`)
+        .bindPopup(`
+          <b>${i+1}번째 · ${d.customerName}</b><br>
+          <span style="color:#666">${d.address}</span><br>
+          <span style="color:#888;font-size:11px">📞 ${d.phone}</span>
+        `)
         .addTo(map);
       routeMarkers.push(m);
       latlngs.push([d.lat, d.lng]);
     });
+
+    // 완료 배달지 표시
     done.forEach(d => {
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓', 28) }).bindPopup(`<b>✅ ${d.customerName}</b><br>${d.address}`).addTo(map);
+      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓', 28) })
+        .bindPopup(`<b>✅ ${d.customerName}</b><br>${d.address}`)
+        .addTo(map);
       deliveryMarkers.push(m);
     });
-    routePolyline = L.polyline(latlngs, { color: '#FF6B00', weight: 3.5, opacity: .85 }).addTo(map);
+
+    // 경로 연결선 (화살표 효과)
+    routePolyline = L.polyline(latlngs, {
+      color: '#FF6B00', weight: 3.5, opacity: .85,
+      dashArray: null
+    }).addTo(map);
+
+    // 방향 화살표 (중간 지점마다)
     for (let i = 0; i < latlngs.length - 1; i++) {
       const a = latlngs[i], b = latlngs[i+1];
       const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
       const angle = Math.atan2(b[1]-a[1], b[0]-a[0]) * 180/Math.PI;
-      const arrow = L.divIcon({ html: `<div style="transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1">➤</div>`, className: '', iconSize: [20,20], iconAnchor: [10,10] });
-      routeMarkers.push(L.marker(mid, { icon: arrow, interactive: false }).addTo(map));
+      const arrow = L.divIcon({
+        html: `<div style="transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1">➤</div>`,
+        className: '', iconSize: [20,20], iconAnchor: [10,10]
+      });
+      const am = L.marker(mid, { icon: arrow, interactive: false }).addTo(map);
+      routeMarkers.push(am);
     }
+
+    // 범례
     if (legend) legend.innerHTML = `
       <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
-      <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
-      <div class="leg-row"><div class="leg-dot" style="background:#4A90E2"></div> 배송중</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 순서</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
+      <div class="leg-row"><div class="leg-line" style="background:#FF6B00"></div> 최적 경로</div>
     `;
+
+    // 전체 경로 맞춤
     if (latlngs.length > 1) map.fitBounds(latlngs, { padding: [40, 40] });
   }
 
+  // 📍 전체 보기 모드
   function showAllMode(data, legend) {
     const all = data.filter(d => d.lat && d.lng);
     if (!all.length) return;
     all.forEach((d, i) => {
-      const color = d.status === 'done' ? '#4CAF50' : d.status === 'delivering' ? '#4A90E2' : '#FF6B00';
+      const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
       const label = d.status === 'done' ? '✓' : (i+1);
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, label) }).bindPopup(`<b>${d.customerName}</b><br>${d.address}<br><small>${d.phone}</small>`).addTo(map);
+      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, label) })
+        .bindPopup(`<b>${d.customerName}</b><br>${d.address}<br><small>${d.phone}</small>`)
+        .addTo(map);
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
-      <div class="leg-row"><div class="leg-dot" style="background:#4A90E2"></div> 배송중</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
     `;
     const bounds = all.map(d => [d.lat, d.lng]);
     if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
   }
 
+  // 🗾 구역 설정 모드
   function showZoneMode(data, legend) {
     data.filter(d => d.lat && d.lng).forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1) }).bindPopup(`<b>${d.customerName}</b><br>${d.address}`).addTo(map);
+      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1) })
+        .bindPopup(`<b>${d.customerName}</b><br>${d.address}`)
+        .addTo(map);
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
@@ -1638,6 +1466,7 @@ const mapZone = (() => {
     `;
   }
 
+  // ── 구역 그리기 ─────────────────────────────────────
   function startDraw() {
     if (!map) return;
     drawing = !drawing;
@@ -1670,12 +1499,14 @@ const mapZone = (() => {
     const colorIdx = zones.length % ZONE_COLORS.length;
     const color = ZONE_COLORS[colorIdx];
     const num = zones.length + 1;
-    const poly = L.polygon(drawPoints.map(p => [p.lat, p.lng]), { color, fillColor: color, fillOpacity: 0.15, weight: 2.5 })
-      .bindTooltip(`구역 ${num}`, { permanent: true, direction: 'center', className: 'zone-label-tooltip' })
-      .addTo(map);
+    const poly = L.polygon(drawPoints.map(p => [p.lat, p.lng]), {
+      color, fillColor: color, fillOpacity: 0.15, weight: 2.5
+    }).bindTooltip(`구역 ${num}`, {
+      permanent: true, direction: 'center', className: 'zone-label-tooltip'
+    }).addTo(map);
     zones.push({ id: num, points: [...drawPoints], polygon: poly, color });
     cancelDraw();
-    showToast(`✅ 구역 ${num} 생성 완료`);
+    showToast(`✅%구역 ${num} 생성 완료`);
   }
 
   function clearZones() {
@@ -1686,6 +1517,7 @@ const mapZone = (() => {
     showToast('🗑 구역 삭제 완료');
   }
 
+  // ── Point-in-Polygon (Ray Casting) ─────────────────
   function pointInPolygon(pt, polygon) {
     let inside = false;
     const px = pt.lng, py = pt.lat;
@@ -1701,6 +1533,7 @@ const mapZone = (() => {
     if (!zones.length) { alert('먼저 구역을 그려주세요!'); return; }
     const data = loadData();
     const assigned = new Set();
+
     const results = zones.map(z => {
       const inZone = data.filter(d => {
         if (!d.lat || !d.lng) return false;
@@ -1709,57 +1542,117 @@ const mapZone = (() => {
       inZone.forEach(d => assigned.add(d.id));
       return { ...z, items: inZone };
     });
+
     const unassigned = data.filter(d => !assigned.has(d.id));
+
     let html = '<h4>📍 구역별 배송 배정</h4>';
     results.forEach(r => {
-      html += `<div class="zone-row"><span class="zbadge" style="background:${r.color};color:#fff">구역 ${r.id}</span>`;
-      if (!r.items.length) html += `<span style="color:#bbb;font-size:11px">없음</span>`;
-      else r.items.forEach(d => { html += `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`; });
-      html += `<span style="color:#aaa;font-size:11px;margin-left:4px">${r.items.length} count</span></div>`;
+      html += `<div class="zone-row">
+        <span class="zbadge" style="background:${r.color};color:#fff">구역 ${r.id}</span>`;
+      if (!r.items.length) {
+        html += `<span style="color:#bbb;font-size:11px">없음</span>`;
+      } else {
+        r.items.forEach(d => {
+          html += `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`;
+        });
+      }
+      html += `<span style="color:#aaa;font-size:11px;margin-left:4px">${r.items.length}骱</span></div>`;
     });
     if (unassigned.length) {
       html += `<div class="zone-row"><span class="zbadge" style="background:#9E9E9E;color:#fff">미배정</span>`;
-      unassigned.forEach(d => { html += `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`; });
+      unassigned.forEach(d => {
+        html += `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`;
+      });
       html += '</div>';
     }
+
     const panel = document.getElementById('map-result');
     panel.innerHTML = html;
     panel.style.display = 'block';
   }
 
+  // ── K-Means 자동 구역 배분 ──────────────────────────
   const DRIVER_NAMES  = ['A기사', 'B기사', 'C기사', 'D기사', 'E기사'];
   const DRIVER_EMOJIS = ['🔵', '🔴', '🟢', '🟡', '🟣'];
 
   function autoCluster(k = 2) {
     const data = loadData().filter(d => d.lat && d.lng);
-    if (data.length < k) { alert(`배송지가 최소 ${k}건 이상 있어야 합니다.`); return; }
-    zones = zones.filter(z => { if (z.auto) { z.polygon.remove(); return false; } return true; });
+    if (data.length < k) {
+      alert(`배송지가 최소 ${k}건 이상 있어야 합니다.`); return;
+    }
+
+    // 기존 자동 구역 제거 (수동 구역은 유지)
+    zones = zones.filter(z => {
+      if (z.auto) { z.polygon.remove(); return false; }
+      return true;
+    });
+
+    // K-Means 실행
     const labels = kMeans(data, k);
-    const numStr = prompt(`몇 명의 기사로 배분할까요? (현재 ${data.length}건)\n예) 2 또는 3`, String(k));
+
+    // 기사 이름 선택 팝업
+    const numStr = prompt(
+      `몇 명의 기사로 배분할까요? (현재 ${data.length}骱)\n예) 2 또는 3`,
+      String(k)
+    );
     const actualK = parseInt(numStr);
-    if (!actualK || actualK < 1 || actualK > 5) { showToast('1~5 사이 숫자를 입력하세요'); return; }
+    if (!actualK || actualK < 1 || actualK > 5) {
+      showToast('1~5 사이 숫자를 입력하세요'); return;
+    }
+
     const finalLabels = actualK === k ? labels : kMeans(data, actualK);
     const clusterColors = ['#2196F3','#F44336','#4CAF50','#FF9800','#9C27B0'];
+
+    // 결과 HTML
     let resultHtml = `<h4>🤖 K-Means 자동 배분 결과 (${actualK}명)</h4>`;
+
     for (let c = 0; c < actualK; c++) {
       const group = data.filter((_, i) => finalLabels[i] === c);
       if (!group.length) continue;
+
       const color = clusterColors[c % clusterColors.length];
       const emoji = DRIVER_EMOJIS[c];
       const name  = DRIVER_NAMES[c];
-      const hull = convexHull(group);
+
+      // Convex Hull → 확장 → 폴리곤
+      const hull     = convexHull(group);
       const expanded = hull.length >= 3 ? expandHull(hull, 0.004) : hull;
-      const poly = L.polygon(expanded.map(p => [p.lat, p.lng]), { color, fillColor: color, fillOpacity: 0.18, weight: 2.5, dashArray: '6,4' })
-        .bindTooltip(`${emoji} ${name} (${group.length}건)`, { permanent: true, direction: 'center', className: 'zone-label-tooltip' })
-        .addTo(map);
+
+      const poly = L.polygon(expanded.map(p => [p.lat, p.lng]), {
+        color, fillColor: color, fillOpacity: 0.18, weight: 2.5,
+        dashArray: '6,4'
+      }).bindTooltip(
+        `${emoji} ${name} (${group.length}건)`,
+        { permanent: true, direction: 'center', className: 'zone-label-tooltip' }
+      ).addTo(map);
+
       zones.push({ id: `auto_${c}`, points: expanded, polygon: poly, color, auto: true });
-      resultHtml += `<div class="zone-row"><span class="zbadge" style="background:${color};color:#fff">${emoji} ${name}</span><span style="color:#aaa;font-size:11px">${group.length}건</span>${group.map(d => `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`).join('')}</div>`;
+
+      // 마커 색 업데이트 (클러스터 색 동기화)
+      deliveryMarkers.forEach(({ marker, delivery }) => {
+        if (group.find(g => g.id === delivery.id)) {
+          marker.setIcon(makeMarkerIcon(color, data.indexOf(delivery) + 1));
+        }
+      });
+
+      // 결과 패널 행
+      resultHtml += `
+        <div class="zone-row">
+          <span class="zbadge" style="background:${color};color:#fff">${emoji} ${name}</span>
+          <span style="color:#aaa;font-size:11px">${group.length}건</span>
+          ${group.map(d => `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`).join('')}
+        </div>`;
     }
+
+    // 결과 패널 표시
     const panel = document.getElementById('map-result');
     panel.innerHTML = resultHtml;
     panel.style.display = 'block';
+
+    // 지도 범위 맞춤
     const allCoords = data.map(d => [d.lat, d.lng]);
     if (allCoords.length > 1) map.fitBounds(allCoords, { padding: [50, 50] });
+
     showToast(`✅ ${actualK}명 기사 구역 자동 배분 완료`);
   }
 
@@ -1769,23 +1662,10 @@ const mapZone = (() => {
 // ══════════════════════════════════════════════════════
 // 앱 시작
 // ══════════════════════════════════════════════════════
-function initApp() {
-  // 날짜 표시
-  const d = new Date();
-  const days = ['일','월','화','수','목','금','토'];
-  const dateEl = document.getElementById('today-date');
-  if (dateEl) dateEl.textContent = `${d.getMonth()+1}월 ${d.getDate()}܅� (${days[d.getDay()]})`;
+(async function init() {
+  await initPhotoDB();
   loadDeliveries();
   renderHome();
-}
-
-(async function boot() {
-  await initPhotoDB();
-  const saved = localStorage.getItem('currentDriver');
-  if (saved) {
-    doLogin(saved);
-  }
-  // 로그인 화면은 기본으로 표시됨
 })();
 </script>
 </body>
