@@ -1170,6 +1170,8 @@ function capturePhoto(deliveryId) {
       await savePhoto(deliveryId, compressed);
       const d = deliveries.find(x => x.id === deliveryId);
       if (d) { d.photoId = deliveryId; saveDeliveries(); }
+      // OMS에서도 사진 확인 가능하도록 Firebase 업데이트
+      if (_fbDb) _fbDb.ref('orders/' + deliveryId).update({ photoId: deliveryId, status: 'done' }).catch(()=>{});
       renderHome();
       showToast('📸 사진 저장 완료');
     };

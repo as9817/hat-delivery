@@ -955,6 +955,45 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // ══════════════════════════════════════════
+// TMS 배송 사진 (IndexedDB 공유)
+// ══════════════════════════════════════════
+let _omsPhotoDB = null;
+async function _initOmsPhotoDB() {
+  if (_omsPhotoDB) return _omsPhotoDB;
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('hat-photos', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('photos', { keyPath: 'id' });
+    req.onsuccess = e => { _omsPhotoDB = e.target.result; resolve(_omsPhotoDB); };
+    req.onerror = reject;
+  });
+}
+async function _getDeliveryPhoto(id) {
+  try {
+    const db = await _initOmsPhotoDB();
+    return new Promise((resolve) => {
+      const req = db.transaction('photos','readonly').objectStore('photos').get(id);
+      req.onsuccess = e => resolve(e.target.result?.url || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch(e) { return null; }
+}
+async function showDeliveryPhoto(photoId, el) {
+  const url = await _getDeliveryPhoto(photoId);
+  if (!url) { showToast('사진이 없습니다'); return; }
+  // 풀스크린 뷰어
+  let viewer = document.getElementById('oms-photo-viewer');
+  if (!viewer) {
+    viewer = document.createElement('div');
+    viewer.id = 'oms-photo-viewer';
+    viewer.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer';
+    viewer.innerHTML = '<img style="max-width:100%;max-height:90vh;object-fit:contain"><div style="color:#fff;margin-top:12px;font-size:13px">탭하여 닫기</div>';
+    viewer.onclick = () => viewer.remove();
+    document.body.appendChild(viewer);
+  }
+  viewer.querySelector('img').src = url;
+}
+
+// ══════════════════════════════════════════
 // 상태
 // ══════════════════════════════════════════
 let orders = [];
@@ -1104,6 +1143,7 @@ function renderOrderList() {
         ${totalAmt?`<div class="oc-amount">₩${totalAmt.toLocaleString()}</div>`:''}
       </div>
       ${actions?`<div class="oc-actions">${actions}</div>`:''}
+      ${o.photoId?`<div style="margin-top:8px"><button class="btn btn-sm" style="background:#f0f4ff;color:#4A90E2;font-size:12px;padding:6px 12px;width:auto" onclick="showDeliveryPhoto('${o.photoId}',this)">📸 배송 사진 보기</button></div>`:''}
     </div>`;
   }).join('');
 }
