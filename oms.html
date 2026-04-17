@@ -443,6 +443,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .tms-table tbody td{padding:8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
 .tms-table tbody tr:hover td{background:#f5f7ff;cursor:pointer}
 .tms-tr-delivering td:first-child{border-left:3px solid var(--blue)}
+.tms-tr-highlight td{background:#E8EAF6!important;transition:background .3s}
 .tms-tr-done td{opacity:.55}
 .tms-tr-pending td:first-child{border-left:3px solid var(--orange)}
 .tms-tr-confirmed td:first-child{border-left:3px solid var(--green)}
@@ -1101,12 +1102,14 @@ db.ref('orders').on('value', snap => {
   renderStats();
   updateHeader();
   firebaseActive = true;
+  setTimeout(updateOmsMapMarkers, 500); // 지도 마커 업데이트
 }, err => {
   console.log('Firebase offline, using local storage');
   loadOrders();
   renderOrderList();
   renderStats();
   updateHeader();
+  setTimeout(updateOmsMapMarkers, 500);
 });
 
 // ══════════════════════════════════════════
@@ -2661,16 +2664,111 @@ function makeDriverIcon(name) {
   });
 }
 
+// ── 마트 아이콘 ──
+function makeMartIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:#FF6B00;color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)">🏪</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18]
+  });
+}
+
 // ── 배달 위치 마커 아이콘 ──
 function makeDeliveryIcon(num, status) {
   const colors = { pending:'#FF9800', confirmed:'#4CAF50', delivering:'#2196F3', done:'#9E9E9E', cancelled:'#F44336' };
   const bg = colors[status] || '#FF9800';
   return L.divIcon({
     className: '',
-    html: `<div style="background:${bg};color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3)">${num}</div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    html: `<div style="background:${bg};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)">${num}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
   });
+}
+
+// ── 마트 위치 가져오기 (TMS와 동일한 localStorage 키) ──
+function getMartLocation() {
+  try {
+    const s = localStorage.getItem('mart_location');
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return { lat: 37.6447, lng: 127.3028, name: '웰빙마트' }; // 기본값
+}
+
+// ── OMS 지도 마커 업데이트 (마트 + 주문 핀) ──
+let _omsMartMarker = null;
+let _omsOrderMarkers = {};
+
+function updateOmsMapMarkers() {
+  if (!tmsMap) return;
+
+  // 마트 핀
+  const mart = getMartLocation();
+  if (_omsMartMarker) _omsMartMarker.remove();
+  _omsMartMarker = L.marker([mart.lat, mart.lng], { icon: makeMartIcon(), zIndexOffset: 1000 })
+    .bindTooltip(mart.name || '마트', { permanent: false, direction: 'top' })
+    .addTo(tmsMap);
+
+  // 기존 주문 마커 제거
+  Object.values(_omsOrderMarkers).forEach(m => m.remove());
+  _omsOrderMarkers = {};
+
+  // 오늘 주문 중 좌표 있는 것만
+  const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+  const todayOrders = orders.filter(o => o.createdAt >= today && o.lat && o.lng && o.status !== 'cancelled');
+
+  todayOrders.forEach((o, i) => {
+    const marker = L.marker([o.lat, o.lng], { icon: makeDeliveryIcon(i + 1, o.status) })
+      .bindTooltip(`${i+1}. ${o.customerName}<br>${o.address}`, { direction: 'top' })
+      .addTo(tmsMap);
+    marker.on('click', () => focusOrderOnMap(o.id));
+    _omsOrderMarkers[o.id] = marker;
+  });
+
+  // 마트 + 주문 전체 보이도록 bounds 조정
+  const allPoints = [
+    [mart.lat, mart.lng],
+    ...todayOrders.map(o => [o.lat, o.lng])
+  ];
+  if (allPoints.length > 1) {
+    try {
+      tmsMap.fitBounds(L.latLngBounds(allPoints).pad(0.15), { maxZoom: 14 });
+    } catch(e) {}
+  } else {
+    tmsMap.setView([mart.lat, mart.lng], 13);
+  }
+}
+
+// ── 주문 카드 클릭 시 지도 확대 ──
+function focusOrderOnMap(orderId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o || !o.lat || !o.lng) { showToast('이 주문은 좌표 정보가 없습니다'); return; }
+  if (!tmsMap) return;
+
+  tmsMap.flyTo([o.lat, o.lng], 16, { duration: 0.8 });
+
+  // 해당 마커 팝업 오픈
+  const marker = _omsOrderMarkers[orderId];
+  if (marker) setTimeout(() => marker.openTooltip(), 900);
+
+  // 주문 카드 하이라이트
+  document.querySelectorAll('.order-card,.tms-tr-highlight').forEach(el => {
+    el.classList.remove('tms-tr-highlight');
+    el.style.outline = '';
+  });
+  const card = document.getElementById('oc-' + orderId);
+  if (card) {
+    card.style.outline = '3px solid #1a237e';
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (card) card.style.outline = ''; }, 2500);
+  }
+  // 테이블 행 하이라이트
+  const row = document.getElementById('tr-' + orderId);
+  if (row) {
+    row.classList.add('tms-tr-highlight');
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (row) row.classList.remove('tms-tr-highlight'); }, 2500);
+  }
 }
 
 // ══════════════════════════════════════════
@@ -2850,11 +2948,12 @@ function renderTmsTable() {
 
     const itemSummary = (o.items||[]).map(it=>`${it.name} ${it.qty}개`).join(', ');
 
-    return `<tr class="${statusClass}">
+    const hasCoord = o.lat && o.lng;
+    return `<tr class="${statusClass}" id="tr-${o.id}" onclick="focusOrderOnMap('${o.id}')" style="cursor:${hasCoord?'pointer':'default'}">
       <td style="text-align:center;font-weight:700;color:#aaa;font-size:11px">${i+1}</td>
       <td>
-        <div style="font-weight:700;color:#1a237e;font-size:13px">${o.customerName}</div>
-        <div style="font-size:11px;color:#666;margin-top:2px;line-height:1.4">📍 ${o.address}</div>
+        <div style="font-weight:700;color:#1a237e;font-size:13px">${o.customerName}${hasCoord ? ' 📍' : ''}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;line-height:1.4">${o.address}</div>
         ${itemSummary ? `<div style="font-size:10px;color:#999;margin-top:2px">🛍 ${itemSummary}</div>` : ''}
       </td>
       <td>
