@@ -839,11 +839,14 @@ function optimizeRoute() {
   loadDeliveries();
   goTab('mapview');
 
-  const pending = deliveries.filter(d => d.lat && d.lng && d.status !== 'done');
-  if (!pending.length) {
+  const allPending = deliveries.filter(d => d.status !== 'done');
+  if (!allPending.length) {
     document.getElementById('route-list').innerHTML = '<div style="color:#999;text-align:center;padding:20px">배송 예정 건이 없습니다</div>';
     return;
   }
+
+  const withCoords  = allPending.filter(d => d.lat && d.lng);
+  const noCoords    = allPending.filter(d => !d.lat || !d.lng);
 
   // Haversine 거리
   function dist(a, b) {
@@ -852,30 +855,35 @@ function optimizeRoute() {
     return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
   }
 
-  // 최근점 탐욕 정렬 (출발지: 경기도 남양주시 화도읍 중심)
-  const start = getMartLocation();
-  let remain = [...pending], ordered = [];
-  let cur = start;
-  while (remain.length) {
-    remain.sort((a, b) => dist(cur, a) - dist(cur, b));
-    cur = remain.shift();
-    ordered.push(cur);
+  // 좌표 있는 것만 최근점 탐욕 정렬
+  let ordered = [];
+  if (withCoords.length) {
+    const start = getMartLocation();
+    let remain = [...withCoords], cur = start;
+    while (remain.length) {
+      remain.sort((a, b) => dist(cur, a) - dist(cur, b));
+      cur = remain.shift();
+      ordered.push(cur);
+    }
   }
-  routeOrder = ordered;
+  // 좌표 없는 것은 뒤에 추가
+  routeOrder = [...ordered, ...noCoords];
 
   // 경로 순서 렌더링 (드래그 가능)
   const list = document.getElementById('route-list');
-  list.innerHTML = ordered.map((d, i) => `
-    <div class="route-item" data-id="${d.id}">
+  list.innerHTML = routeOrder.map((d, i) => {
+    const hasCoord = d.lat && d.lng;
+    return `
+    <div class="route-item" data-id="${d.id}" style="${!hasCoord ? 'opacity:.7;border-left:3px solid #ccc' : ''}">
       <div class="drag-handle">☰</div>
-      <div class="route-num">${i+1}</div>
+      <div class="route-num" style="${!hasCoord ? 'background:#aaa' : ''}">${i+1}</div>
       <div class="route-info" style="flex:1">
-        <div class="route-name">${d.customerName}</div>
+        <div class="route-name">${d.customerName}${!hasCoord ? ' <span style="font-size:10px;color:#aaa">좌표없음</span>' : ''}</div>
         <div class="route-addr">${d.address}</div>
       </div>
       <button class="btn btn-blue" style="width:auto;padding:8px 12px;font-size:12px" onclick="launchNavSingle('${d.id}')">길찾기</button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   // Sortable 초기화
   if (window._routeSortable) window._routeSortable.destroy();
@@ -883,12 +891,10 @@ function optimizeRoute() {
     handle: '.drag-handle',
     animation: 150,
     onEnd() {
-      // 순서 변경 후 routeOrder 업데이트
       const newOrder = Array.from(list.querySelectorAll('.route-item'))
         .map(el => routeOrder.find(d => d.id === el.dataset.id))
         .filter(Boolean);
       routeOrder = newOrder;
-      // 번호 갱신
       list.querySelectorAll('.route-num').forEach((el, i) => el.textContent = i + 1);
       showToast('순서가 변경됐습니다');
     }
