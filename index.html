@@ -17,6 +17,32 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F4F6F9; }
+
+    /* ── 로그인 화면 ── */
+    #login-screen {
+      position: fixed; inset: 0; background: linear-gradient(160deg, #FF6B00, #FF9040);
+      z-index: 9999; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 32px 24px;
+    }
+    #login-screen.hidden { display: none; }
+    .login-logo { font-size: 36px; font-weight: 900; color: #fff; margin-bottom: 6px; }
+    .login-sub  { font-size: 14px; color: rgba(255,255,255,.8); margin-bottom: 40px; }
+    .login-box  {
+      width: 100%; max-width: 360px; background: #fff;
+      border-radius: 20px; padding: 28px 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.15);
+    }
+    .login-box label { font-size: 13px; font-weight: 700; color: #555; display: block; margin-bottom: 6px; }
+    .login-box input {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; font-family: inherit;
+      margin-bottom: 16px; outline: none; transition: border .2s;
+    }
+    .login-box input:focus { border-color: #FF6B00; }
+    .login-err { color: #e53935; font-size: 13px; margin-bottom: 12px; display: none; text-align: center; }
+    .login-driver-name {
+      text-align: center; font-size: 13px; color: #888; margin-top: 16px;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
       -webkit-font-smoothing: antialiased;
@@ -301,6 +327,22 @@
   </style>
 </head>
 <body>
+
+<!-- ══════════════ 로그인 화면 ══════════════ -->
+<div id="login-screen">
+  <div class="login-logo">🌞 햇배달</div>
+  <div class="login-sub">기사용 배송 관리 앱</div>
+  <div class="login-box">
+    <label>아이디</label>
+    <input id="login-id" type="text" placeholder="아이디 입력" autocomplete="username" />
+    <label>비밀번호</label>
+    <input id="login-pw" type="password" placeholder="비밀번호 입력" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter') doLogin()" />
+    <div class="login-err" id="login-err"></div>
+    <button class="btn btn-orange" onclick="doLogin()">로그인</button>
+  </div>
+</div>
+
 <div id="app">
 
   <!-- ══════════════ 홈: 배송 목록 ══════════════ -->
@@ -311,8 +353,9 @@
           <div class="app-logo">🌞 햇배달</div>
           <div class="app-date" id="today-date"></div>
         </div>
+        <span id="header-driver-name" style="font-size:12px;opacity:.9;font-weight:700;margin-right:6px"></span>
         <button class="btn-reset" onclick="openMartSettings()" style="margin-right:6px">⚙️ 마트</button>
-        <button class="btn-reset" onclick="resetAll()">🗑 초기화</button>
+        <button class="btn-reset" onclick="doLogout()">🚪 로그아웃</button>
       </div>
       <div id="progress-label" class="progress-label">5건 남음 · 완료 0/5건</div>
       <div class="progress-strip" style="margin-top:6px">
@@ -599,6 +642,84 @@
 
 <script>
 // ══════════════════════════════════════════════════════
+// 로그인 / 세션 관리
+// ══════════════════════════════════════════════════════
+const SESSION_KEY = 'driver_session_v1';
+let currentDriver = null; // { id, name }
+
+function getSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+}
+function saveSession(driver) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(driver));
+}
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+async function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const pw = document.getElementById('login-pw').value.trim();
+  const err = document.getElementById('login-err');
+  err.style.display = 'none';
+
+  if (!id || !pw) { err.textContent = '아이디와 비밀번호를 입력하세요'; err.style.display = 'block'; return; }
+
+  try {
+    const snap = await _fbDb.ref('driverAccounts/' + id).once('value');
+    const driver = snap.val();
+    if (!driver) { err.textContent = '존재하지 않는 아이디입니다'; err.style.display = 'block'; return; }
+    if (!driver.active) { err.textContent = '비활성화된 계정입니다. 관리자에게 문의하세요'; err.style.display = 'block'; return; }
+    if (driver.password !== pw) { err.textContent = '비밀번호가 틀렸습니다'; err.style.display = 'block'; return; }
+
+    currentDriver = { id, name: driver.name };
+    saveSession(currentDriver);
+    showApp();
+  } catch(e) {
+    err.textContent = '로그인 중 오류가 발생했습니다: ' + e.message;
+    err.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  if (!confirm('로그아웃 하시겠어요?')) return;
+  clearSession();
+  currentDriver = null;
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-id').value = '';
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-err').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  const el = document.getElementById('header-driver-name');
+  if (el && currentDriver) el.textContent = currentDriver.name + ' 기사님';
+}
+
+function checkSession() {
+  const s = getSession();
+  if (s) {
+    // 세션 있으면 Firebase에서 계정 유효성 재확인
+    _fbDb.ref('drivers/' + s.id).once('value').then(snap => {
+      const driver = snap.val();
+      if (driver && driver.active) {
+        currentDriver = { id: s.id, name: driver.name };
+        showApp();
+      } else {
+        clearSession();
+        // 로그인 화면 유지
+      }
+    }).catch(() => {
+      // Firebase 오프라인 시 세션 그대로 사용
+      currentDriver = s;
+      showApp();
+    });
+  }
+  // 세션 없으면 로그인 화면 표시 (기본 상태)
+}
+
+// ══════════════════════════════════════════════════════
 // Firebase 초기화
 // ══════════════════════════════════════════════════════
 const _fbConfig = {
@@ -615,6 +736,15 @@ try {
   firebase.initializeApp(_fbConfig);
   _fbDb = firebase.database();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
+
+// Firebase 초기화 후 세션 확인
+if (_fbDb) {
+  checkSession();
+} else {
+  // Firebase 없으면 로그인 불가 안내
+  document.getElementById('login-err').textContent = '서버 연결 실패. 잠시 후 다시 시도하세요';
+  document.getElementById('login-err').style.display = 'block';
+}
 
 function saveToFirebase(item) {
   if (!_fbDb) {

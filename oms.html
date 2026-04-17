@@ -472,6 +472,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   <div class="tab" onclick="goTab('custdb')" id="tab-custdb">
     <span class="tab-icon">👥</span>고객DB
   </div>
+  <div class="tab" onclick="goTab('drivers')" id="tab-drivers">
+    <span class="tab-icon">🚗</span>기사관리
+  </div>
 </div>
 
 <!-- PC 래퍼 시작 -->
@@ -786,6 +789,37 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 </div>
 
+<!-- 기사 관리 화면 -->
+<div class="screen" id="drivers">
+  <div style="padding:20px">
+    <h2 style="font-size:18px;font-weight:800;margin-bottom:16px">🚗 기사 관리</h2>
+
+    <!-- 기사 등록 폼 -->
+    <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px">신규 기사 등록</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">이름</label>
+          <input id="drv-name" type="text" placeholder="홍길동" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">아이디</label>
+          <input id="drv-id" type="text" placeholder="driver01" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">비밀번호</label>
+        <input id="drv-pw" type="password" placeholder="비밀번호 설정" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <button onclick="registerDriver()" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">+ 기사 등록</button>
+    </div>
+
+    <!-- 기사 목록 -->
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">등록된 기사</div>
+    <div id="driver-list"></div>
+  </div>
+</div>
+
 <!-- 토스트 -->
 <div class="toast" id="toast"></div>
 
@@ -1058,6 +1092,7 @@ function goTab(tab) {
     if (inp) inp.value = '';
     renderCustDB('cdb-list');
   }
+  if (tab === 'drivers') renderDriverList();
 }
 
 // ══════════════════════════════════════════
@@ -2570,6 +2605,80 @@ function makeDeliveryIcon(num, status) {
     iconSize: [24, 24],
     iconAnchor: [12, 12]
   });
+}
+
+// ══════════════════════════════════════════
+// 기사 계정 관리
+// ══════════════════════════════════════════
+let driverAccountsList = {};
+
+db.ref('driverAccounts').on('value', snap => {
+  driverAccountsList = snap.val() || {};
+  renderDriverList();
+});
+
+function renderDriverList() {
+  const container = document.getElementById('driver-list');
+  if (!container) return;
+  const entries = Object.entries(driverAccountsList);
+  if (!entries.length) {
+    container.innerHTML = '<div style="text-align:center;color:#999;padding:24px">등록된 기사가 없습니다</div>';
+    return;
+  }
+  container.innerHTML = entries.map(([id, d]) => `
+    <div style="background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:15px">${d.name} <span style="font-size:12px;color:#999;font-weight:400">(${id})</span></div>
+        <div style="font-size:12px;margin-top:3px">
+          <span style="padding:2px 8px;border-radius:20px;font-weight:700;${d.active ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fce4ec;color:#c62828'}">${d.active ? '활성' : '비활성'}</span>
+        </div>
+      </div>
+      <button onclick="toggleDriverActive('${id}', ${d.active})"
+        style="border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;${d.active ? 'background:#fce4ec;color:#c62828' : 'background:#e8f5e9;color:#2e7d32'}">
+        ${d.active ? '비활성화' : '활성화'}
+      </button>
+      <button onclick="deleteDriver('${id}', '${d.name}')"
+        style="border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#f5f5f5;color:#888">
+        삭제
+      </button>
+    </div>
+  `).join('');
+}
+
+function registerDriver() {
+  const name = document.getElementById('drv-name').value.trim();
+  const id   = document.getElementById('drv-id').value.trim();
+  const pw   = document.getElementById('drv-pw').value.trim();
+
+  if (!name || !id || !pw) { showToast('이름, 아이디, 비밀번호를 모두 입력하세요'); return; }
+  if (!/^[a-zA-Z0-9_]+$/.test(id)) { showToast('아이디는 영문/숫자/밑줄만 가능합니다'); return; }
+
+  db.ref('driverAccounts/' + id).once('value').then(snap => {
+    if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return; }
+    return db.ref('driverAccounts/' + id).set({
+      name, password: pw, active: true, createdAt: Date.now()
+    });
+  }).then(() => {
+    showToast('✅ ' + name + ' 기사 등록 완료');
+    document.getElementById('drv-name').value = '';
+    document.getElementById('drv-id').value = '';
+    document.getElementById('drv-pw').value = '';
+  }).catch(e => showToast('오류: ' + e.message));
+}
+
+function toggleDriverActive(id, currentActive) {
+  const msg = currentActive ? '이 기사를 비활성화하면 즉시 로그인이 차단됩니다. 진행할까요?' : '이 기사를 활성화할까요?';
+  if (!confirm(msg)) return;
+  db.ref('driverAccounts/' + id).update({ active: !currentActive })
+    .then(() => showToast(currentActive ? '비활성화 완료' : '활성화 완료'))
+    .catch(e => showToast('오류: ' + e.message));
+}
+
+function deleteDriver(id, name) {
+  if (!confirm(name + ' 기사 계정을 완전히 삭제할까요?')) return;
+  db.ref('driverAccounts/' + id).remove()
+    .then(() => showToast('삭제 완료'))
+    .catch(e => showToast('오류: ' + e.message));
 }
 
 // ── Firebase: 기사 실시간 위치 구독 ──
