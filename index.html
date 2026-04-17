@@ -948,6 +948,19 @@ function launchNav(app) {
   const d = deliveries.find(x => x.id === currentNavId);
   if (!d) return;
   closeNavModal();
+
+  // 길찾기 시작 → 자동으로 배달중 상태 변경
+  if (d.status === 'pending') {
+    d.status = 'delivering';
+    saveDeliveries();
+    renderHome();
+    if (_fbDb) {
+      _fbDb.ref('orders/' + d.id).update({ status: 'delivering', updatedAt: Date.now() })
+        .catch(e => console.warn('상태 업데이트 실패:', e));
+    }
+    showToast('🚗 배달 시작 — OMS에 배달중 반영');
+  }
+
   tryOpenApp(app, d.address, d.lat, d.lng);
 }
 
