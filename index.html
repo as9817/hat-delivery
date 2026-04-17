@@ -783,16 +783,24 @@ function addManual() {
 }
 
 // ══════════════════════════════════════════════════════
-// 지오코딩 → 배달 추가
+// 지오코딩 → 배달 추가 (Kakao API 사용)
 // ══════════════════════════════════════════════════════
 async function geocodeAndAdd(info) {
+  const GEOCODE_FN = 'https://asia-northeast3-wellbingmart-d5ee1.cloudfunctions.net/geocodeAddress';
   let lat = null, lng = null;
   try {
-    const q = encodeURIComponent(info.address + ', 대한민국');
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
+    showToast('📍 주소 좌표 조회 중...');
+    const res = await fetch(GEOCODE_FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: info.address })
+    });
     const data = await res.json();
-    if (data.length) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); }
-  } catch(e) {}
+    if (data.status === 'success') {
+      lat = data.data.lat;
+      lng = data.data.lng;
+    }
+  } catch(e) { console.warn('geocode 실패:', e); }
   const item = {
     id: uid(), customerName: info.customerName, address: info.address,
     phone: info.phone || '-', lat, lng, status: 'pending', addedAt: Date.now()

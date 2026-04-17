@@ -1,20 +1,11 @@
-// v4 - token auth
-/**
- * 햇배달 - 영수증 OCR 파이프라인
- * Firebase Cloud Functions (2세대 HTTP)
- * 파이프라인: Vision API → Gemini API → Kakao Local API
- */
-
-const { onRequest } = require('firebase-functions/v2/https');
+// v7 - geocodeAddress 엔드포인트 추가
+const functions = require('firebase-functions');
 const logger = require('firebase-functions/logger');
 
-exports.processReceipt = onRequest(
-  {
-    region: 'asia-northeast3',
-    timeoutSeconds: 60,
-    memory: '512MiB',
-  },
-  async (req, res) => {
+exports.processReceipt = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 60, memory: '512MB' })
+  .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
@@ -27,6 +18,8 @@ exports.processReceipt = onRequest(
     const VISION_KEY = process.env.GOOGLE_VISION_KEY;
     const GEMINI_KEY  = process.env.GEMINI_KEY;
     const KAKAO_KEY   = process.env.KAKAO_KEY;
+
+    logger.info('Keys check:', { vision: !!VISION_KEY, gemini: !!GEMINI_KEY, kakao: !!KAKAO_KEY });
 
     if (!VISION_KEY || !GEMINI_KEY || !KAKAO_KEY) {
       res.status(500).json({ status: 'error', message: 'API 키 환경변수 미설정' }); return;
@@ -58,47 +51,81 @@ exports.processReceipt = onRequest(
       logger.error('오류:', err);
       res.status(500).json({ status: 'error', message: err.message });
     }
-  }
-);
+  });
 
 async function extractTextWithVision(base64Image, apiKey) {
-  const res = await fetch(
-    `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests: [{ image: { content: base64Image }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }] }),
-    }
-  );
+  const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ image: { content: base64Image }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }] }),
+  });
   if (!res.ok) { const e = await res.json(); throw new Error(`Vision: ${e.error?.message || res.status}`); }
   const data = await res.json();
   const ann = data.responses?.[0]?.fullTextAnnotation || data.responses?.[0]?.textAnnotations?.[0];
   if (!ann) throw new Error('Vision: 텍스트 인식 실패');
-  const text = ann.text || ann.description || '';
-  if (!text.trim()) throw new Error('Vision: 텍스트 없음');
-  return text;
+  return ann.text || ann.description || '';
 }
 
 async function parseWithGemini(rawText, apiKey) {
-  const prompt = "너는 마트 영수증 데이터 파싱 전문가야. 1. 고객명('성명:' 옆 텍스트, '합계금액' 무시), 2. 연락처('010' 패턴), 3. 주소('주소:' 뒤 한 줄 병합). 반드시 JSON({name,phone,address})으로만 응답.\n\n[OCR]\n" + rawText;
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 256 } }) }
-  );
+  const prompt = "너는 마트 영수증 데이터 파싱 전문가야. 아래 OCR 텍스트에서 1. 고객명('성명:' 옆), 2. 연락처('010' 패턴), 3. 주소('주소:' 뒤 전체)를 추출해서 {\"name\":\"...\",\"phone\":\"...\",\"address\":\"...\"} 형식의 JSON으로만 응답해.\n\n[OCR]\n" + rawText;
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 512,
+        responseMimeType: 'application/json'
+      }
+    }),
+  });
   if (!res.ok) { const e = await res.json(); throw new Error(`Gemini: ${e.error?.message || res.status}`); }
   const data = await res.json();
+  logger.info('Gemini raw response:', JSON.stringify(data.candidates?.[0]?.content?.parts?.[0]?.text?.slice(0, 200)));
   const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const m = raw.replace(/```json|```/gi, '').match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('Gemini: JSON 없음');
-  return JSON.parse(m[0]);
+  if (!raw.trim()) throw new Error('Gemini: 응답 없음');
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    const m = raw.replace(/```json|```/gi, '').match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('Gemini: JSON 없음 - raw: ' + raw.slice(0, 100));
+    return JSON.parse(m[0]);
+  }
 }
+
+// ── 주소 → 좌표 변환 엔드포인트 (수동 입력용)
+exports.geocodeAddress = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 30, memory: '256MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ status: 'error', message: 'POST only' }); return; }
+
+    const { address } = req.body;
+    if (!address) { res.status(400).json({ status: 'error', message: 'address 없음' }); return; }
+
+    const KAKAO_KEY = process.env.KAKAO_KEY;
+    if (!KAKAO_KEY) { res.status(500).json({ status: 'error', message: 'KAKAO_KEY 미설정' }); return; }
+
+    try {
+      const location = await standardizeAddress(address, KAKAO_KEY);
+      res.status(200).json({ status: 'success', data: location });
+    } catch (err) {
+      logger.error('geocodeAddress 오류:', err);
+      res.status(500).json({ status: 'error', message: err.message });
+    }
+  });
 
 async function standardizeAddress(rawAddress, kakaoKey) {
   if (!rawAddress?.trim()) return { road_address: '', detail_address: '', lat: null, lng: null };
   const dm = rawAddress.match(/\d+호|\d+동|\d+층/);
   const da = dm ? dm[0] : '';
   const q  = da ? rawAddress.slice(0, rawAddress.lastIndexOf(da)).trim() : rawAddress.trim();
-  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=1`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
+  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=1`, {
+    headers: { Authorization: `KakaoAK ${kakaoKey}` },
+  });
   if (!res.ok) throw new Error(`Kakao: ${res.status}`);
   const data = await res.json();
   const doc = data.documents?.[0];
