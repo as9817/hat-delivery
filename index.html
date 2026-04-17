@@ -973,8 +973,8 @@ function tryOpenApp(app, address, lat, lng) {
       ? `tmap://route?goalx=${lng}&goaly=${lat}&goalname=${encodeURIComponent(address)}`
       : `tmap://search?name=${encodeURIComponent(address)}`;
     const web = lat && lng
-      ? `https://tmap.life/${lat},${lng}`
-      : `https://tmap.life/search?query=${encodeURIComponent(address)}`;
+      ? `https://tmap.life/route?rGoName=${encodeURIComponent(address)}&rGoX=${lng}&rGoY=${lat}`
+      : `https://tmap.life/route?rGoName=${encodeURIComponent(address)}`;
     window.location.href = url;
     setTimeout(() => window.open(web, '_blank'), 1500);
   }
