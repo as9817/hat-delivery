@@ -153,6 +153,18 @@
 
     /* ── 경로 최적화 화면 ── */
     #mapview { }
+    .pay-btn {
+      border: 1.5px solid #ddd; border-radius: 20px; padding: 7px 14px;
+      font-size: 13px; font-weight: 600; background: #fff; cursor: pointer;
+      transition: all .15s; font-family: inherit;
+    }
+    .pay-btn.active { background: #FF6B00; color: #fff; border-color: #FF6B00; }
+    .radio-group { display: flex; flex-direction: column; gap: 10px; }
+    .radio-item {
+      display: flex; align-items: center; gap: 10px; font-size: 15px;
+      padding: 10px; border: 1.5px solid #eee; border-radius: 10px; cursor: pointer;
+    }
+    .radio-item input[type=radio] { width: 18px; height: 18px; accent-color: #FF6B00; }
     .route-item {
       display: flex; align-items: center; gap: 12px;
       padding: 12px 0; border-bottom: 1px solid #F5F5F5;
@@ -356,6 +368,59 @@
     <button class="btn btn-outline" onclick="loadSamples()">🧾 샘플 배송 5건 불러오기</button>
   </div>
 
+  <!-- ══════════════ 배송 완료 화면 ══════════════ -->
+  <div id="complete" class="screen">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <button onclick="goTab('home')" style="background:none;border:none;font-size:22px;cursor:pointer">‹</button>
+      <div style="font-size:17px;font-weight:800">배송완료</div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:18px">📍</span>
+        <div style="font-size:14px;font-weight:600;color:#222" id="complete-addr"></div>
+      </div>
+      <div style="font-size:13px;color:#888" id="complete-name"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">수령방법 <span style="color:#e53935">*</span></div>
+      <div class="radio-group" id="receive-group">
+        <label class="radio-item"><input type="radio" name="receive" value="door"> 문 앞 배송</label>
+        <label class="radio-item"><input type="radio" name="receive" value="direct"> 고객 직접수령</label>
+        <label class="radio-item"><input type="radio" name="receive" value="guard"> 경비실</label>
+        <label class="radio-item"><input type="radio" name="receive" value="etc"> 기타</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">사진 <span style="color:#e53935">*</span></div>
+      <div style="font-size:12px;color:#888;margin-bottom:10px">배송 당일에 찍은 사진만 첨부 가능합니다.<br>직접수령의 경우 배송지의 주소를 확인할 수 있도록 찍어주세요.</div>
+      <button class="btn" style="background:#F2F2F7;color:#555;border:1.5px dashed #ccc" onclick="captureCompletePhoto()" id="complete-photo-btn">
+        📷 사진 첨부하기
+      </button>
+      <img id="complete-photo-preview" src="" alt="" style="display:none;width:100%;border-radius:10px;margin-top:10px;max-height:200px;object-fit:cover">
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">결제여부 <span style="color:#e53935">*</span></div>
+      <div class="radio-group" id="payment-group">
+        <label class="radio-item"><input type="radio" name="payment" value="prepaid"> 완납됨</label>
+        <label class="radio-item"><input type="radio" name="payment" value="card"> 현장 카드 결제함</label>
+        <label class="radio-item"><input type="radio" name="payment" value="cash"> 현장 현금 결제함</label>
+        <label class="radio-item"><input type="radio" name="payment" value="transfer"> 계좌이체 함</label>
+        <label class="radio-item"><input type="radio" name="payment" value="credit"> 외상</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">메모</div>
+      <textarea id="complete-memo" rows="3" style="width:100%;border:1px solid #eee;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;resize:none" placeholder="전달사항이 있으면 입력해주세요"></textarea>
+    </div>
+
+    <button class="btn btn-orange" style="font-size:16px;padding:16px" onclick="submitComplete()">배송 완료하기</button>
+    <input type="hidden" id="complete-delivery-id">
+  </div>
+
   <!-- ══════════════ OCR 진행 중 ══════════════ -->
   <div id="scanning" class="screen">
     <div class="card">
@@ -388,6 +453,14 @@
       <input class="form-input" id="res-addr" placeholder="배송 주소">
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
+      <label class="form-label" style="margin-top:10px">💳 결제 방식</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="pay-btns">
+        <button class="pay-btn active" data-pay="prepaid" onclick="selectPay(this)">✅ 완납</button>
+        <button class="pay-btn" data-pay="card" onclick="selectPay(this)">💳 현장카드</button>
+        <button class="pay-btn" data-pay="cash" onclick="selectPay(this)">💵 현장현금</button>
+        <button class="pay-btn" data-pay="transfer" onclick="selectPay(this)">🏦 계좌이체</button>
+        <button class="pay-btn" data-pay="credit" onclick="selectPay(this)">📋 외상</button>
+      </div>
       <div class="row-btns" style="margin-top:4px">
         <button class="btn btn-outline" onclick="toggleEdit()">✏️ 정보 수정하기</button>
         <button class="btn btn-orange" onclick="confirmAdd()">+ 배송 목록에 추가</button>
@@ -542,7 +615,10 @@ try {
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
 function saveToFirebase(item) {
-  if (!_fbDb) return;
+  if (!_fbDb) {
+    console.warn('[Firebase] _fbDb가 null — 초기화 실패');
+    return;
+  }
   const order = {
     id: item.id,
     customerName: item.customerName,
@@ -552,9 +628,18 @@ function saveToFirebase(item) {
     lng: item.lng || null,
     status: 'pending',
     channel: 'tms',
+    paymentMethod: item.paymentMethod || '',
     createdAt: item.addedAt || Date.now()
   };
-  _fbDb.ref('orders/' + item.id).set(order).catch(e => console.warn('Firebase 저장 실패:', e));
+  _fbDb.ref('orders/' + item.id).set(order)
+    .then(() => {
+      console.log('[Firebase] 주문 저장 성공:', item.id);
+      showToast('☁️ OMS 실시간 반영 완료');
+    })
+    .catch(e => {
+      console.error('[Firebase] 저장 실패:', e);
+      showToast('⚠️ OMS 연동 실패: Firebase 보안 규칙을 확인하세요', 4000);
+    });
 }
 
 // ══════════════════════════════════════════════════════
@@ -646,7 +731,7 @@ function renderHome() {
       </div>
       <div class="row-btns">
         <button class="btn btn-blue" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
-        <button class="btn ${d.status==='done'?'btn-outline':'btn-green'}" onclick="toggleDone('${d.id}')">
+        <button class="btn ${d.status==='done'?'btn-outline':'btn-green'}" onclick="${d.status==='done' ? `toggleDone('${d.id}')` : `openCompleteScreen('${d.id}')`}">
           ${d.status==='done' ? '↩ 되돌리기' : '완료 체크'}
         </button>
         <button class="btn" style="background:#F2F2F7;color:#555;width:auto;padding:14px 14px" onclick="openEditModal('${d.id}')">✏️</button>
@@ -873,6 +958,99 @@ function tryOpenApp(app, address, lat, lng) {
 // ══════════════════════════════════════════════════════
 // 전체 초기화
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// 결제 방식 선택 (영수증 추가 화면)
+// ══════════════════════════════════════════════════════
+function selectPay(btn) {
+  document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function getSelectedPay() {
+  const active = document.querySelector('.pay-btn.active');
+  return active ? active.dataset.pay : 'prepaid';
+}
+
+// ══════════════════════════════════════════════════════
+// 배송 완료 화면
+// ══════════════════════════════════════════════════════
+let _completePhotoData = null;
+
+function openCompleteScreen(id) {
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('complete-delivery-id').value = id;
+  document.getElementById('complete-addr').textContent = d.address;
+  document.getElementById('complete-name').textContent = d.customerName + ' · ' + d.phone;
+  // 초기화
+  document.querySelectorAll('input[name=receive]').forEach(r => r.checked = false);
+  document.querySelectorAll('input[name=payment]').forEach(r => r.checked = false);
+  document.getElementById('complete-memo').value = '';
+  document.getElementById('complete-photo-btn').textContent = '📷 사진 첨부하기';
+  document.getElementById('complete-photo-preview').style.display = 'none';
+  document.getElementById('complete-photo-preview').src = '';
+  _completePhotoData = null;
+  goTab('complete');
+}
+
+function captureCompletePhoto() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      _completePhotoData = await compressPhoto(ev.target.result);
+      const preview = document.getElementById('complete-photo-preview');
+      preview.src = _completePhotoData;
+      preview.style.display = 'block';
+      document.getElementById('complete-photo-btn').textContent = '📷 사진 변경하기';
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+async function submitComplete() {
+  const id = document.getElementById('complete-delivery-id').value;
+  const receive = document.querySelector('input[name=receive]:checked')?.value;
+  const payment = document.querySelector('input[name=payment]:checked')?.value;
+  const memo = document.getElementById('complete-memo').value.trim();
+
+  if (!receive) { showToast('수령방법을 선택해주세요'); return; }
+  if (!payment) { showToast('결제여부를 선택해주세요'); return; }
+  if (!_completePhotoData) { showToast('사진을 첨부해주세요'); return; }
+
+  // 사진 저장
+  await savePhoto(id, _completePhotoData);
+
+  // 배송 완료 처리
+  loadDeliveries();
+  const d = deliveries.find(x => x.id === id);
+  if (d) {
+    d.status = 'done';
+    d.photoId = id;
+    d.receiveMethod = receive;
+    d.paymentStatus = payment;
+    d.memo = memo;
+    d.completedAt = Date.now();
+    saveDeliveries();
+  }
+
+  // Firebase 업데이트
+  if (_fbDb) {
+    _fbDb.ref('orders/' + id).update({
+      status: 'done', photoId: id,
+      receiveMethod: receive, paymentStatus: payment,
+      memo, completedAt: Date.now()
+    }).catch(()=>{});
+  }
+
+  showToast('✅ 배송 완료!');
+  goTab('home');
+  renderHome();
+}
+
 // ══════════════════════════════════════════════════════
 // 배송 수정 / 삭제
 // ══════════════════════════════════════════════════════
@@ -1158,7 +1336,8 @@ function confirmAdd() {
 
   const item = {
     id: uid(), customerName: name, address: addr,
-    phone: phone || '-', lat, lng, status: 'pending', addedAt: Date.now()
+    phone: phone || '-', lat, lng, status: 'pending',
+    paymentMethod: getSelectedPay(), addedAt: Date.now()
   };
   loadDeliveries();
   deliveries.push(item);
