@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F4F6F9; }
@@ -505,6 +507,40 @@
 
 <script>
 // ══════════════════════════════════════════════════════
+// Firebase 초기화
+// ══════════════════════════════════════════════════════
+const _fbConfig = {
+  apiKey: "AIzaSyBvpbxEfWv6OujIqHVXELpVRRMqHGGZMWA",
+  authDomain: "wellbingmart-d5ee1.firebaseapp.com",
+  databaseURL: "https://wellbingmart-d5ee1-default-rtdb.firebaseio.com",
+  projectId: "wellbingmart-d5ee1",
+  storageBucket: "wellbingmart-d5ee1.appspot.com",
+  messagingSenderId: "639456789012",
+  appId: "1:639456789012:web:abcdef123456"
+};
+let _fbDb = null;
+try {
+  firebase.initializeApp(_fbConfig);
+  _fbDb = firebase.database();
+} catch(e) { console.warn('Firebase 초기화 실패:', e); }
+
+function saveToFirebase(item) {
+  if (!_fbDb) return;
+  const order = {
+    id: item.id,
+    customerName: item.customerName,
+    address: item.address,
+    phone: item.phone || '-',
+    lat: item.lat || null,
+    lng: item.lng || null,
+    status: 'pending',
+    channel: 'tms',
+    createdAt: item.addedAt || Date.now()
+  };
+  _fbDb.ref('orders/' + item.id).set(order).catch(e => console.warn('Firebase 저장 실패:', e));
+}
+
+// ══════════════════════════════════════════════════════
 // 상태 & 유틸
 // ══════════════════════════════════════════════════════
 let deliveries = [];
@@ -661,6 +697,7 @@ async function geocodeAndAdd(info) {
   loadDeliveries();
   deliveries.push(item);
   saveDeliveries();
+  saveToFirebase(item); // OMS에도 실시간 반영
   renderHome();
   goTab('home');
   showToast(`✅ ${info.customerName} 추가 완료`);
@@ -1058,6 +1095,7 @@ function confirmAdd() {
   loadDeliveries();
   deliveries.push(item);
   saveDeliveries();
+  saveToFirebase(item); // OMS에도 실시간 반영
   renderHome();
   goTab('home');
   showToast(`✅ ${name} 추가 완료`);
