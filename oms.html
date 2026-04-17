@@ -184,72 +184,96 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .cust-no-result{padding:12px;text-align:center;color:#aaa;font-size:13px}
 
 /* ══════════════════════════════════════
-   PC / 태블릿 레이아웃 (768px 이상)
-   왼쪽: 새주문 입력 | 오른쪽: 주문 목록
+   PC 레이아웃: 왼쪽 지도 | 오른쪽 주문관리
 ══════════════════════════════════════ */
 @media (min-width:768px){
 
   body{overflow:hidden}
 
-  /* 헤더 PC 스타일 */
   .header{padding:12px 24px}
   .header-title{font-size:20px}
   .header-pc-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
   .header-pc-btn:hover{background:rgba(255,255,255,.28)}
-
-  /* 탭 바 숨김 */
   .tabs{display:none!important}
 
-  /* PC 래퍼: 좌우 분할 */
+  /* 전체 래퍼 */
   #pc-wrapper{display:flex;height:calc(100vh - 64px);overflow:hidden}
 
-  /* 왼쪽 패널 — 새주문 */
+  /* ── 왼쪽: 지도 패널 ── */
+  #oms-map-panel{
+    flex:1;position:relative;
+    background:#e8eaf6;
+    border-right:2px solid var(--border);
+    display:flex!important;flex-direction:column;
+  }
+  #oms-map-panel #tms-map-container{
+    flex:1;height:auto!important;display:flex!important;
+    flex-direction:column;border-bottom:none;
+  }
+  #oms-map-panel #tms-map{ flex:1;height:100%!important }
+  #oms-map-panel #tms-driver-status{
+    display:flex!important;flex-shrink:0;
+    background:#fff;border-top:1px solid var(--border);padding:6px 10px;
+  }
+
+  /* ── 오른쪽 패널 ── */
+  #right-panel{
+    width:440px;min-width:380px;flex-shrink:0;
+    display:flex;flex-direction:column;
+    height:100%;overflow:hidden;background:#f4f6f9;
+  }
+
+  /* 새주문 토글 버튼 */
+  #new-order-toggle{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;background:#1a237e;color:#fff;
+    cursor:pointer;user-select:none;flex-shrink:0;
+    font-size:14px;font-weight:700;
+    transition:background .2s;
+  }
+  #new-order-toggle:hover{background:#283593}
+  #new-order-toggle .toggle-arrow{
+    transition:transform .3s;font-size:12px;
+  }
+  #new-order-toggle.open .toggle-arrow{transform:rotate(180deg)}
+
+  /* 새주문 폼 (접이식) */
   #new{
     display:block!important;
-    width:420px;min-width:360px;flex-shrink:0;
-    overflow-y:auto;
+    max-height:0;overflow:hidden;
+    transition:max-height .35s ease;
     background:#f0f2f8;
-    border-right:2px solid var(--border);
-    padding-top:0
+    border-bottom:2px solid var(--border);
+    padding-top:0;
   }
+  #new.expanded{ max-height:70vh;overflow-y:auto; }
   #new .screen-inner{padding:12px}
+  #new .pc-panel-hdr{display:none}
 
-  /* 오른쪽 패널 — 주문 목록 */
+  /* 주문 목록 */
   #list{
-    display:block!important;
-    flex:1;overflow-y:auto;
-    background:#f4f6f9;
-    padding-top:0
+    display:flex!important;flex-direction:column!important;
+    flex:1;overflow:hidden;background:#f4f6f9;padding-top:0;
   }
-  #list .screen-inner{padding:12px}
+  #list .pc-panel-hdr{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 14px;background:#fff;
+    border-bottom:2px solid var(--border);
+    font-size:13px;font-weight:700;color:#1a237e;
+    flex-shrink:0;
+    box-shadow:0 1px 4px rgba(0,0,0,.06);
+  }
+  #list .screen-inner{padding:0!important;display:flex!important;flex-direction:column!important;flex:1!important;overflow:hidden!important;min-height:0!important}
+  #list #filter-bar-wrap{padding:6px 10px;margin-bottom:0;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
+  #list .filter-bar{margin-bottom:0}
 
-  /* 통계/고객DB 화면은 PC에서 모달로 */
+  /* PC에서 모달로 처리하는 탭 */
   #stats{display:none!important}
   #custdb{display:none!important}
 
-  /* PC 패널 헤더 (왼쪽·오른쪽 라벨) */
-  .pc-panel-hdr{
-    display:flex;align-items:center;gap:8px;
-    padding:11px 16px;
-    background:#fff;
-    border-bottom:2px solid var(--border);
-    font-size:14px;font-weight:700;color:#1a237e;
-    position:sticky;top:0;z-index:50;
-    box-shadow:0 1px 4px rgba(0,0,0,.06)
-  }
-  .pc-panel-hdr-cnt{
-    margin-left:auto;background:#E8EAF6;
-    color:#3949AB;border-radius:12px;
-    padding:2px 10px;font-size:12px;font-weight:700
-  }
-
-  /* 토스트 위치 조정 */
+  .pc-panel-hdr-cnt{margin-left:auto;background:#E8EAF6;color:#3949AB;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700}
   .toast{bottom:24px}
-
-  /* 주문 카드 호버 효과 */
   .order-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-1px)}
-
-  /* 배치 파싱 textarea 높이 줄이기 */
   .form-textarea{min-height:80px}
 }
 
@@ -427,12 +451,8 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .tms-driver-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #c5cae9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#1a237e;white-space:nowrap}
 .tms-driver-chip.online{border-color:#4CAF50;background:#E8F5E9;color:#2E7D32}
 @media (min-width:768px){
-  #list{display:flex!important;flex-direction:column!important;overflow:hidden!important}
-  #list .screen-inner{padding:0!important;display:flex!important;flex-direction:column!important;flex:1!important;overflow:hidden!important;min-height:0!important}
-  #list #filter-bar-wrap{padding:6px 10px;margin-bottom:0;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
-  #list .filter-bar{margin-bottom:0}
-  #tms-map-container{display:block!important}
-  #tms-table-wrap{display:flex!important;flex-direction:column}
+  #tms-map-container{display:flex!important;flex-direction:column}
+  #tms-table-wrap{display:flex!important;flex-direction:column;flex:1;overflow-y:auto}
   #order-list-container{display:none!important}
 }
 </style>
@@ -480,16 +500,8 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <!-- PC 래퍼 시작 -->
 <div id="pc-wrapper">
 
-<!-- ══════════════ 주문 목록 ══════════════ -->
-<div class="screen active" id="list">
-  <!-- PC 패널 헤더 -->
-  <div class="pc-panel-hdr">
-    🗺️ TMS 배송 현황
-    <span class="pc-panel-hdr-cnt" id="list-pc-cnt">0건</span>
-  </div>
-  <div class="screen-inner">
-
-  <!-- ── TMS 지도 (PC 전용) ── -->
+<!-- ══════════════ 왼쪽: 지도 패널 ══════════════ -->
+<div id="oms-map-panel">
   <div id="tms-map-container">
     <div id="tms-map"></div>
     <div id="tms-legend">
@@ -499,9 +511,28 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="tms-legend-row"><span class="tms-dot" style="background:#4CAF50"></span>배달 완료</div>
     </div>
   </div>
-
-  <!-- ── 온라인 기사 현황 바 (PC 전용) ── -->
   <div id="tms-driver-status"></div>
+</div>
+
+<!-- ══════════════ 오른쪽 패널 ══════════════ -->
+<div id="right-panel">
+
+<!-- 새주문 토글 버튼 -->
+<div id="new-order-toggle" onclick="toggleNewOrderPanel()">
+  <span>➕ 새 주문 입력</span>
+  <span class="toggle-arrow">▼</span>
+</div>
+
+<!-- ══════════════ 새주문 폼 (접이식) ══════════════ -->
+
+<!-- ══════════════ 주문 목록 ══════════════ -->
+<div class="screen active" id="list">
+  <!-- PC 패널 헤더 -->
+  <div class="pc-panel-hdr">
+    📋 주문 현황
+    <span class="pc-panel-hdr-cnt" id="list-pc-cnt">0건</span>
+  </div>
+  <div class="screen-inner">
 
   <!-- ── 필터바 ── -->
   <div id="filter-bar-wrap">
@@ -544,9 +575,13 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 
   </div><!-- /screen-inner -->
-</div>
+</div><!-- /list -->
 
-<!-- ══════════════ 새주문 ══════════════ -->
+</div><!-- /right-panel -->
+
+</div><!-- /pc-wrapper -->
+
+<!-- ══════════════ 새주문 (PC에서는 right-panel 안 토글로 이동됨, 모바일용 유지) ══════════════ -->
 <div class="screen" id="new">
   <!-- PC 패널 헤더 -->
   <div class="pc-panel-hdr">
@@ -735,8 +770,6 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     </div>
   </div>
 </div>
-
-</div><!-- /pc-wrapper -->
 
 <!-- ══════════════ 통계 (모바일 탭 화면) ══════════════ -->
 <div class="screen" id="stats">
@@ -1075,6 +1108,38 @@ db.ref('orders').on('value', snap => {
   renderStats();
   updateHeader();
 });
+
+// ══════════════════════════════════════════
+// PC 레이아웃 초기화: #new 폼을 right-panel 안으로 이동
+// ══════════════════════════════════════════
+(function initPcLayout() {
+  if (window.innerWidth < 768) return;
+  const newEl = document.getElementById('new');
+  const toggle = document.getElementById('new-order-toggle');
+  if (!newEl || !toggle) return;
+  // list 앞에 #new 삽입
+  const list = document.getElementById('list');
+  const rightPanel = document.getElementById('right-panel');
+  if (rightPanel && list) {
+    rightPanel.insertBefore(newEl, list);
+  }
+})();
+
+function toggleNewOrderPanel() {
+  const newEl = document.getElementById('new');
+  const toggle = document.getElementById('new-order-toggle');
+  if (!newEl || !toggle) return;
+  const isOpen = newEl.classList.contains('expanded');
+  newEl.classList.toggle('expanded', !isOpen);
+  toggle.classList.toggle('open', !isOpen);
+  if (!isOpen) {
+    // 열릴 때 첫 입력 포커스
+    setTimeout(() => {
+      const first = newEl.querySelector('input:not([type=hidden])');
+      if (first) first.focus();
+    }, 350);
+  }
+}
 
 // ══════════════════════════════════════════
 // 탭 네비게이션
@@ -2581,7 +2646,8 @@ function initTmsMap() {
     maxZoom: 18
   }).addTo(tmsMap);
   // 지도 크기 새로고침 (flexbox 높이 확정 후)
-  setTimeout(() => tmsMap.invalidateSize(), 200);
+  setTimeout(() => tmsMap.invalidateSize(), 300);
+  setTimeout(() => tmsMap.invalidateSize(), 800);
 }
 
 // ── 기사 마커 아이콘 생성 ──
