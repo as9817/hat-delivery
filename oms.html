@@ -872,18 +872,18 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div>
           <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">이름</label>
-          <input id="drv-name" type="text" placeholder="홍길동" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+          <input id="modal-drv-name" type="text" placeholder="홍길동" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
         </div>
         <div>
           <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">아이디</label>
-          <input id="drv-id" type="text" placeholder="driver01" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+          <input id="modal-drv-id" type="text" placeholder="driver01" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
         </div>
       </div>
       <div style="margin-bottom:10px">
         <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">비밀번호</label>
-        <input id="drv-pw" type="password" placeholder="비밀번호 설정" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        <input id="modal-drv-pw" type="password" placeholder="비밀번호 설정" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
       </div>
-      <button onclick="registerDriver()" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ 기사 등록</button>
+      <button onclick="registerDriver('modal')" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ 기사 등록</button>
     </div>
 
     <!-- 기사 목록 -->
@@ -2851,10 +2851,12 @@ function renderDriverList() {
   if (tab) tab.innerHTML = html;
 }
 
-function registerDriver() {
-  const name = document.getElementById('drv-name').value.trim();
-  const id   = document.getElementById('drv-id').value.trim();
-  const pw   = document.getElementById('drv-pw').value.trim();
+function registerDriver(src) {
+  // src='modal' → 기사관리 모달, 나머지 → 기사 탭 화면
+  const prefix = src === 'modal' ? 'modal-drv-' : 'drv-';
+  const name = document.getElementById(prefix + 'name').value.trim();
+  const id   = document.getElementById(prefix + 'id').value.trim();
+  const pw   = document.getElementById(prefix + 'pw').value.trim();
 
   if (!name || !id || !pw) { showToast('이름, 아이디, 비밀번호를 모두 입력하세요'); return; }
   if (!/^[a-zA-Z0-9_]+$/.test(id)) { showToast('아이디는 영문/숫자/밑줄만 가능합니다'); return; }
@@ -2866,9 +2868,9 @@ function registerDriver() {
     });
   }).then(() => {
     showToast('✅ ' + name + ' 기사 등록 완료');
-    document.getElementById('drv-name').value = '';
-    document.getElementById('drv-id').value = '';
-    document.getElementById('drv-pw').value = '';
+    document.getElementById(prefix + 'name').value = '';
+    document.getElementById(prefix + 'id').value = '';
+    document.getElementById(prefix + 'pw').value = '';
   }).catch(e => showToast('오류: ' + e.message));
 }
 
