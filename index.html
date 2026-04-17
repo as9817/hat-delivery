@@ -267,6 +267,7 @@
     }
     .nav-kakao { background: #FEE500; color: #3A1D1D; }
     .nav-naver { background: #03C75A; color: #fff; }
+    .nav-tmap  { background: #E8003D; color: #fff; }
     .nav-cancel { background: #F2F2F7; color: #888; }
 
     /* ── 사진 뷰어 ── */
@@ -578,6 +579,7 @@
       <div class="modal-addr" id="modal-addr"></div>
       <button class="nav-btn nav-kakao" onclick="launchNav('kakao')">🚕 카카오내비</button>
       <button class="nav-btn nav-naver" onclick="launchNav('naver')">🧭 네이버 내비</button>
+      <button class="nav-btn nav-tmap"  onclick="launchNav('tmap')">🗺️ 티맵</button>
       <button class="nav-btn nav-cancel" onclick="closeNavModal()">취소</button>
     </div>
   </div>
@@ -959,11 +961,20 @@ function tryOpenApp(app, address, lat, lng) {
       : `https://map.kakao.com/link/search/${encodeURIComponent(address)}`;
     window.location.href = url;
     setTimeout(() => window.open(web, '_blank'), 1500);
-  } else {
+  } else if (app === 'naver') {
     const url = lat && lng
       ? `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encodeURIComponent(address)}&appname=hatdelivery`
       : `nmap://search?query=${encodeURIComponent(address)}&appname=hatdelivery`;
     const web = `https://map.naver.com/v5/search/${encodeURIComponent(address)}`;
+    window.location.href = url;
+    setTimeout(() => window.open(web, '_blank'), 1500);
+  } else if (app === 'tmap') {
+    const url = lat && lng
+      ? `tmap://route?goalx=${lng}&goaly=${lat}&goalname=${encodeURIComponent(address)}`
+      : `tmap://search?name=${encodeURIComponent(address)}`;
+    const web = lat && lng
+      ? `https://tmap.life/${lat},${lng}`
+      : `https://tmap.life/search?query=${encodeURIComponent(address)}`;
     window.location.href = url;
     setTimeout(() => window.open(web, '_blank'), 1500);
   }
