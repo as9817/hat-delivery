@@ -817,49 +817,61 @@ function setStep(id, state) {
 }
 
 async function startOCR(file) {
+  if (!file) return;
   const CLOUD_FN = 'https://asia-northeast3-wellbingmart-d5ee1.cloudfunctions.net/processReceipt';
 
-  setStep('step-load', 'active');
-  await sleep(300);
-  setStep('step-load', 'done');
-  setStep('step-init', 'active');
-
   try {
-    // 이미지를 base64로 변환 (800px, 압축)
-    const base64 = await compressAndGetBase64(file, 800, 0.6);
-    setStep('step-init', 'done');
-    setStep('step-ocr', 'active');
+    // 1단계: 이미지 로드 & 압축
+    setStep('step-load', 'active');
+    const base64 = await new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, 800 / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
+      };
+      img.onerror = () => reject(new Error('이미지 로드 실패'));
+      img.src = url;
+    });
+    setStep('step-load', 'done');
 
-    // Cloud Function 호출
+    // 2단계: Cloud Function 호출
+    setStep('step-init', 'active');
     const response = await fetch(CLOUD_FN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64: base64 })
     });
+    setStep('step-init', 'done');
 
-    setStep('step-ocr', 'done');
-    setStep('step-parse', 'active');
-
+    // 3단계: 응답 파싱
+    setStep('step-ocr', 'active');
     if (!response.ok) throw new Error('서버 오류: ' + response.status);
     const result = await response.json();
     if (result.status !== 'success') throw new Error(result.message || '인식 실패');
+    setStep('step-ocr', 'done');
 
-    await sleep(200);
+    // 4단계: 정보 추출
+    setStep('step-parse', 'active');
+    const { customer, location } = result.data;
+    document.getElementById('res-name').value  = customer?.name  || '';
+    document.getElementById('res-phone').value = customer?.phone || '';
+    document.getElementById('res-addr').value  = [location?.road_address, location?.detail_address].filter(Boolean).join(' ');
+    window._ocrLat = location?.lat || null;
+    window._ocrLng = location?.lng || null;
+    const warn = document.getElementById('ocr-warn');
+    if (warn) warn.style.display = (!customer?.name || !location?.road_address) ? 'block' : 'none';
     setStep('step-parse', 'done');
-    setStep('step-done', 'active');
-    await sleep(300);
 
-    const d = result.data;
-    console.log('OCR 결과:', JSON.stringify(d));
-    console.log('showResult 호출 직전');
-    showResult({
-      name:  d.customer?.name  || '',
-      phone: d.customer?.phone || '',
-      addr:  (d.location?.road_address || '') + (d.location?.detail_address ? ' ' + d.location.detail_address : ''),
-      lat:   d.location?.lat  || null,
-      lng:   d.location?.lng  || null,
-    });
-    console.log('showResult 호출 완료');
+    // 5단계: 완료 → 결과 화면으로
+    setStep('step-done', 'active');
+    setTimeout(() => goTab('result'), 500);
+
   } catch(e) {
     console.error('OCR 오류:', e);
     alert('영수증 인식 실패: ' + e.message);
