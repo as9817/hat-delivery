@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F4F6F9; }
@@ -153,6 +154,12 @@
     .route-item {
       display: flex; align-items: center; gap: 12px;
       padding: 12px 0; border-bottom: 1px solid #F5F5F5;
+      cursor: grab; user-select: none;
+    }
+    .route-item.sortable-ghost { opacity: 0.4; background: #e8f0fe; border-radius: 10px; }
+    .route-item.sortable-chosen { background: #fff7f0; border-radius: 10px; box-shadow: 0 4px 12px rgba(255,107,0,.2); }
+    .drag-handle {
+      font-size: 20px; color: #ccc; padding: 0 2px; cursor: grab; flex-shrink: 0;
     }
     .route-num {
       background: #FF6B00; color: #fff; border-radius: 50%;
@@ -716,18 +723,36 @@ function optimizeRoute() {
   }
   routeOrder = ordered;
 
-  // 경로 순서 렌더링
+  // 경로 순서 렌더링 (드래그 가능)
   const list = document.getElementById('route-list');
   list.innerHTML = ordered.map((d, i) => `
-    <div class="route-item">
+    <div class="route-item" data-id="${d.id}">
+      <div class="drag-handle">☰</div>
       <div class="route-num">${i+1}</div>
-      <div class="route-info">
+      <div class="route-info" style="flex:1">
         <div class="route-name">${d.customerName}</div>
         <div class="route-addr">${d.address}</div>
       </div>
       <button class="btn btn-blue" style="width:auto;padding:8px 12px;font-size:12px" onclick="launchNavSingle('${d.id}')">길찾기</button>
     </div>
   `).join('');
+
+  // Sortable 초기화
+  if (window._routeSortable) window._routeSortable.destroy();
+  window._routeSortable = Sortable.create(list, {
+    handle: '.drag-handle',
+    animation: 150,
+    onEnd() {
+      // 순서 변경 후 routeOrder 업데이트
+      const newOrder = Array.from(list.querySelectorAll('.route-item'))
+        .map(el => routeOrder.find(d => d.id === el.dataset.id))
+        .filter(Boolean);
+      routeOrder = newOrder;
+      // 번호 갱신
+      list.querySelectorAll('.route-num').forEach((el, i) => el.textContent = i + 1);
+      showToast('순서가 변경됐습니다');
+    }
+  });
 }
 
 function renderMap() { /* 레거시 호환 */ optimizeRoute(); }
