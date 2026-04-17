@@ -469,6 +469,23 @@
   </div>
 
   <!-- ══════════════ 마트 설정 모달 ══════════════ -->
+  <!-- ══════════════ 배송 수정 모달 ══════════════ -->
+  <div class="modal-bg" id="edit-modal" onclick="closeEditModal()">
+    <div class="modal-box" onclick="event.stopPropagation()" style="padding:20px">
+      <div class="modal-title" style="margin-bottom:14px;font-size:16px;font-weight:700;color:#222">✏️ 배송 정보 수정</div>
+      <input type="hidden" id="edit-id">
+      <label style="font-size:12px;color:#888;margin-bottom:4px;display:block">고객명</label>
+      <input id="edit-name" class="form-input" type="text" placeholder="고객명" style="margin-bottom:10px">
+      <label style="font-size:12px;color:#888;margin-bottom:4px;display:block">배송 주소</label>
+      <input id="edit-addr" class="form-input" type="text" placeholder="배송 주소" style="margin-bottom:10px">
+      <label style="font-size:12px;color:#888;margin-bottom:4px;display:block">연락처</label>
+      <input id="edit-phone" class="form-input" type="tel" placeholder="연락처" style="margin-bottom:16px">
+      <button class="btn btn-orange" onclick="saveEdit()">💾 저장</button>
+      <button class="btn" style="background:#e53935;color:#fff;margin-top:8px" onclick="deleteDelivery()">🗑 이 배송 취소/삭제</button>
+      <button class="btn" style="background:#F2F2F7;color:#888;margin-top:8px" onclick="closeEditModal()">닫기</button>
+    </div>
+  </div>
+
   <div class="modal-bg" id="mart-modal" onclick="closeMartSettings()">
     <div class="modal-box" onclick="event.stopPropagation()" style="padding:20px">
       <div class="modal-title" style="margin-bottom:14px">⚙️ 마트 위치 설정</div>
@@ -632,6 +649,7 @@ function renderHome() {
         <button class="btn ${d.status==='done'?'btn-outline':'btn-green'}" onclick="toggleDone('${d.id}')">
           ${d.status==='done' ? '↩ 되돌리기' : '완료 체크'}
         </button>
+        <button class="btn" style="background:#F2F2F7;color:#555;width:auto;padding:14px 14px" onclick="openEditModal('${d.id}')">✏️</button>
       </div>
     </div>
   `).join('');
@@ -855,6 +873,56 @@ function tryOpenApp(app, address, lat, lng) {
 // ══════════════════════════════════════════════════════
 // 전체 초기화
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// 배송 수정 / 삭제
+// ══════════════════════════════════════════════════════
+function openEditModal(id) {
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-name').value = d.customerName || '';
+  document.getElementById('edit-addr').value = d.address || '';
+  document.getElementById('edit-phone').value = d.phone || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+}
+
+function saveEdit() {
+  const id   = document.getElementById('edit-id').value;
+  const name = document.getElementById('edit-name').value.trim();
+  const addr = document.getElementById('edit-addr').value.trim();
+  const phone= document.getElementById('edit-phone').value.trim();
+  if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
+  loadDeliveries();
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  d.customerName = name;
+  d.address = addr;
+  d.phone = phone || '-';
+  saveDeliveries();
+  // Firebase도 업데이트
+  if (_fbDb) _fbDb.ref('orders/' + id).update({ customerName: name, address: addr, phone: phone || '-' }).catch(()=>{});
+  closeEditModal();
+  renderHome();
+  showToast('✅ 수정 완료');
+}
+
+function deleteDelivery() {
+  const id = document.getElementById('edit-id').value;
+  if (!confirm('이 배송을 취소/삭제하시겠습니까?')) return;
+  loadDeliveries();
+  deliveries = deliveries.filter(x => x.id !== id);
+  saveDeliveries();
+  // Firebase도 삭제
+  if (_fbDb) _fbDb.ref('orders/' + id).remove().catch(()=>{});
+  closeEditModal();
+  renderHome();
+  showToast('🗑 배송이 삭제됐습니다');
+}
+
 // ══════════════════════════════════════════════════════
 // 마트 위치 설정
 // ══════════════════════════════════════════════════════
