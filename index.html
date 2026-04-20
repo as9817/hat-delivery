@@ -738,13 +738,42 @@ try {
   _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
+// ── Firebase 주문 상태 실시간 동기화 (OMS 취소/변경 반영) ──
+if (_fbDb) {
+  _fbDb.ref('orders').on('value', snap => {
+    const data = snap.val() || {};
+    loadDeliveries();
+    let changed = false;
+    Object.values(data).forEach(fbOrder => {
+      const local = deliveries.find(d => d.id === fbOrder.id);
+      if (local && local.status !== fbOrder.status) {
+        local.status = fbOrder.status;
+        if (fbOrder.status === 'cancelled') local.cancelledByOms = true;
+        changed = true;
+      }
+    });
+    if (changed) {
+      saveDeliveries();
+      renderHome();
+    }
+  });
+}
+
+// ── dataUrl → Blob 직접 변환 (fetch 미사용, 더 안정적) ──
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(',');
+  const mime = (parts[0].match(/:(.*?);/) || ['','image/jpeg'])[1];
+  const bstr = atob(parts[1]);
+  const u8arr = new Uint8Array(bstr.length);
+  for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+  return new Blob([u8arr], { type: mime });
+}
+
 // ── Firebase Storage 사진 업로드 ──
 async function uploadPhotoToStorage(deliveryId, dataUrl) {
-  if (!_fbStorage) return null;
+  if (!_fbStorage) { console.warn('Storage 미초기화'); return null; }
   try {
-    // dataUrl → Blob 변환
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
+    const blob = dataUrlToBlob(dataUrl);
     const ref = _fbStorage.ref(`delivery-photos/${deliveryId}.jpg`);
     await ref.put(blob, { contentType: 'image/jpeg' });
     const url = await ref.getDownloadURL();
@@ -873,26 +902,29 @@ function renderHome() {
   if (!total) { list.innerHTML = ''; none.style.display = 'block'; return; }
   none.style.display = 'none';
 
-  list.innerHTML = deliveries.map((d, i) => `
-    <div class="delivery-item ${d.status === 'done' ? 'done' : ''}" id="item-${d.id}">
+  list.innerHTML = deliveries.map((d, i) => {
+    const isCancelled = d.status === 'cancelled';
+    const isDone = d.status === 'done';
+    return `
+    <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
       <div class="dl-top">
         <div class="dl-num">${i+1}</div>
         <div style="flex:1">
-          <div class="dl-name">${d.customerName}</div>
+          <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}</div>
           <div class="dl-addr">${d.address}</div>
           <div class="dl-phone">📞 ${d.phone}</div>
         </div>
         ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : ''}
       </div>
-      <div class="row-btns">
+      ${isCancelled ? '' : `<div class="row-btns">
         <button class="btn btn-blue" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
-        <button class="btn ${d.status==='done'?'btn-outline':'btn-green'}" onclick="${d.status==='done' ? `toggleDone('${d.id}')` : `openCompleteScreen('${d.id}')`}">
-          ${d.status==='done' ? '↩ 되돌리기' : '완료 체크'}
+        <button class="btn ${isDone?'btn-outline':'btn-green'}" onclick="${isDone ? `toggleDone('${d.id}')` : `openCompleteScreen('${d.id}')`}">
+          ${isDone ? '↩ 되돌리기' : '완료 체크'}
         </button>
         <button class="btn" style="background:#F2F2F7;color:#555;width:auto;padding:14px 14px" onclick="openEditModal('${d.id}')">✏️</button>
-      </div>
-    </div>
-  `).join('');
+      </div>`}
+    </div>`;
+  }).join('');
 
   // 사진 썸네일 로드
   deliveries.filter(d => d.photoId).forEach(d => {
