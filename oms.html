@@ -1033,8 +1033,8 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <!-- SheetJS -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<!-- 카카오맵 SDK -->
-<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=39fb0580f590466411a2e2239b082414&libraries=services"></script>
+<!-- 카카오맵 SDK (autoload=false → kakao.maps.load() 콜백으로 초기화) -->
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=39fb0580f590466411a2e2239b082414&libraries=services&autoload=false"></script>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -2674,7 +2674,8 @@ let tmsDriverData = {};      // driverId → driver object
 
 // ── 지도 초기화 (PC 전용, 카카오맵) ──
 function initTmsMap() {
-  if (tmsMap || typeof kakao === 'undefined') return;
+  if (tmsMap) return;
+  if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined') return;
   const el = document.getElementById('tms-map');
   if (!el) return;
   const mart = getMartLocation();
@@ -3027,12 +3028,18 @@ renderOrderList = function() {
   renderTmsTable();
 };
 
-// ── PC 접속 시 지도 초기화 ──
+// ── PC 접속 시 지도 초기화 (카카오맵 SDK 로드 완료 후 실행) ──
 if (window.innerWidth >= 768) {
-  document.addEventListener('DOMContentLoaded', () => setTimeout(initTmsMap, 150));
-  // DOMContentLoaded가 이미 발화된 경우 대비
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(initTmsMap, 200);
+  if (typeof kakao !== 'undefined') {
+    kakao.maps.load(() => setTimeout(initTmsMap, 100));
+  } else {
+    // SDK 스크립트 onload 대기
+    const kakaoScript = document.querySelector('script[src*="dapi.kakao.com"]');
+    if (kakaoScript) {
+      kakaoScript.addEventListener('load', () => {
+        kakao.maps.load(() => setTimeout(initTmsMap, 100));
+      });
+    }
   }
 }
 
