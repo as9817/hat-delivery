@@ -779,7 +779,10 @@ function saveToFirebase(item) {
     status: 'pending',
     channel: 'tms',
     paymentMethod: item.paymentMethod || '',
-    createdAt: item.addedAt || Date.now()
+    createdAt: item.addedAt || Date.now(),
+    // 기사 앱에서 등록한 주문 → 해당 기사 자동 배정
+    assignedDriverId:   currentDriver?.id   || '',
+    assignedDriverName: currentDriver?.name || ''
   };
   _fbDb.ref('orders/' + item.id).set(order)
     .then(() => {

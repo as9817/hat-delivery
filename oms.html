@@ -1286,6 +1286,25 @@ function orderActions(o) {
 // ══════════════════════════════════════════
 // 주문 상태 업데이트
 // ══════════════════════════════════════════
+function assignDriver(orderId, driverId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+  const driver = driverAccountsList[driverId];
+  o.assignedDriverId   = driverId;
+  o.assignedDriverName = driver?.name || '';
+  o.updatedAt = Date.now();
+  saveOrders();
+  renderOrderList();
+  if (firebaseActive) {
+    db.ref('orders/' + orderId).update({
+      assignedDriverId:   driverId,
+      assignedDriverName: driver?.name || '',
+      updatedAt: o.updatedAt
+    });
+  }
+  showToast(driver ? `🚗 ${driver.name} 기사 배정 완료` : '배정 해제');
+}
+
 function updateStatus(id, status) {
   const o = orders.find(x => x.id === id);
   if (!o) return;
@@ -2977,7 +2996,9 @@ function renderTmsTable() {
 
   tbody.innerHTML = filtered.map((o, i) => {
     const delivery = tmsDeliveryData[o.id] || {};
-    const driverName = delivery.driverName || delivery.assignedDriver || '';
+    // TMS 기사 자동 배정 또는 OMS 수동 배정
+    const driverName = o.assignedDriverName || delivery.driverName || delivery.assignedDriver || '';
+    const driverId   = o.assignedDriverId   || '';
     const eta = delivery.eta
       ? new Date(delivery.eta).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
       : '-';
@@ -3006,9 +3027,13 @@ function renderTmsTable() {
         ${itemSummary ? `<div style="font-size:10px;color:#999;margin-top:2px">🛍 ${itemSummary}</div>` : ''}
       </td>
       <td>
-        <div style="font-size:12px;font-weight:600;color:${driverName ? '#1a237e' : '#ccc'}">
-          ${driverName ? '🚗 ' + driverName : '미배정'}
-        </div>
+        <select onchange="assignDriver('${o.id}',this.value)" onclick="event.stopPropagation()"
+          style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:4px 6px;font-size:11px;font-family:inherit;color:${driverName?'#1a237e':'#aaa'};background:#fafafa;cursor:pointer;outline:none">
+          <option value="" ${!driverId?'selected':''}>미배정</option>
+          ${Object.entries(driverAccountsList).filter(([,d])=>d.active).map(([id,d])=>
+            `<option value="${id}" ${driverId===id?'selected':''}>${d.name}</option>`
+          ).join('')}
+        </select>
         <div style="margin-top:4px"><span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span></div>
       </td>
       <td>
