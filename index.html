@@ -2051,6 +2051,12 @@ const mapZone = (() => {
   // 📍 전체 보기 모드
   function showAllMode(data, legend) {
     const all = data.filter(d => d.lat && d.lng);
+    // 마트 핀
+    const mart = getMartLocation();
+    const storeM = makeStoreOverlay(mart.lat, mart.lng);
+    storeM.setMap(map);
+    deliveryMarkers.push(storeM);
+
     if (!all.length) return;
     all.forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
@@ -2060,15 +2066,22 @@ const mapZone = (() => {
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
+      <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
     `;
-    const bounds = makeBounds(all.map(d => [d.lat, d.lng]));
-    if (all.length > 1) map.setBounds(bounds, 40, 40, 40, 40);
+    const bounds = makeBounds([[mart.lat, mart.lng], ...all.map(d => [d.lat, d.lng])]);
+    map.setBounds(bounds, 40, 40, 40, 40);
   }
 
   // 🗾 구역 설정 모드
   function showZoneMode(data, legend) {
+    // 마트 핀
+    const mart = getMartLocation();
+    const storeM = makeStoreOverlay(mart.lat, mart.lng);
+    storeM.setMap(map);
+    deliveryMarkers.push(storeM);
+
     data.filter(d => d.lat && d.lng).forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
       const m = makeMarkerOverlay(d.lat, d.lng, color, i+1, 32, `<b>${d.customerName}</b><br>${d.address}`);
@@ -2076,6 +2089,7 @@ const mapZone = (() => {
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
+      <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
       <div class="leg-row"><div class="leg-line" style="background:#2196F3;height:4px;border-radius:2px;opacity:.6"></div> 배송 구역</div>
