@@ -1107,11 +1107,11 @@ function loadOrders() {
 db.ref('orders').on('value', snap => {
   const data = snap.val() || {};
   const fbOrders = Object.values(data);
-  // Firebase 데이터로 로컬 업데이트 (중복 방지)
-  const localIds = new Set(orders.filter(o => !o.fromFb).map(o => o.id));
+  // Firebase가 source of truth: Firebase에 있는 주문은 항상 Firebase 버전 사용
+  const fbIds = new Set(fbOrders.map(o => o.id));
   orders = [
-    ...orders.filter(o => !o.fromFb),
-    ...fbOrders.map(o => ({ ...o, fromFb: true })).filter(o => !localIds.has(o.id))
+    ...orders.filter(o => !o.fromFb && !fbIds.has(o.id)), // 순수 로컬 전용 (Firebase에 없는 것)
+    ...fbOrders.map(o => ({ ...o, fromFb: true }))         // Firebase 버전 항상 우선
   ];
   orders.sort((a, b) => b.createdAt - a.createdAt);
   saveOrders();
@@ -3013,9 +3013,11 @@ function renderTmsTable() {
     // TMS 기사 자동 배정 또는 OMS 수동 배정
     const driverName = o.assignedDriverName || delivery.driverName || delivery.assignedDriver || '';
     const driverId   = o.assignedDriverId   || '';
-    const eta = delivery.eta
-      ? new Date(delivery.eta).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
-      : '-';
+    const eta = o.completedAt
+      ? '✅ ' + new Date(o.completedAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
+      : (delivery.eta
+        ? new Date(delivery.eta).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
+        : '-');
     const orderTime = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
     const statusClass = `tms-tr-${o.status || 'pending'}`;
 
