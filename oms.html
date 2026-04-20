@@ -2678,11 +2678,34 @@ function initTmsMap() {
   if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined') return;
   const el = document.getElementById('tms-map');
   if (!el) return;
+
+  // 카카오맵은 컨테이너에 명시적 px 크기가 필요
+  const parent = el.parentElement;
+  const h = parent ? parent.offsetHeight : 0;
+  if (h > 0) {
+    el.style.width  = parent.offsetWidth  + 'px';
+    el.style.height = h + 'px';
+  } else {
+    el.style.width  = (window.innerWidth - 440) + 'px';
+    el.style.height = (window.innerHeight - 64)  + 'px';
+  }
+
   const mart = getMartLocation();
   const center = new kakao.maps.LatLng(mart.lat, mart.lng);
   tmsMap = new kakao.maps.Map(el, { center, level: 5 });
-  // 지도 컨트롤
   tmsMap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+
+  // 창 크기 변경 시 지도 크기 재조정
+  window.addEventListener('resize', () => {
+    if (!tmsMap) return;
+    const p = el.parentElement;
+    if (p && p.offsetHeight > 0) {
+      el.style.width  = p.offsetWidth  + 'px';
+      el.style.height = p.offsetHeight + 'px';
+      tmsMap.relayout();
+    }
+  });
+
   setTimeout(updateOmsMapMarkers, 300);
 }
 
