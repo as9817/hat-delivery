@@ -457,7 +457,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   #order-list-container{display:none!important}
 }
 </style>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<!-- 카카오맵 SDK -->
 </head>
 <body>
 
@@ -1033,8 +1033,8 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <!-- SheetJS -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<!-- Leaflet -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- 카카오맵 SDK -->
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=39fb0580f590466411a2e2239b082414&libraries=services"></script>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -2668,68 +2668,79 @@ document.getElementById('apikey-modal').addEventListener('click', function(e) {
 // TMS 지도 & 실시간 배송 테이블
 // ══════════════════════════════════════════
 let tmsMap = null;
-let tmsDriverMarkers = {};   // driverId → L.marker
+let tmsDriverMarkers = {};   // driverId → kakao.maps.Marker
 let tmsDeliveryData = {};    // orderId  → delivery object
 let tmsDriverData = {};      // driverId → driver object
 
-// ── 지도 초기화 (PC 전용) ──
+// ── 지도 초기화 (PC 전용, 카카오맵) ──
 function initTmsMap() {
-  if (tmsMap || typeof L === 'undefined') return;
+  if (tmsMap || typeof kakao === 'undefined') return;
   const el = document.getElementById('tms-map');
   if (!el) return;
-  tmsMap = L.map('tms-map', { zoomControl: true, attributionControl: false })
-    .setView([37.5665, 126.9780], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18
-  }).addTo(tmsMap);
-  // 지도 크기 새로고침 (flexbox 높이 확정 후)
-  setTimeout(() => tmsMap.invalidateSize(), 300);
-  setTimeout(() => tmsMap.invalidateSize(), 800);
+  const mart = getMartLocation();
+  const center = new kakao.maps.LatLng(mart.lat, mart.lng);
+  tmsMap = new kakao.maps.Map(el, { center, level: 5 });
+  // 지도 컨트롤
+  tmsMap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+  setTimeout(updateOmsMapMarkers, 300);
 }
 
-// ── 기사 마커 아이콘 생성 ──
-function makeDriverIcon(name) {
+// ── 마커 오버레이 HTML 생성 헬퍼 ──
+function _makeOverlay(html, anchor) {
+  return new kakao.maps.CustomOverlay({
+    content: html,
+    anchor: anchor || 'center',
+    clickable: true
+  });
+}
+
+// ── 기사 마커 아이콘 (CustomOverlay) ──
+function makeDriverMarker(lat, lng, name) {
   const label = (name || '?')[0];
-  return L.divIcon({
-    className: '',
-    html: `<div style="background:#1a237e;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);letter-spacing:0">${label}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17]
+  const content = `<div style="background:#1a237e;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer">${label}</div>`;
+  const overlay = new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content,
+    anchor: 'center',
+    zIndex: 10
+  });
+  return overlay;
+}
+
+// ── 마트 마커 ──
+function makeMartMarker(lat, lng, name) {
+  const content = `<div style="background:#FF6B00;color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer" title="${name||'마트'}">🏪</div>`;
+  return new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content,
+    anchor: 'center',
+    zIndex: 9
   });
 }
 
-// ── 마트 아이콘 ──
-function makeMartIcon() {
-  return L.divIcon({
-    className: '',
-    html: `<div style="background:#FF6B00;color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)">🏪</div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18]
-  });
-}
-
-// ── 배달 위치 마커 아이콘 ──
-function makeDeliveryIcon(num, status) {
+// ── 배달 위치 마커 ──
+function makeDeliveryMarker(lat, lng, num, status, orderId) {
   const colors = { pending:'#FF9800', confirmed:'#4CAF50', delivering:'#2196F3', done:'#9E9E9E', cancelled:'#F44336' };
   const bg = colors[status] || '#FF9800';
-  return L.divIcon({
-    className: '',
-    html: `<div style="background:${bg};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)">${num}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14]
+  const content = `<div onclick="focusOrderOnMap('${orderId}')" style="background:${bg};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer">${num}</div>`;
+  return new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content,
+    anchor: 'center',
+    zIndex: 5
   });
 }
 
-// ── 마트 위치 가져오기 (TMS와 동일한 localStorage 키) ──
+// ── 마트 위치 가져오기 ──
 function getMartLocation() {
   try {
     const s = localStorage.getItem('mart_location');
     if (s) return JSON.parse(s);
   } catch(e) {}
-  return { lat: 37.6447, lng: 127.3028, name: '웰빙마트' }; // 기본값
+  return { lat: 37.6447, lng: 127.3028, name: '웰빙마트' };
 }
 
-// ── OMS 지도 마커 업데이트 (마트 + 주문 핀) ──
+// ── OMS 지도 마커 업데이트 ──
 let _omsMartMarker = null;
 let _omsOrderMarkers = {};
 
@@ -2738,38 +2749,37 @@ function updateOmsMapMarkers() {
 
   // 마트 핀
   const mart = getMartLocation();
-  if (_omsMartMarker) _omsMartMarker.remove();
-  _omsMartMarker = L.marker([mart.lat, mart.lng], { icon: makeMartIcon(), zIndexOffset: 1000 })
-    .bindTooltip(mart.name || '마트', { permanent: false, direction: 'top' })
-    .addTo(tmsMap);
+  if (_omsMartMarker) _omsMartMarker.setMap(null);
+  _omsMartMarker = makeMartMarker(mart.lat, mart.lng, mart.name || '마트');
+  _omsMartMarker.setMap(tmsMap);
 
   // 기존 주문 마커 제거
-  Object.values(_omsOrderMarkers).forEach(m => m.remove());
+  Object.values(_omsOrderMarkers).forEach(m => m.setMap(null));
   _omsOrderMarkers = {};
 
-  // 오늘 주문 중 좌표 있는 것만
+  // 오늘 주문 중 좌표 있는 것
   const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   const todayOrders = orders.filter(o => o.createdAt >= today && o.lat && o.lng && o.status !== 'cancelled');
 
   todayOrders.forEach((o, i) => {
-    const marker = L.marker([o.lat, o.lng], { icon: makeDeliveryIcon(i + 1, o.status) })
-      .bindTooltip(`${i+1}. ${o.customerName}<br>${o.address}`, { direction: 'top' })
-      .addTo(tmsMap);
-    marker.on('click', () => focusOrderOnMap(o.id));
+    const marker = makeDeliveryMarker(o.lat, o.lng, i + 1, o.status, o.id);
+    marker.setMap(tmsMap);
     _omsOrderMarkers[o.id] = marker;
   });
 
-  // 마트 + 주문 전체 보이도록 bounds 조정
+  // bounds 조정
   const allPoints = [
-    [mart.lat, mart.lng],
-    ...todayOrders.map(o => [o.lat, o.lng])
+    new kakao.maps.LatLng(mart.lat, mart.lng),
+    ...todayOrders.map(o => new kakao.maps.LatLng(o.lat, o.lng))
   ];
   if (allPoints.length > 1) {
     try {
-      tmsMap.fitBounds(L.latLngBounds(allPoints).pad(0.15), { maxZoom: 14 });
+      const bounds = allPoints.reduce((b, p) => b.extend(p), new kakao.maps.LatLngBounds());
+      tmsMap.setBounds(bounds, 60);
     } catch(e) {}
   } else {
-    tmsMap.setView([mart.lat, mart.lng], 13);
+    tmsMap.setCenter(new kakao.maps.LatLng(mart.lat, mart.lng));
+    tmsMap.setLevel(5);
   }
 }
 
@@ -2779,17 +2789,11 @@ function focusOrderOnMap(orderId) {
   if (!o || !o.lat || !o.lng) { showToast('이 주문은 좌표 정보가 없습니다'); return; }
   if (!tmsMap) return;
 
-  tmsMap.flyTo([o.lat, o.lng], 16, { duration: 0.8 });
-
-  // 해당 마커 팝업 오픈
-  const marker = _omsOrderMarkers[orderId];
-  if (marker) setTimeout(() => marker.openTooltip(), 900);
+  tmsMap.setCenter(new kakao.maps.LatLng(o.lat, o.lng));
+  tmsMap.setLevel(3);
 
   // 주문 카드 하이라이트
-  document.querySelectorAll('.order-card,.tms-tr-highlight').forEach(el => {
-    el.classList.remove('tms-tr-highlight');
-    el.style.outline = '';
-  });
+  document.querySelectorAll('.order-card').forEach(el => { el.style.outline = ''; });
   const card = document.getElementById('oc-' + orderId);
   if (card) {
     card.style.outline = '3px solid #1a237e';
@@ -2894,7 +2898,7 @@ db.ref('drivers').on('value', snap => {
   tmsDriverData = snap.val() || {};
 
   // 기존 기사 마커 제거
-  Object.values(tmsDriverMarkers).forEach(m => { if (tmsMap) m.remove(); });
+  Object.values(tmsDriverMarkers).forEach(m => { if (tmsMap) m.setMap(null); });
   tmsDriverMarkers = {};
 
   const onlineDrivers = [];
@@ -2906,31 +2910,25 @@ db.ref('drivers').on('value', snap => {
 
     if (!tmsMap || !loc || !loc.lat || !loc.lng) return;
 
-    const marker = L.marker([loc.lat, loc.lng], {
-      icon: makeDriverIcon(driver.name || driverId),
-      zIndexOffset: 1000
-    }).addTo(tmsMap);
-
-    const deliveries = Object.values(tmsDeliveryData)
-      .filter(d => d.driverId === driverId || d.driverName === driver.name)
-      .map(d => d.customerName || d.address)
-      .join('<br>') || '배달 없음';
-
-    marker.bindPopup(
-      `<b>🚗 ${driver.name || driverId}</b><br>` +
-      `상태: ${driver.status || '이동중'}<br>` +
-      `<small>배달: ${deliveries}</small>`
-    );
+    const marker = makeDriverMarker(loc.lat, loc.lng, driver.name || driverId);
+    marker.setMap(tmsMap);
     tmsDriverMarkers[driverId] = marker;
   });
 
   // 기사 현황 바 업데이트
   updateDriverStatusBar(onlineDrivers);
 
-  // 지도 뷰 조정
+  // 지도 뷰 조정 (기사 마커 기준)
   if (tmsMap && Object.keys(tmsDriverMarkers).length > 0) {
-    const group = L.featureGroup(Object.values(tmsDriverMarkers));
-    try { tmsMap.fitBounds(group.getBounds().pad(0.3), { maxZoom: 14 }); } catch(e) {}
+    try {
+      const pts = Object.entries(tmsDriverData)
+        .filter(([,d]) => d.location?.lat && d.location?.lng)
+        .map(([,d]) => new kakao.maps.LatLng(d.location.lat, d.location.lng));
+      if (pts.length > 0) {
+        const bounds = pts.reduce((b, p) => b.extend(p), new kakao.maps.LatLngBounds());
+        tmsMap.setBounds(bounds, 60);
+      }
+    } catch(e) {}
   }
 
   renderTmsTable();
