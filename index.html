@@ -1228,21 +1228,27 @@ async function submitComplete() {
     saveDeliveries();
   }
 
+  // 1. Firebase 상태 즉시 업데이트 (사진 업로드 기다리지 않음)
+  if (_fbDb) {
+    _fbDb.ref('orders/' + id).update({
+      status: 'done', photoId: id,
+      receiveMethod: receive, paymentStatus: payment,
+      memo, completedAt: Date.now()
+    }).catch(()=>{});
+  }
+
   showToast('✅ 배송 완료!');
   goTab('home');
   renderHome();
 
-  // Storage 업로드 (백그라운드)
-  uploadPhotoToStorage(id, _completePhotoData).then(photoUrl => {
-    if (_fbDb) {
-      _fbDb.ref('orders/' + id).update({
-        status: 'done', photoId: id,
-        receiveMethod: receive, paymentStatus: payment,
-        memo, completedAt: Date.now(),
-        ...(photoUrl ? { photoUrl } : {})
-      }).catch(()=>{});
-    }
-  });
+  // 2. 사진 Storage 업로드 (백그라운드, 별도)
+  if (_completePhotoData) {
+    uploadPhotoToStorage(id, _completePhotoData).then(photoUrl => {
+      if (photoUrl && _fbDb) {
+        _fbDb.ref('orders/' + id).update({ photoUrl }).catch(()=>{});
+      }
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════
