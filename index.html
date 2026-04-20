@@ -627,8 +627,10 @@
   </div>
 
   <!-- ══════════════ 사진 뷰어 모달 ══════════════ -->
-  <div class="photo-viewer" id="photo-viewer">
-    <img id="photo-viewer-img" src="" alt="배송 완료 사진">
+  <div class="photo-viewer" id="photo-viewer" onclick="if(event.target===this)closePhotoViewer()">
+    <!-- X 닫기 버튼 (우상단) -->
+    <button onclick="closePhotoViewer()" style="position:absolute;top:16px;right:16px;z-index:10;background:rgba(255,255,255,.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">×</button>
+    <img id="photo-viewer-img" src="" alt="배송 완료 사진" onclick="event.stopPropagation()">
     <div class="photo-viewer-btns">
       <button class="btn btn-dark" style="flex:1" onclick="closePhotoViewer()">닫기</button>
       <button class="btn" style="flex:1;background:#e53935;color:#fff" id="btn-delete-photo" onclick="deletePhotoConfirm()">🗑 삭제</button>
@@ -1693,6 +1695,11 @@ function closePhotoViewer() {
   document.getElementById('photo-viewer').classList.remove('open');
   document.getElementById('photo-viewer-img').src = '';
 }
+
+// ESC 키로 사진 뷰어 닫기
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePhotoViewer();
+});
 
 async function deletePhotoConfirm() {
   if (!confirm('사진을 삭제하시겠습니까?')) return;
