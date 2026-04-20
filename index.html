@@ -9,8 +9,7 @@
   <meta name="theme-color" content="#FF6B00">
   <title>햇배달</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=39fb0580f590466411a2e2239b082414&libraries=services&autoload=false"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -318,12 +317,10 @@
     }
     .toast.show { opacity: 1; }
 
-    /* ── Leaflet 커스텀 ── */
-    .leaflet-popup-content { font-size: 13px; line-height: 1.6; }
-    .zone-label-tooltip {
-      background: transparent !important; border: none !important;
-      box-shadow: none !important; font-weight: 700; font-size: 12px; color: #333;
-    }
+    /* ── 카카오맵 커스텀 ── */
+    .kakao-info-window { font-size: 13px; line-height: 1.6; background:#fff; border-radius:8px; padding:10px 12px; box-shadow:0 2px 8px rgba(0,0,0,.2); min-width:160px; }
+    .kakao-info-window b { color:#1a1a2e; }
+    .zone-label { background:transparent; border:none; font-weight:700; font-size:12px; color:#333; pointer-events:none; }
   </style>
 </head>
 <body>
@@ -828,7 +825,12 @@ function goTab(tab) {
   if (tabEl) tabEl.classList.add('active');
 
   if (tab === 'home') renderHome();
-  if (tab === 'mapzone') setTimeout(() => mapZone.init(), 80);
+  if (tab === 'mapzone') {
+    setTimeout(() => {
+      if (typeof kakao !== 'undefined' && kakao.maps) mapZone.init();
+      else kakao.maps.load(() => mapZone.init());
+    }, 80);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1757,6 +1759,7 @@ const mapZone = (() => {
   let deliveryMarkers = [];
   let routePolyline = null;
   let routeMarkers  = [];
+  let infoWindow    = null;
   let zones = [];
   let drawing = false;
   let drawPoints = [];
@@ -1767,33 +1770,58 @@ const mapZone = (() => {
 
   const ZONE_COLORS = ['#2196F3','#9C27B0','#F44336','#009688','#FF9800','#795548'];
 
-  // 배달 마커 아이콘
-  function makeMarkerIcon(color, label, size = 32) {
-    return L.divIcon({
-      html: `<div style="
-        background:${color};color:#fff;border-radius:50%;
-        width:${size}px;height:${size}px;
-        display:flex;align-items:center;justify-content:center;
-        font-size:${Math.round(size*0.38)}px;font-weight:800;
-        border:2.5px solid #fff;
-        box-shadow:0 3px 10px rgba(0,0,0,.3);
-        font-family:-apple-system,sans-serif;
-      ">${label}</div>`,
-      className: '', iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2-4]
+  // ── 카카오맵 CustomOverlay 마커 생성 ──
+  function makeMarkerOverlay(lat, lng, color, label, size, popupHtml) {
+    size = size || 32;
+    const fs = Math.round(size * 0.38);
+    const content = document.createElement('div');
+    content.style.cssText = `background:${color};color:#fff;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:800;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;font-family:-apple-system,sans-serif`;
+    content.textContent = String(label);
+    if (popupHtml) {
+      content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (infoWindow) { infoWindow.close(); infoWindow = null; }
+        const iw = new kakao.maps.InfoWindow({
+          content: `<div class="kakao-info-window">${popupHtml}</div>`,
+          removable: true
+        });
+        iw.open(map, overlay);
+        infoWindow = iw;
+      });
+    }
+    const overlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(lat, lng),
+      content,
+      anchor: 'center',
+      zIndex: 5
     });
+    return overlay;
   }
 
-  // 출발점 아이콘 (마트)
-  function makeStoreIcon() {
-    return L.divIcon({
-      html: `<div style="
-        background:#1a1a2e;color:#fff;border-radius:10px;
-        width:40px;height:40px;
-        display:flex;align-items:center;justify-content:center;
-        font-size:20px;border:2.5px solid #fff;
-        box-shadow:0 3px 10px rgba(0,0,0,.3);
-      ">🏪</div>`,
-      className: '', iconSize: [40, 40], iconAnchor: [20, 20]
+  // ── 마트 아이콘 ──
+  function makeStoreOverlay(lat, lng) {
+    const content = document.createElement('div');
+    content.style.cssText = 'background:#1a1a2e;color:#fff;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer';
+    content.textContent = '🏪';
+    const overlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(lat, lng),
+      content,
+      anchor: 'center',
+      zIndex: 9
+    });
+    return overlay;
+  }
+
+  // ── 구역 중앙 라벨 ──
+  function makeZoneLabel(lat, lng, text) {
+    const content = document.createElement('div');
+    content.className = 'zone-label';
+    content.textContent = text;
+    return new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(lat, lng),
+      content,
+      anchor: 'center',
+      zIndex: 3
     });
   }
 
@@ -1802,78 +1830,97 @@ const mapZone = (() => {
   }
 
   function clearMap() {
-    deliveryMarkers.forEach(m => m.remove());
-    routeMarkers.forEach(m => m.remove());
-    if (routePolyline) { routePolyline.remove(); routePolyline = null; }
+    deliveryMarkers.forEach(m => m.setMap(null));
+    routeMarkers.forEach(m => m.setMap(null));
+    if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
+    if (infoWindow) { infoWindow.close(); infoWindow = null; }
     deliveryMarkers = [];
     routeMarkers = [];
   }
 
+  // ── 좌표 배열 → LatLngBounds ──
+  function makeBounds(points) {
+    const b = new kakao.maps.LatLngBounds();
+    points.forEach(p => b.extend(new kakao.maps.LatLng(p[0], p[1])));
+    return b;
+  }
+
+  // ── 폴리곤 중심 계산 ──
+  function polygonCenter(points) {
+    const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+    const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
+    return { lat, lng };
+  }
+
   // 지도 초기화
-  async function init() {
+  function init() {
     const container = document.getElementById('map-container');
     if (!container) return;
 
-    // Leaflet 로드 대기 (최대 5초)
-    if (typeof L === 'undefined') {
-      container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;gap:12px"><div style="font-size:40px">🗺️</div><div style="font-weight:700">지도 로딩 중…</div></div>';
-      for (let i = 0; i < 50; i++) {
-        await new Promise(r => setTimeout(r, 100));
-        if (typeof L !== 'undefined') { container.innerHTML = ''; break; }
-      }
-      if (typeof L === 'undefined') {
-        container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#e53935;gap:10px;padding:24px;text-align:center"><div style="font-size:44px">⚠️</div><div style="font-weight:800;font-size:16px">지도 라이브러리 로드 실패</div><div style="font-size:13px;color:#999;line-height:1.6">인터넷 연결을 확인하고<br>새로고침(F5) 해주세요</div></div>';
-        return;
-      }
+    // 카카오맵 SDK 로드 확인
+    if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined') {
+      container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#e53935;gap:10px;padding:24px;text-align:center"><div style="font-size:44px">⚠️</div><div style="font-weight:800;font-size:16px">지도 로드 실패</div><div style="font-size:13px;color:#999;line-height:1.6">새로고침(F5) 해주세요</div></div>';
+      return;
     }
 
     const data = loadData();
-
-    if (map) {
-      map.remove(); map = null;
-    }
+    if (map) { map = null; container.innerHTML = ''; }
 
     // 중심 계산
     const withCoords = data.filter(d => d.lat && d.lng);
-    let cLat = 37.641, cLng = 127.322, zoom = 13;
+    const mart = getMartLocation();
+    let cLat = mart.lat || 37.641, cLng = mart.lng || 127.322;
     if (withCoords.length) {
       cLat = withCoords.reduce((s, d) => s + d.lat, 0) / withCoords.length;
       cLng = withCoords.reduce((s, d) => s + d.lng, 0) / withCoords.length;
     }
 
-    map = L.map('map-container', { zoomControl: true, doubleClickZoom: false })
-            .setView([cLat, cLng], zoom);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19
-    }).addTo(map);
+    map = new kakao.maps.Map(container, {
+      center: new kakao.maps.LatLng(cLat, cLng),
+      level: 5
+    });
+    map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
 
     // 클릭 이벤트 (구역 그리기용)
-    map.on('click', e => {
+    kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
       if (!drawing) return;
       const now = Date.now();
       if (now - lastClick < 350) return;
       lastClick = now;
-      const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
+      const latlng = mouseEvent.latLng;
+      const pt = { lat: latlng.getLat(), lng: latlng.getLng() };
       drawPoints.push(pt);
-      const dot = L.circleMarker([pt.lat, pt.lng], {
-        radius: 6, color: '#e53935', fillColor: '#e53935', fillOpacity: 1, weight: 2
-      }).addTo(map);
+
+      // 점 표시
+      const dot = new kakao.maps.CustomOverlay({
+        position: latlng,
+        content: '<div style="width:12px;height:12px;background:#e53935;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+        anchor: 'center', zIndex: 10
+      });
+      dot.setMap(map);
       drawDots.push(dot);
+
       if (drawPoints.length >= 2) {
-        if (drawLine) drawLine.remove();
-        drawLine = L.polyline(drawPoints.map(p => [p.lat, p.lng]),
-          { color: '#e53935', dashArray: '6,5', weight: 2.5 }).addTo(map);
+        if (drawLine) drawLine.setMap(null);
+        drawLine = new kakao.maps.Polyline({
+          path: drawPoints.map(p => new kakao.maps.LatLng(p.lat, p.lng)),
+          strokeColor: '#e53935', strokeWeight: 2.5, strokeOpacity: 0.9,
+          strokeStyle: 'shortdash'
+        });
+        drawLine.setMap(map);
       }
     });
-    map.on('dblclick', e => {
+
+    kakao.maps.event.addListener(map, 'dblclick', function() {
       if (!drawing || drawPoints.length < 3) return;
       finishDraw();
     });
 
     // 기존 구역 복원
-    zones.forEach(z => { if (z.polygon) z.polygon.addTo(map); });
+    zones.forEach(z => {
+      if (z.polygon) z.polygon.setMap(map);
+      if (z.label) z.label.setMap(map);
+    });
 
     showMode(currentMode);
   }
@@ -1881,7 +1928,11 @@ const mapZone = (() => {
   // ── 모드 전환 ──────────────────────────────────────
   function showMode(mode) {
     currentMode = mode;
-    if (!map) { init(); return; }
+    if (!map) {
+      if (typeof kakao !== 'undefined' && kakao.maps) { init(); }
+      else { kakao.maps.load(() => init()); }
+      return;
+    }
 
     // 모드 버튼 활성화
     ['route','all','zone'].forEach(m => {
@@ -1924,16 +1975,15 @@ const mapZone = (() => {
 
     if (!pending.length) {
       if (legend) legend.innerHTML = `<div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>`;
-      done.forEach((d, i) => {
-        const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓') })
-          .bindPopup(`<b>${d.customerName}</b><br>${d.address}`)
-          .addTo(map);
+      done.forEach(d => {
+        const m = makeMarkerOverlay(d.lat, d.lng, '#4CAF50', '✓', 28, `<b>✅ ${d.customerName}</b><br>${d.address}`);
+        m.setMap(map);
         deliveryMarkers.push(m);
       });
       return;
     }
 
-    // Nearest Neighbor 최적ՙ�
+    // Nearest Neighbor 최적화
     function dist(a, b) {
       const dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
       const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
@@ -1949,54 +1999,47 @@ const mapZone = (() => {
     }
 
     // 출발점 마커 (마트)
-    const storeM = L.marker([start.lat, start.lng], { icon: makeStoreIcon() })
-      .bindPopup('<b>🏪 출발점 (마트)</b>')
-      .addTo(map);
+    const storeM = makeStoreOverlay(start.lat, start.lng);
+    storeM.setMap(map);
     routeMarkers.push(storeM);
 
     // 배달지 마커 (번호 순서)
-    const latlngs = [[start.lat, start.lng]];
+    const pathPoints = [new kakao.maps.LatLng(start.lat, start.lng)];
     ordered.forEach((d, i) => {
-      const color = '#FF6B00';
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1, 34) })
-        .bindPopup(`
-          <b>${i+1}번째 · ${d.customerName}</b><br>
-          <span style="color:#666">${d.address}</span><br>
-          <span style="color:#888;font-size:11px">📞 ${d.phone}</span>
-        `)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, '#FF6B00', i+1, 34,
+        `<b>${i+1}번째 · ${d.customerName}</b><br><span style="color:#666">${d.address}</span><br><span style="color:#888;font-size:11px">📞 ${d.phone}</span>`);
+      m.setMap(map);
       routeMarkers.push(m);
-      latlngs.push([d.lat, d.lng]);
+      pathPoints.push(new kakao.maps.LatLng(d.lat, d.lng));
     });
 
-    // 완료 배달지 표시
+    // 완료 배달지
     done.forEach(d => {
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓', 28) })
-        .bindPopup(`<b>✅ ${d.customerName}</b><br>${d.address}`)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, '#4CAF50', '✓', 28, `<b>✅ ${d.customerName}</b><br>${d.address}`);
+      m.setMap(map);
       deliveryMarkers.push(m);
     });
 
-    // 경로 연결선 (화살표 효과)
-    routePolyline = L.polyline(latlngs, {
-      color: '#FF6B00', weight: 3.5, opacity: .85,
-      dashArray: null
-    }).addTo(map);
+    // 경로 연결선
+    routePolyline = new kakao.maps.Polyline({
+      path: pathPoints,
+      strokeColor: '#FF6B00', strokeWeight: 3.5, strokeOpacity: 0.85, strokeStyle: 'solid'
+    });
+    routePolyline.setMap(map);
 
-    // 방향 화살표 (중간 지점마다)
-    for (let i = 0; i < latlngs.length - 1; i++) {
-      const a = latlngs[i], b = latlngs[i+1];
-      const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
-      const angle = Math.atan2(b[1]-a[1], b[0]-a[0]) * 180/Math.PI;
-      const arrow = L.divIcon({
-        html: `<div style="transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1">➤</div>`,
-        className: '', iconSize: [20,20], iconAnchor: [10,10]
-      });
-      const am = L.marker(mid, { icon: arrow, interactive: false }).addTo(map);
+    // 방향 화살표
+    for (let i = 0; i < pathPoints.length - 1; i++) {
+      const a = pathPoints[i], b = pathPoints[i+1];
+      const midLat = (a.getLat()+b.getLat())/2, midLng = (a.getLng()+b.getLng())/2;
+      const angle = Math.atan2(b.getLng()-a.getLng(), b.getLat()-a.getLat()) * 180/Math.PI;
+      const arrowEl = document.createElement('div');
+      arrowEl.style.cssText = `transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1;pointer-events:none`;
+      arrowEl.textContent = '➤';
+      const am = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(midLat, midLng), content: arrowEl, anchor: 'center', zIndex: 2 });
+      am.setMap(map);
       routeMarkers.push(am);
     }
 
-    // 범례
     if (legend) legend.innerHTML = `
       <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 순서</div>
@@ -2004,8 +2047,10 @@ const mapZone = (() => {
       <div class="leg-row"><div class="leg-line" style="background:#FF6B00"></div> 최적 경로</div>
     `;
 
-    // 전체 경로 맞춤
-    if (latlngs.length > 1) map.fitBounds(latlngs, { padding: [40, 40] });
+    if (pathPoints.length > 1) {
+      const bounds = makeBounds(pathPoints.map(p => [p.getLat(), p.getLng()]));
+      map.setBounds(bounds, 40, 40, 40, 40);
+    }
   }
 
   // 📍 전체 보기 모드
@@ -2015,26 +2060,24 @@ const mapZone = (() => {
     all.forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
       const label = d.status === 'done' ? '✓' : (i+1);
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, label) })
-        .bindPopup(`<b>${d.customerName}</b><br>${d.address}<br><small>${d.phone}</small>`)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, color, label, 32, `<b>${d.customerName}</b><br>${d.address}<br><small>${d.phone}</small>`);
+      m.setMap(map);
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
     `;
-    const bounds = all.map(d => [d.lat, d.lng]);
-    if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+    const bounds = makeBounds(all.map(d => [d.lat, d.lng]));
+    if (all.length > 1) map.setBounds(bounds, 40, 40, 40, 40);
   }
 
   // 🗾 구역 설정 모드
   function showZoneMode(data, legend) {
     data.filter(d => d.lat && d.lng).forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1) })
-        .bindPopup(`<b>${d.customerName}</b><br>${d.address}`)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, color, i+1, 32, `<b>${d.customerName}</b><br>${d.address}`);
+      m.setMap(map);
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
@@ -2044,7 +2087,7 @@ const mapZone = (() => {
     `;
   }
 
-  // ── 구역 그리기 ─────────────────────────────────────
+  // ── 구역 그리기 ──
   function startDraw() {
     if (!map) return;
     drawing = !drawing;
@@ -2052,10 +2095,9 @@ const mapZone = (() => {
     const hint = document.getElementById('map-hint');
     if (drawing) {
       drawPoints = []; drawDots = [];
-      if (drawLine) { drawLine.remove(); drawLine = null; }
+      if (drawLine) { drawLine.setMap(null); drawLine = null; }
       if (btn) { btn.textContent = '⏹ 취소'; btn.classList.add('red'); btn.classList.remove('green'); }
       if (hint) hint.style.display = 'block';
-      map.getContainer().style.cursor = 'crosshair';
     } else {
       cancelDraw();
     }
@@ -2063,13 +2105,12 @@ const mapZone = (() => {
 
   function cancelDraw() {
     drawing = false; drawPoints = [];
-    drawDots.forEach(d => d.remove()); drawDots = [];
-    if (drawLine) { drawLine.remove(); drawLine = null; }
+    drawDots.forEach(d => d.setMap(null)); drawDots = [];
+    if (drawLine) { drawLine.setMap(null); drawLine = null; }
     const btn = document.getElementById('btn-draw-zone');
     const hint = document.getElementById('map-hint');
     if (btn) { btn.textContent = '✏️ 구역 그리기'; btn.classList.remove('red'); btn.classList.add('green'); }
     if (hint) hint.style.display = 'none';
-    if (map) map.getContainer().style.cursor = '';
   }
 
   function finishDraw() {
@@ -2077,18 +2118,25 @@ const mapZone = (() => {
     const colorIdx = zones.length % ZONE_COLORS.length;
     const color = ZONE_COLORS[colorIdx];
     const num = zones.length + 1;
-    const poly = L.polygon(drawPoints.map(p => [p.lat, p.lng]), {
-      color, fillColor: color, fillOpacity: 0.15, weight: 2.5
-    }).bindTooltip(`구역 ${num}`, {
-      permanent: true, direction: 'center', className: 'zone-label-tooltip'
-    }).addTo(map);
-    zones.push({ id: num, points: [...drawPoints], polygon: poly, color });
+    const path = drawPoints.map(p => new kakao.maps.LatLng(p.lat, p.lng));
+    const poly = new kakao.maps.Polygon({
+      path, strokeColor: color, strokeWeight: 2.5, strokeOpacity: 1,
+      fillColor: color, fillOpacity: 0.15
+    });
+    poly.setMap(map);
+    const center = polygonCenter(drawPoints);
+    const label = makeZoneLabel(center.lat, center.lng, `구역 ${num}`);
+    label.setMap(map);
+    zones.push({ id: num, points: [...drawPoints], polygon: poly, label, color });
     cancelDraw();
     showToast(`✅%구역 ${num} 생성 완료`);
   }
 
   function clearZones() {
-    zones.forEach(z => { if (z.polygon) z.polygon.remove(); });
+    zones.forEach(z => {
+      if (z.polygon) z.polygon.setMap(null);
+      if (z.label) z.label.setMap(null);
+    });
     zones = [];
     const panel = document.getElementById('map-result');
     if (panel) panel.style.display = 'none';
@@ -2196,22 +2244,17 @@ const mapZone = (() => {
       const hull     = convexHull(group);
       const expanded = hull.length >= 3 ? expandHull(hull, 0.004) : hull;
 
-      const poly = L.polygon(expanded.map(p => [p.lat, p.lng]), {
-        color, fillColor: color, fillOpacity: 0.18, weight: 2.5,
-        dashArray: '6,4'
-      }).bindTooltip(
-        `${emoji} ${name} (${group.length}건)`,
-        { permanent: true, direction: 'center', className: 'zone-label-tooltip' }
-      ).addTo(map);
-
-      zones.push({ id: `auto_${c}`, points: expanded, polygon: poly, color, auto: true });
-
-      // 마커 색 업데이트 (클러스터 색 동기화)
-      deliveryMarkers.forEach(({ marker, delivery }) => {
-        if (group.find(g => g.id === delivery.id)) {
-          marker.setIcon(makeMarkerIcon(color, data.indexOf(delivery) + 1));
-        }
+      const path = expanded.map(p => new kakao.maps.LatLng(p.lat, p.lng));
+      const poly = new kakao.maps.Polygon({
+        path, strokeColor: color, strokeWeight: 2.5, strokeOpacity: 1,
+        strokeStyle: 'shortdash', fillColor: color, fillOpacity: 0.18
       });
+      poly.setMap(map);
+      const center = polygonCenter(expanded);
+      const lbl = makeZoneLabel(center.lat, center.lng, `${emoji} ${name} (${group.length}건)`);
+      lbl.setMap(map);
+
+      zones.push({ id: `auto_${c}`, points: expanded, polygon: poly, label: lbl, color, auto: true });
 
       // 결과 패널 행
       resultHtml += `
@@ -2229,7 +2272,7 @@ const mapZone = (() => {
 
     // 지도 범위 맞춤
     const allCoords = data.map(d => [d.lat, d.lng]);
-    if (allCoords.length > 1) map.fitBounds(allCoords, { padding: [50, 50] });
+    if (allCoords.length > 1) { const b = makeBounds(allCoords); map.setBounds(b, 50, 50, 50, 50); }
 
     showToast(`✅ ${actualK}명 기사 구역 자동 배분 완료`);
   }
