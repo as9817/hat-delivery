@@ -13,6 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F4F6F9; }
@@ -730,10 +731,29 @@ const _fbConfig = {
   appId: "1:639456789012:web:abcdef123456"
 };
 let _fbDb = null;
+let _fbStorage = null;
 try {
   firebase.initializeApp(_fbConfig);
   _fbDb = firebase.database();
+  _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
+
+// ── Firebase Storage 사진 업로드 ──
+async function uploadPhotoToStorage(deliveryId, dataUrl) {
+  if (!_fbStorage) return null;
+  try {
+    // dataUrl → Blob 변환
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const ref = _fbStorage.ref(`delivery-photos/${deliveryId}.jpg`);
+    await ref.put(blob, { contentType: 'image/jpeg' });
+    const url = await ref.getDownloadURL();
+    return url;
+  } catch(e) {
+    console.warn('Storage 업로드 실패:', e);
+    return null;
+  }
+}
 
 // Firebase 초기화 후 세션 확인
 if (_fbDb) {
@@ -1189,7 +1209,7 @@ async function submitComplete() {
   if (!payment) { showToast('결제여부를 선택해주세요'); return; }
   if (!_completePhotoData) { showToast('사진을 첨부해주세요'); return; }
 
-  // 사진 저장
+  // 사진 로컬 저장
   await savePhoto(id, _completePhotoData);
 
   // 배송 완료 처리
@@ -1205,18 +1225,21 @@ async function submitComplete() {
     saveDeliveries();
   }
 
-  // Firebase 업데이트
-  if (_fbDb) {
-    _fbDb.ref('orders/' + id).update({
-      status: 'done', photoId: id,
-      receiveMethod: receive, paymentStatus: payment,
-      memo, completedAt: Date.now()
-    }).catch(()=>{});
-  }
-
   showToast('✅ 배송 완료!');
   goTab('home');
   renderHome();
+
+  // Storage 업로드 (백그라운드)
+  uploadPhotoToStorage(id, _completePhotoData).then(photoUrl => {
+    if (_fbDb) {
+      _fbDb.ref('orders/' + id).update({
+        status: 'done', photoId: id,
+        receiveMethod: receive, paymentStatus: payment,
+        memo, completedAt: Date.now(),
+        ...(photoUrl ? { photoUrl } : {})
+      }).catch(()=>{});
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════
@@ -1585,9 +1608,16 @@ function capturePhoto(deliveryId) {
       await savePhoto(deliveryId, compressed);
       const d = deliveries.find(x => x.id === deliveryId);
       if (d) { d.photoId = deliveryId; saveDeliveries(); }
-      // OMS에서도 사진 확인 가능하도록 Firebase 업데이트
-      if (_fbDb) _fbDb.ref('orders/' + deliveryId).update({ photoId: deliveryId, status: 'done' }).catch(()=>{});
       renderHome();
+      showToast('📸 사진 저장 중...');
+      // Storage 업로드 후 URL을 Firebase RTDB에 저장
+      const photoUrl = await uploadPhotoToStorage(deliveryId, compressed);
+      if (_fbDb) {
+        _fbDb.ref('orders/' + deliveryId).update({
+          photoId: deliveryId, status: 'done',
+          ...(photoUrl ? { photoUrl } : {})
+        }).catch(()=>{});
+      }
       showToast('📸 사진 저장 완료');
     };
     reader.readAsDataURL(file);
