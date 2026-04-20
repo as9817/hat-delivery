@@ -1,0 +1,26 @@
+{
+  "name": "햇배달",
+  "short_name": "햇배달",
+  "description": "웰빙마트 배달 기사 앱",
+  "start_url": "/hat-delivery/",
+  "scope": "/hat-delivery/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FF6B00",
+  "theme_color": "#FF6B00",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/hat-delivery/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/hat-delivery/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -6,7 +6,10 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="햇배달">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#FF6B00">
+  <link rel="manifest" href="/hat-delivery/manifest.json">
+  <link rel="apple-touch-icon" href="/hat-delivery/icons/icon-192.png">
   <title>햇배달</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=39fb0580f590466411a2e2239b082414&libraries=services&autoload=false"></script>
@@ -2470,6 +2473,17 @@ const mapZone = (() => {
   loadDeliveries();
   renderHome();
 })();
+</script>
+
+<script>
+// ── PWA 서비스워커 등록 ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/hat-delivery/sw.js')
+      .then(() => console.log('SW 등록 완료'))
+      .catch(e => console.warn('SW 등록 실패:', e));
+  });
+}
 </script>
 </body>
 </html>
