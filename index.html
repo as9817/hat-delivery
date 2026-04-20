@@ -1463,7 +1463,12 @@ async function saveMartLocation() {
 
     const lat = parseFloat(data[0].lat);
     const lng = parseFloat(data[0].lon);
-    localStorage.setItem('mart_location', JSON.stringify({ address: addr, lat, lng }));
+    const martData = { address: addr, lat, lng, updatedAt: Date.now() };
+    localStorage.setItem('mart_location', JSON.stringify(martData));
+    // Firebase에도 저장 (OMS 공유)
+    if (_fbDb) {
+      _fbDb.ref('settings/martLocation').set(martData).catch(() => {});
+    }
     showToast('✅ 마트 위치 저장 완료!');
     closeMartSettings();
   } catch(e) {
@@ -1473,7 +1478,17 @@ async function saveMartLocation() {
 
 function getMartLocation() {
   const saved = JSON.parse(localStorage.getItem('mart_location') || 'null');
-  return saved ? { lat: saved.lat, lng: saved.lng } : { lat: 37.641, lng: 127.322 }; // 기본값: 남양주 화도읍
+  return saved ? { lat: saved.lat, lng: saved.lng } : { lat: 37.641, lng: 127.322 };
+}
+
+// Firebase에서 마트 위치 동기화 (OMS에서 설정해도 반영)
+if (_fbDb) {
+  _fbDb.ref('settings/martLocation').on('value', snap => {
+    const data = snap.val();
+    if (data && data.lat && data.lng) {
+      localStorage.setItem('mart_location', JSON.stringify(data));
+    }
+  });
 }
 
 function resetAll() {

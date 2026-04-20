@@ -481,6 +481,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <button class="header-pc-btn" onclick="showCustDBModal()">👥 고객DB</button>
       <button class="header-pc-btn" onclick="showImportModal()">📥 가져오기</button>
       <button class="header-pc-btn" onclick="showDriversModal()">🚗 기사관리</button>
+      <button class="header-pc-btn" onclick="openOmsMartSettings()">🏪 마트위치</button>
     </div>
   </div>
 </div>
@@ -969,6 +970,29 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div id="order-detail-title" style="font-size:16px;font-weight:800;color:#1a237e;flex:1"></div>
     </div>
     <div id="order-detail-content" style="padding:16px 20px"></div>
+  </div>
+</div>
+
+<!-- 마트 위치 설정 모달 -->
+<div id="oms-mart-modal" onclick="if(event.target===this)closeOmsMartSettings()" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.55);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;width:min(440px,92vw);padding:24px;box-shadow:0 8px 40px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:800;color:#1a237e">🏪 마트 위치 설정</div>
+      <button onclick="closeOmsMartSettings()" style="background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;color:#555">×</button>
+    </div>
+    <div id="oms-mart-addr-current" style="font-size:12px;color:#888;margin-bottom:14px;padding:10px;background:#f8f9ff;border-radius:8px">아직 설정되지 않았습니다</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 이름</label>
+      <input id="oms-mart-name-input" type="text" placeholder="예: 웰빙마트" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 주소</label>
+      <input id="oms-mart-addr-input" type="text" placeholder="예: 경기도 남양주시 화도읍..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+    </div>
+    <div style="font-size:11px;color:#f57c00;margin-bottom:16px;padding:8px 12px;background:#fff8e1;border-radius:8px">
+      ⚠️ 저장하면 모든 기사 앱과 OMS에 즉시 반영됩니다
+    </div>
+    <button onclick="saveOmsMartLocation()" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">📍 저장하기</button>
   </div>
 </div>
 
@@ -2930,13 +2954,63 @@ function makeDeliveryMarker(lat, lng, num, status, orderId) {
   });
 }
 
-// ── 마트 위치 가져오기 ──
-function getMartLocation() {
+// ── 마트 위치 (Firebase 공유) ──
+let _martLocation = { lat: 37.6447, lng: 127.3028, name: '웰빙마트' };
+
+function getMartLocation() { return _martLocation; }
+
+// Firebase에서 마트 위치 실시간 수신
+db.ref('settings/martLocation').on('value', snap => {
+  const data = snap.val();
+  if (data && data.lat && data.lng) {
+    _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '웰빙마트', address: data.address || '' };
+    localStorage.setItem('mart_location', JSON.stringify(_martLocation));
+    updateOmsMapMarkers(); // 지도 마커 즉시 갱신
+    const el = document.getElementById('oms-mart-addr-current');
+    if (el) el.textContent = '현재: ' + (data.address || `${data.lat}, ${data.lng}`);
+  }
+});
+
+async function saveOmsMartLocation() {
+  const addr = document.getElementById('oms-mart-addr-input').value.trim();
+  const name = document.getElementById('oms-mart-name-input').value.trim() || '웰빙마트';
+  if (!addr) { showToast('주소를 입력하세요'); return; }
+
+  const el = document.getElementById('oms-mart-addr-current');
+  el.textContent = '좌표 검색 중...';
+
   try {
-    const s = localStorage.getItem('mart_location');
-    if (s) return JSON.parse(s);
-  } catch(e) {}
-  return { lat: 37.6447, lng: 127.3028, name: '웰빙마트' };
+    const q = encodeURIComponent(addr);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1&accept-language=ko`);
+    const data = await res.json();
+    if (!data.length) throw new Error('주소를 찾을 수 없습니다');
+
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    const martData = { address: addr, name, lat, lng, updatedAt: Date.now() };
+
+    // Firebase에 저장 → 모든 OMS/TMS 자동 반영
+    await db.ref('settings/martLocation').set(martData);
+    showToast('✅ 마트 위치 저장 완료! 모든 기기에 반영됩니다');
+    document.getElementById('oms-mart-modal').style.display = 'none';
+  } catch(e) {
+    el.textContent = '❌ ' + e.message;
+  }
+}
+
+function openOmsMartSettings() {
+  const m = _martLocation;
+  const el = document.getElementById('oms-mart-addr-current');
+  if (el) el.textContent = m.address ? '현재: ' + m.address : '아직 설정되지 않았습니다';
+  const ni = document.getElementById('oms-mart-name-input');
+  if (ni) ni.value = m.name || '';
+  const ai = document.getElementById('oms-mart-addr-input');
+  if (ai) ai.value = m.address || '';
+  document.getElementById('oms-mart-modal').style.display = 'flex';
+}
+
+function closeOmsMartSettings() {
+  document.getElementById('oms-mart-modal').style.display = 'none';
 }
 
 // ── OMS 지도 마커 업데이트 ──
