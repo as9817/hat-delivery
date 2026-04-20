@@ -1323,26 +1323,39 @@ function sendToDelivery(orderId) {
   const o = orders.find(x => x.id === orderId);
   if (!o) return;
 
+  // 기사 미배정 시 경고
+  if (!o.assignedDriverId) {
+    showToast('⚠️ 기사를 먼저 배정해주세요');
+    return;
+  }
+
   const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
   const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
 
-  // deliveries 노드에 추가 → 기사앱·대시보드에 실시간 표시
   const delivery = {
     customerName: o.customerName,
     address: o.address,
     phone: o.phone || '-',
+    lat: o.lat || null,
+    lng: o.lng || null,
     note: [o.note, itemStr, PAY_LABELS[o.paymentMethod]||'', totalAmt?`₩${totalAmt.toLocaleString()}`:''].filter(Boolean).join(' · '),
     status: 'pending',
     orderId: o.id,
-    orderChannel: o.channel,
+    assignedDriverId:   o.assignedDriverId,
+    assignedDriverName: o.assignedDriverName || '',
     totalAmount: totalAmt,
     createdAt: Date.now()
   };
 
   if (firebaseActive) {
-    db.ref('deliveries/' + orderId).set(delivery).then(() => {
+    db.ref('orders/' + orderId).update({
+      status: 'delivering',
+      assignedDriverId:   o.assignedDriverId,
+      assignedDriverName: o.assignedDriverName || '',
+      updatedAt: Date.now()
+    }).then(() => {
       updateStatus(orderId, 'delivering');
-      showToast('🚀 기사앱으로 배달 전송 완료!');
+      showToast(`🚀 ${o.assignedDriverName} 기사에게 배달 전송 완료!`);
     });
   } else {
     updateStatus(orderId, 'delivering');
