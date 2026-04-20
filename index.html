@@ -532,6 +532,7 @@
       <button class="map-btn orange" id="btn-mode-route"  onclick="mapZone.showMode('route')">📍 배송 순서</button>
       <button class="map-btn blue"   id="btn-mode-zone"   onclick="mapZone.showMode('zone')">🗾 구역 관리</button>
       <button class="map-btn green"  id="btn-draw-zone"   onclick="mapZone.startDraw()" style="display:none">✏️ 구역 그리기</button>
+      <button class="map-btn" id="btn-finish-draw" onclick="mapZone.finishDraw()" style="display:none;background:#1a237e;color:#fff">✅ 완료</button>
       <button class="map-btn grey"   id="btn-clear-zones" onclick="mapZone.clearZones()" style="display:none">🗑 구역 삭제</button>
       <button class="map-btn purple" id="btn-check-pip"   onclick="mapZone.checkPIP()" style="display:none">✅ 구역 배정 확인</button>
       <button class="map-btn" id="btn-auto-cluster" onclick="mapZone.autoCluster()" style="display:none;background:#E65100">🤖 기사 자동 배분</button>
@@ -541,7 +542,7 @@
     <div class="map-result" id="map-result"></div>
 
     <!-- 그리기 힌트 -->
-    <div class="map-hint" id="map-hint">클릭으로 꼭짓점 추가 · 더블클릭으로 완료</div>
+    <div class="map-hint" id="map-hint">클릭으로 꼭짓점 추가 · ✅완료 버튼으로 구역 확정</div>
 
     <!-- 범례 -->
     <div class="map-legend" id="map-legend">
@@ -1938,6 +1939,7 @@ const mapZone = (() => {
     document.getElementById('btn-mode-route').style.display    = isZone ? 'none' : 'flex';
     document.getElementById('btn-mode-zone').style.display     = isZone ? 'none' : 'flex';
     document.getElementById('btn-draw-zone').style.display     = isZone ? 'flex' : 'none';
+    document.getElementById('btn-finish-draw').style.display   = 'none'; // 그리기 시작 전엔 숨김
     document.getElementById('btn-clear-zones').style.display   = isZone ? 'flex' : 'none';
     document.getElementById('btn-check-pip').style.display     = isZone ? 'flex' : 'none';
     document.getElementById('btn-auto-cluster').style.display  = isZone ? 'flex' : 'none';
@@ -2084,13 +2086,15 @@ const mapZone = (() => {
   function startDraw() {
     if (!map) return;
     drawing = !drawing;
-    const btn = document.getElementById('btn-draw-zone');
-    const hint = document.getElementById('map-hint');
+    const btn       = document.getElementById('btn-draw-zone');
+    const btnFinish = document.getElementById('btn-finish-draw');
+    const hint      = document.getElementById('map-hint');
     if (drawing) {
       drawPoints = []; drawDots = [];
       if (drawLine) { drawLine.setMap(null); drawLine = null; }
-      if (btn) { btn.textContent = '⏹ 취소'; btn.classList.add('red'); btn.classList.remove('green'); }
-      if (hint) hint.style.display = 'block';
+      if (btn)       { btn.textContent = '⏹ 취소'; btn.classList.add('red'); btn.classList.remove('green'); }
+      if (btnFinish) btnFinish.style.display = 'flex';
+      if (hint)      hint.style.display = 'block';
     } else {
       cancelDraw();
     }
@@ -2100,10 +2104,12 @@ const mapZone = (() => {
     drawing = false; drawPoints = [];
     drawDots.forEach(d => d.setMap(null)); drawDots = [];
     if (drawLine) { drawLine.setMap(null); drawLine = null; }
-    const btn = document.getElementById('btn-draw-zone');
-    const hint = document.getElementById('map-hint');
-    if (btn) { btn.textContent = '✏️ 구역 그리기'; btn.classList.remove('red'); btn.classList.add('green'); }
-    if (hint) hint.style.display = 'none';
+    const btn       = document.getElementById('btn-draw-zone');
+    const btnFinish = document.getElementById('btn-finish-draw');
+    const hint      = document.getElementById('map-hint');
+    if (btn)       { btn.textContent = '✏️ 구역 그리기'; btn.classList.remove('red'); btn.classList.add('green'); }
+    if (btnFinish) btnFinish.style.display = 'none';
+    if (hint)      hint.style.display = 'none';
   }
 
   function finishDraw() {
