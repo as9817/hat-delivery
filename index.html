@@ -692,6 +692,10 @@ async function doLogin() {
 function doLogout() {
   if (!confirm('로그아웃 하시겠어요?')) return;
   stopGpsTracking();
+  if (_fbDb && _fbOrdersListener) {
+    _fbDb.ref('orders').off('value', _fbOrdersListener);
+    _fbOrdersListener = null;
+  }
   clearSession();
   currentDriver = null;
   document.getElementById('login-screen').classList.remove('hidden');
@@ -704,7 +708,8 @@ function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
   const el = document.getElementById('header-driver-name');
   if (el && currentDriver) el.textContent = currentDriver.name + ' 기사님';
-  startGpsTracking(); // 로그인 시 GPS 자동 시작
+  startGpsTracking();        // 로그인 시 GPS 자동 시작
+  startFirebaseOrderSync();  // 로그인 시 배정 주문 수신 시작
 }
 
 // ══════════════════════════════════════════════════════
@@ -834,20 +839,53 @@ try {
   _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
-// ── Firebase 주문 상태 실시간 동기화 (OMS 취소/변경 반영) ──
-if (_fbDb) {
-  _fbDb.ref('orders').on('value', snap => {
+// ── Firebase 주문 실시간 동기화 (배정 주문 수신 + 상태 변경 반영) ──
+let _fbOrdersListener = null;
+
+function startFirebaseOrderSync() {
+  if (!_fbDb || !currentDriver) return;
+  if (_fbOrdersListener) _fbDb.ref('orders').off('value', _fbOrdersListener);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  _fbOrdersListener = _fbDb.ref('orders').on('value', snap => {
     const data = snap.val() || {};
     loadDeliveries();
+
+    let newCount = 0;
     let changed = false;
+
     Object.values(data).forEach(fbOrder => {
+      const isMyOrder = fbOrder.assignedDriverId === currentDriver.id;
+      const isToday = fbOrder.createdAt >= today.getTime();
+      const isCancelled = fbOrder.status === 'cancelled';
+
       const local = deliveries.find(d => d.id === fbOrder.id);
-      if (local && local.status !== fbOrder.status) {
-        local.status = fbOrder.status;
-        if (fbOrder.status === 'cancelled') local.cancelledByOms = true;
+
+      if (local) {
+        // 기존 주문: 상태 동기화
+        if (local.status !== fbOrder.status) {
+          local.status = fbOrder.status;
+          if (isCancelled) local.cancelledByOms = true;
+          changed = true;
+        }
+        // 배정 정보 업데이트
+        if (isMyOrder && !local.assignedDriverId) {
+          local.assignedDriverId = currentDriver.id;
+          local.assignedDriverName = currentDriver.name;
+          changed = true;
+        }
+      } else if (isMyOrder && isToday && !isCancelled) {
+        // 새로 배정된 주문 추가
+        deliveries.push({ ...fbOrder, fromOms: true });
+        newCount++;
         changed = true;
       }
     });
+
+    if (newCount > 0) {
+      showToast(`📦 새 배송 ${newCount}건이 배정됐습니다!`);
+    }
     if (changed) {
       saveDeliveries();
       renderHome();
@@ -1006,7 +1044,7 @@ function renderHome() {
       <div class="dl-top">
         <div class="dl-num">${i+1}</div>
         <div style="flex:1">
-          <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}</div>
+          <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
           <div class="dl-addr">${d.address}</div>
           <div class="dl-phone">📞 ${d.phone}</div>
         </div>
