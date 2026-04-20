@@ -305,6 +305,12 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .cdb-spent{font-size:11px;color:var(--green);font-weight:600;margin-top:2px}
 .cdb-top-items{font-size:12px;color:#666;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
 
+/* 주문 상세 팝업 - PC */
+@media (min-width:768px){
+  #order-detail-modal{align-items:center !important}
+  #order-detail-box{border-radius:20px !important;width:min(520px,90vw) !important;max-height:85vh}
+}
+
 /* 고객 상세 시트 */
 .cdb-detail-modal{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
 .cdb-detail-modal.show{display:flex}
@@ -945,6 +951,17 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 </div>
 
+<!-- 주문 상세 팝업 -->
+<div id="order-detail-modal" onclick="if(event.target===this)closeOrderDetail()" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center">
+  <div id="order-detail-box" style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding-bottom:24px">
+    <div style="position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;padding:16px 20px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;z-index:1">
+      <button onclick="closeOrderDetail()" style="background:#f5f5f5;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#555">← 닫기</button>
+      <div id="order-detail-title" style="font-size:16px;font-weight:800;color:#1a237e;flex:1"></div>
+    </div>
+    <div id="order-detail-content" style="padding:16px 20px"></div>
+  </div>
+</div>
+
 <!-- 가져오기 모달 -->
 <div class="import-modal" id="import-modal" onclick="hideImportModal(event)">
   <div class="import-box" onclick="event.stopPropagation()">
@@ -1246,7 +1263,7 @@ function renderOrderList() {
 
     const actions = orderActions(o);
 
-    return `<div class="order-card ch-${o.channel} ${o.status==='done'?'st-done':''}" id="oc-${o.id}">
+    return `<div class="order-card ch-${o.channel} ${o.status==='done'?'st-done':''}" id="oc-${o.id}" onclick="openOrderDetail('${o.id}')">
       <div class="oc-top">
         <div class="oc-num">${i+1}</div>
         <div class="oc-name">${o.customerName}</div>
@@ -1261,9 +1278,9 @@ function renderOrderList() {
         ${o.paymentMethod?`<span class="badge" style="background:#f5f5f5;color:#555">${PAY_LABELS[o.paymentMethod]||o.paymentMethod}</span>`:''}
         ${o.note?`<span style="font-size:11px;color:#888">📝 ${o.note}</span>`:''}
         ${totalAmt?`<div class="oc-amount">₩${totalAmt.toLocaleString()}</div>`:''}
+        ${o.photoUrl?`<span style="font-size:11px;color:#4A90E2;font-weight:600">📸 사진있음</span>`:''}
       </div>
-      ${actions?`<div class="oc-actions">${actions}</div>`:''}
-      ${o.photoUrl?`<div style="margin-top:8px"><button class="btn btn-sm" style="background:#f0f4ff;color:#4A90E2;font-size:12px;padding:6px 12px;width:auto" onclick="showDeliveryPhoto('${o.id}',this)">📸 배송 사진 보기</button></div>`:''}
+      <div class="oc-actions" onclick="event.stopPropagation()">${actions}</div>
     </div>`;
   }).join('');
 }
@@ -1282,6 +1299,84 @@ function orderActions(o) {
   if (o.status === 'done') return `
     <button class="btn btn-gray btn-sm btn-sm" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
   return '';
+}
+
+// ══════════════════════════════════════════
+// 주문 상세 팝업
+// ══════════════════════════════════════════
+function openOrderDetail(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+
+  const modal = document.getElementById('order-detail-modal');
+  const title = document.getElementById('order-detail-title');
+  const content = document.getElementById('order-detail-content');
+
+  title.textContent = o.customerName + ' 고객';
+
+  const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
+  const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+  const orderTime = new Date(o.createdAt).toLocaleString('ko', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const completedTime = o.completedAt ? new Date(o.completedAt).toLocaleString('ko', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+
+  const statusColor = {pending:'#FF9800',confirmed:'#4CAF50',delivering:'#2196F3',done:'#9E9E9E',cancelled:'#F44336'};
+
+  const actions = orderActions(o);
+
+  content.innerHTML = `
+    <!-- 상태 배지 -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <span class="badge badge-${o.status}" style="font-size:13px;padding:5px 12px">${STATUS_LABELS[o.status]||o.status}</span>
+      <span class="badge badge-${o.channel}">${CH_LABELS[o.channel]||o.channel}</span>
+      ${o.paymentMethod?`<span class="badge" style="background:#f5f5f5;color:#555">${PAY_LABELS[o.paymentMethod]||o.paymentMethod}</span>`:''}
+      ${o.receiveMethod?`<span class="badge" style="background:#e8f5e9;color:#2e7d32">${o.receiveMethod==='door'?'🚪 문앞':o.receiveMethod==='hand'?'🤝 직접':''+o.receiveMethod}</span>`:''}
+    </div>
+
+    <!-- 고객 정보 -->
+    <div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">고객 정보</div>
+      <div style="font-size:15px;font-weight:700;color:#1a237e;margin-bottom:4px">👤 ${o.customerName}</div>
+      ${o.phone?`<div style="font-size:13px;color:#555;margin-bottom:4px">📞 ${o.phone}</div>`:''}
+      <div style="font-size:13px;color:#555">📍 ${o.address}</div>
+      ${o.note?`<div style="font-size:12px;color:#888;margin-top:6px;padding-top:6px;border-top:1px dashed #ddd">📝 ${o.note}</div>`:''}
+    </div>
+
+    <!-- 주문 상품 -->
+    ${itemStr?`<div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">주문 상품</div>
+      <div style="font-size:14px;color:#333">🛍️ ${itemStr}</div>
+      ${totalAmt?`<div style="font-size:16px;font-weight:800;color:#1a237e;margin-top:8px">₩${totalAmt.toLocaleString()}</div>`:''}
+    </div>`:''}
+
+    <!-- 배달 정보 -->
+    <div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">배달 정보</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div style="font-size:11px;color:#aaa">주문시간</div><div style="font-size:13px;font-weight:600">${orderTime}</div></div>
+        ${completedTime?`<div><div style="font-size:11px;color:#aaa">완료시간</div><div style="font-size:13px;font-weight:600;color:#2e7d32">✅ ${completedTime}</div></div>`:''}
+        ${o.assignedDriverName?`<div><div style="font-size:11px;color:#aaa">담당기사</div><div style="font-size:13px;font-weight:600">🚗 ${o.assignedDriverName}</div></div>`:''}
+        ${o.paymentStatus?`<div><div style="font-size:11px;color:#aaa">결제상태</div><div style="font-size:13px;font-weight:600">${o.paymentStatus==='paid'?'✅ 완료':'⏳ 미완료'}</div></div>`:''}
+      </div>
+    </div>
+
+    <!-- 배송 사진 -->
+    ${o.photoUrl?`<div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📸 배송 완료 사진</div>
+      <img src="${o.photoUrl}" onclick="window.open('${o.photoUrl}','_blank')" style="width:100%;max-height:280px;object-fit:cover;border-radius:10px;cursor:zoom-in;display:block" alt="배송 완료 사진">
+      <div style="font-size:11px;color:#aaa;margin-top:6px;text-align:center">탭하면 크게 보기</div>
+    </div>`:''}
+
+    <!-- 액션 버튼 -->
+    ${actions?`<div class="oc-actions" style="margin-top:4px">${actions}</div>`:''}
+  `;
+
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeOrderDetail() {
+  document.getElementById('order-detail-modal').style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 // ══════════════════════════════════════════
@@ -1315,6 +1410,9 @@ function updateStatus(id, status) {
   renderOrderList();
   if (firebaseActive) db.ref('orders/' + id).update({ status, updatedAt: o.updatedAt });
   showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
+  // 팝업이 열려있으면 내용 갱신
+  const modal = document.getElementById('order-detail-modal');
+  if (modal && modal.style.display === 'flex') openOrderDetail(id);
 }
 
 // ══════════════════════════════════════════
