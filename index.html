@@ -826,10 +826,7 @@ function goTab(tab) {
 
   if (tab === 'home') renderHome();
   if (tab === 'mapzone') {
-    setTimeout(() => {
-      if (typeof kakao !== 'undefined' && kakao.maps) mapZone.init();
-      else kakao.maps.load(() => mapZone.init());
-    }, 80);
+    setTimeout(() => kakao.maps.load(() => mapZone.init()), 80);
   }
 }
 
@@ -1928,11 +1925,7 @@ const mapZone = (() => {
   // ── 모드 전환 ──────────────────────────────────────
   function showMode(mode) {
     currentMode = mode;
-    if (!map) {
-      if (typeof kakao !== 'undefined' && kakao.maps) { init(); }
-      else { kakao.maps.load(() => init()); }
-      return;
-    }
+    if (!map) { kakao.maps.load(() => init()); return; }
 
     // 모드 버튼 활성화
     ['route','all','zone'].forEach(m => {

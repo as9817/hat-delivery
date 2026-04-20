@@ -3051,19 +3051,9 @@ renderOrderList = function() {
   renderTmsTable();
 };
 
-// ── PC 접속 시 지도 초기화 (카카오맵 SDK 로드 완료 후 실행) ──
+// ── PC 접속 시 지도 초기화 ──
 if (window.innerWidth >= 768) {
-  if (typeof kakao !== 'undefined') {
-    kakao.maps.load(() => setTimeout(initTmsMap, 100));
-  } else {
-    // SDK 스크립트 onload 대기
-    const kakaoScript = document.querySelector('script[src*="dapi.kakao.com"]');
-    if (kakaoScript) {
-      kakaoScript.addEventListener('load', () => {
-        kakao.maps.load(() => setTimeout(initTmsMap, 100));
-      });
-    }
-  }
+  kakao.maps.load(() => setTimeout(initTmsMap, 100));
 }
 
 // ══════════════════════════════════════════
