@@ -1277,7 +1277,8 @@ function orderActions(o) {
     <button class="btn btn-primary btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달 배정하기</button>
     <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">취소</button>`;
   if (o.status === 'delivering') return `
-    <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','done')">✅ 배달완료</button>`;
+    <span style="font-size:11px;font-weight:700;color:#1565C0">🚗 배달중</span>
+    <button class="btn btn-green btn-sm" style="flex:1;margin-top:4px" onclick="updateStatus('${o.id}','done')">✅ 완료 처리</button>`;
   if (o.status === 'done') return `
     <button class="btn btn-gray btn-sm btn-sm" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
   return '';
@@ -3025,7 +3026,8 @@ function renderTmsTable() {
     else if (o.status === 'confirmed') actionHtml = `
       <button class="btn btn-primary btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="sendToDelivery('${o.id}')">🚀 배달 배정</button>`;
     else if (o.status === 'delivering') actionHtml = `
-      <button class="btn btn-green btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','done')">✅ 배달완료</button>`;
+      <div style="font-size:11px;font-weight:700;color:#1565C0;margin-bottom:3px">🚗 배달중</div>
+      <button class="btn btn-green btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','done')">✅ 완료 처리</button>`;
     else if (o.status === 'done') actionHtml = `
       <button class="btn btn-gray btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
 
