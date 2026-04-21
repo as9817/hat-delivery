@@ -184,72 +184,96 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .cust-no-result{padding:12px;text-align:center;color:#aaa;font-size:13px}
 
 /* ══════════════════════════════════════
-   PC / 태블릿 레이아웃 (768px 이상)
-   왼쪽: 새주문 입력 | 오른쪽: 주문 목록
+   PC 레이아웃: 왼쪽 지도 | 오른쪽 주문관리
 ══════════════════════════════════════ */
 @media (min-width:768px){
 
   body{overflow:hidden}
 
-  /* 헤더 PC 스타일 */
   .header{padding:12px 24px}
   .header-title{font-size:20px}
   .header-pc-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
   .header-pc-btn:hover{background:rgba(255,255,255,.28)}
-
-  /* 탭 바 숨김 */
   .tabs{display:none!important}
 
-  /* PC 래퍼: 좌우 분할 */
+  /* 전체 래퍼 */
   #pc-wrapper{display:flex;height:calc(100vh - 64px);overflow:hidden}
 
-  /* 왼쪽 패널 — 새주문 */
+  /* ── 왼쪽: 지도 패널 ── */
+  #oms-map-panel{
+    flex:1;position:relative;
+    background:#e8eaf6;
+    border-right:2px solid var(--border);
+    display:flex!important;flex-direction:column;
+  }
+  #oms-map-panel #tms-map-container{
+    flex:1;height:auto!important;display:flex!important;
+    flex-direction:column;border-bottom:none;
+  }
+  #oms-map-panel #tms-map{ flex:1;height:100%!important }
+  #oms-map-panel #tms-driver-status{
+    display:flex!important;flex-shrink:0;
+    background:#fff;border-top:1px solid var(--border);padding:6px 10px;
+  }
+
+  /* ── 오른쪽 패널 ── */
+  #right-panel{
+    width:440px;min-width:380px;flex-shrink:0;
+    display:flex;flex-direction:column;
+    height:100%;overflow:hidden;background:#f4f6f9;
+  }
+
+  /* 새주문 토글 버튼 */
+  #new-order-toggle{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;background:#1a237e;color:#fff;
+    cursor:pointer;user-select:none;flex-shrink:0;
+    font-size:14px;font-weight:700;
+    transition:background .2s;
+  }
+  #new-order-toggle:hover{background:#283593}
+  #new-order-toggle .toggle-arrow{
+    transition:transform .3s;font-size:12px;
+  }
+  #new-order-toggle.open .toggle-arrow{transform:rotate(180deg)}
+
+  /* 새주문 폼 (접이식) */
   #new{
     display:block!important;
-    width:420px;min-width:360px;flex-shrink:0;
-    overflow-y:auto;
+    max-height:0;overflow:hidden;
+    transition:max-height .35s ease;
     background:#f0f2f8;
-    border-right:2px solid var(--border);
-    padding-top:0
+    border-bottom:2px solid var(--border);
+    padding-top:0;
   }
+  #new.expanded{ max-height:70vh;overflow-y:auto; }
   #new .screen-inner{padding:12px}
+  #new .pc-panel-hdr{display:none}
 
-  /* 오른쪽 패널 — 주문 목록 */
+  /* 주문 목록 */
   #list{
-    display:block!important;
-    flex:1;overflow-y:auto;
-    background:#f4f6f9;
-    padding-top:0
+    display:flex!important;flex-direction:column!important;
+    flex:1;overflow:hidden;background:#f4f6f9;padding-top:0;
   }
-  #list .screen-inner{padding:12px}
+  #list .pc-panel-hdr{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 14px;background:#fff;
+    border-bottom:2px solid var(--border);
+    font-size:13px;font-weight:700;color:#1a237e;
+    flex-shrink:0;
+    box-shadow:0 1px 4px rgba(0,0,0,.06);
+  }
+  #list .screen-inner{padding:0!important;display:flex!important;flex-direction:column!important;flex:1!important;overflow:hidden!important;min-height:0!important}
+  #list #filter-bar-wrap{padding:6px 10px;margin-bottom:0;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
+  #list .filter-bar{margin-bottom:0}
 
-  /* 통계/고객DB 화면은 PC에서 모달로 */
+  /* PC에서 모달로 처리하는 탭 */
   #stats{display:none!important}
   #custdb{display:none!important}
 
-  /* PC 패널 헤더 (왼쪽·오른쪽 라벨) */
-  .pc-panel-hdr{
-    display:flex;align-items:center;gap:8px;
-    padding:11px 16px;
-    background:#fff;
-    border-bottom:2px solid var(--border);
-    font-size:14px;font-weight:700;color:#1a237e;
-    position:sticky;top:0;z-index:50;
-    box-shadow:0 1px 4px rgba(0,0,0,.06)
-  }
-  .pc-panel-hdr-cnt{
-    margin-left:auto;background:#E8EAF6;
-    color:#3949AB;border-radius:12px;
-    padding:2px 10px;font-size:12px;font-weight:700
-  }
-
-  /* 토스트 위치 조정 */
+  .pc-panel-hdr-cnt{margin-left:auto;background:#E8EAF6;color:#3949AB;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700}
   .toast{bottom:24px}
-
-  /* 주문 카드 호버 효과 */
   .order-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-1px)}
-
-  /* 배치 파싱 textarea 높이 줄이기 */
   .form-textarea{min-height:80px}
 }
 
@@ -281,6 +305,12 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .cdb-spent{font-size:11px;color:var(--green);font-weight:600;margin-top:2px}
 .cdb-top-items{font-size:12px;color:#666;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
 
+/* 주문 상세 팝업 - PC */
+@media (min-width:768px){
+  #order-detail-modal{align-items:center !important}
+  #order-detail-box{border-radius:20px !important;width:min(520px,90vw) !important;max-height:85vh}
+}
+
 /* 고객 상세 시트 */
 .cdb-detail-modal{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
 .cdb-detail-modal.show{display:flex}
@@ -299,7 +329,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 
 /* 통계 모달 (PC 전용) */
 .stats-modal{
-  display:none;position:fixed;inset:0;z-index:300;
+  display:none;position:fixed;inset:0;z-index:9999;
   background:rgba(0,0,0,.45);
   align-items:center;justify-content:center
 }
@@ -324,7 +354,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 
 /* ── 가져오기 모달 ── */
 .import-modal{
-  display:none;position:fixed;inset:0;z-index:350;
+  display:none;position:fixed;inset:0;z-index:9999;
   background:rgba(0,0,0,.5);
   align-items:center;justify-content:center
 }
@@ -419,6 +449,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .tms-table tbody td{padding:8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
 .tms-table tbody tr:hover td{background:#f5f7ff;cursor:pointer}
 .tms-tr-delivering td:first-child{border-left:3px solid var(--blue)}
+.tms-tr-highlight td{background:#E8EAF6!important;transition:background .3s}
 .tms-tr-done td{opacity:.55}
 .tms-tr-pending td:first-child{border-left:3px solid var(--orange)}
 .tms-tr-confirmed td:first-child{border-left:3px solid var(--green)}
@@ -427,18 +458,78 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .tms-driver-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1.5px solid #c5cae9;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#1a237e;white-space:nowrap}
 .tms-driver-chip.online{border-color:#4CAF50;background:#E8F5E9;color:#2E7D32}
 @media (min-width:768px){
-  #list{display:flex!important;flex-direction:column!important;overflow:hidden!important}
-  #list .screen-inner{padding:0!important;display:flex!important;flex-direction:column!important;flex:1!important;overflow:hidden!important;min-height:0!important}
-  #list #filter-bar-wrap{padding:6px 10px;margin-bottom:0;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
-  #list .filter-bar{margin-bottom:0}
-  #tms-map-container{display:block!important}
-  #tms-table-wrap{display:flex!important;flex-direction:column}
+  #tms-map-container{display:flex!important;flex-direction:column}
+  #tms-table-wrap{display:flex!important;flex-direction:column;flex:1;overflow-y:auto}
   #order-list-container{display:none!important}
 }
+
+/* ══════════════════════════════════════
+   OMS 로그인 시스템
+══════════════════════════════════════ */
+#oms-login-overlay{
+  position:fixed;inset:0;z-index:10000;
+  background:linear-gradient(135deg,#0d1b6e 0%,#1a237e 50%,#283593 100%);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#oms-login-overlay.hide{display:none}
+.login-box{
+  background:#fff;border-radius:24px;width:100%;max-width:380px;
+  padding:36px 32px;box-shadow:0 24px 80px rgba(0,0,0,.45);text-align:center;
+}
+.login-logo{font-size:52px;margin-bottom:8px}
+.login-title{font-size:26px;font-weight:800;color:#1a237e;margin-bottom:4px;letter-spacing:-.5px}
+.login-sub{font-size:13px;color:#888;margin-bottom:28px;line-height:1.6}
+.login-inp{
+  width:100%;padding:13px 16px;border:1.5px solid #e0e0e0;border-radius:12px;
+  font-size:15px;font-family:inherit;outline:none;margin-bottom:12px;background:#fafafa;
+  transition:.2s;display:block;text-align:left;
+}
+.login-inp:focus{border-color:#1a237e;background:#fff;box-shadow:0 0 0 3px rgba(26,35,126,.1)}
+.login-btn{
+  width:100%;padding:15px;background:linear-gradient(135deg,#1a237e,#3949AB);
+  color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;
+  cursor:pointer;font-family:inherit;margin-top:4px;transition:.15s;
+}
+.login-btn:active{opacity:.85;transform:scale(.98)}
+.login-err{
+  background:#ffebee;color:#c62828;border-radius:8px;
+  padding:10px 14px;font-size:13px;font-weight:600;
+  margin-top:12px;display:none;text-align:left;
+}
+.login-err.show{display:block}
+.login-loading{font-size:13px;color:#3949AB;margin-top:12px;display:none;font-weight:600}
+.login-loading.show{display:block}
+/* 계정 관리 모달 */
+.acct-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center}
+.acct-modal.show{display:flex}
+.acct-box{background:#fff;border-radius:20px;width:min(480px,94vw);max-height:85vh;overflow-y:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+#oms-user-badge{
+  background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);
+  border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#fff;
+  display:none;align-items:center;gap:4px;white-space:nowrap;
+}
+#oms-user-badge.show{display:inline-flex}
 </style>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<!-- 카카오맵 SDK -->
 </head>
 <body>
+
+<!-- ══ OMS 로그인 오버레이 ══ -->
+<div id="oms-login-overlay">
+  <div class="login-box">
+    <div class="login-logo">🛒</div>
+    <div class="login-title">햇배달 OMS</div>
+    <div class="login-sub">주문관리 시스템<br>관리자 로그인이 필요합니다</div>
+    <input class="login-inp" id="login-id" type="text" placeholder="아이디" autocomplete="username"
+      onkeydown="if(event.key==='Enter')document.getElementById('login-pw').focus()">
+    <input class="login-inp" id="login-pw" type="password" placeholder="비밀번호" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')omsLogin()">
+    <button class="login-btn" onclick="omsLogin()">로그인</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-loading" id="login-loading">⏳ 확인 중...</div>
+    <div style="font-size:11px;color:#ccc;margin-top:20px">초기 계정: admin / wellbing1234</div>
+  </div>
+</div>
 
 <!-- 헤더 -->
 <div class="header">
@@ -453,7 +544,11 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <button class="header-pc-btn" onclick="showStatsModal()">📊 통계</button>
       <button class="header-pc-btn" onclick="showCustDBModal()">👥 고객DB</button>
       <button class="header-pc-btn" onclick="showImportModal()">📥 가져오기</button>
-      <button class="header-pc-btn" onclick="showApiKeyModal()" title="Vision API 키 설정">🔑 OCR 설정</button>
+      <button class="header-pc-btn" onclick="showDriversModal()">🚗 기사관리</button>
+      <button class="header-pc-btn" onclick="openOmsMartSettings()">🏪 마트위치</button>
+      <span id="oms-user-badge">👤 <span id="oms-user-name">-</span></span>
+      <button id="btn-accounts" class="header-pc-btn" onclick="showAccountsModal()" style="display:none">🔐 계정관리</button>
+      <button class="header-pc-btn" onclick="omsLogout()" style="background:rgba(244,67,54,.25);border:1.5px solid rgba(244,67,54,.4)">로그아웃</button>
     </div>
   </div>
 </div>
@@ -472,21 +567,16 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   <div class="tab" onclick="goTab('custdb')" id="tab-custdb">
     <span class="tab-icon">👥</span>고객DB
   </div>
+  <div class="tab" onclick="goTab('drivers')" id="tab-drivers">
+    <span class="tab-icon">🚗</span>기사관리
+  </div>
 </div>
 
 <!-- PC 래퍼 시작 -->
 <div id="pc-wrapper">
 
-<!-- ══════════════ 주문 목록 ══════════════ -->
-<div class="screen active" id="list">
-  <!-- PC 패널 헤더 -->
-  <div class="pc-panel-hdr">
-    🗺️ TMS 배송 현황
-    <span class="pc-panel-hdr-cnt" id="list-pc-cnt">0건</span>
-  </div>
-  <div class="screen-inner">
-
-  <!-- ── TMS 지도 (PC 전용) ── -->
+<!-- ══════════════ 왼쪽: 지도 패널 ══════════════ -->
+<div id="oms-map-panel">
   <div id="tms-map-container">
     <div id="tms-map"></div>
     <div id="tms-legend">
@@ -496,9 +586,37 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="tms-legend-row"><span class="tms-dot" style="background:#4CAF50"></span>배달 완료</div>
     </div>
   </div>
-
-  <!-- ── 온라인 기사 현황 바 (PC 전용) ── -->
   <div id="tms-driver-status"></div>
+</div>
+
+<!-- ══════════════ 오른쪽 패널 ══════════════ -->
+<div id="right-panel">
+
+<!-- 새주문 토글 버튼 -->
+<div id="new-order-toggle" onclick="toggleNewOrderPanel()">
+  <span>➕ 새 주문 입력</span>
+  <span class="toggle-arrow">▼</span>
+</div>
+
+<!-- ══════════════ 새주문 폼 (접이식) ══════════════ -->
+
+<!-- ══════════════ 주문 목록 ══════════════ -->
+<div class="screen active" id="list">
+  <!-- PC 패널 헤더 -->
+  <div class="pc-panel-hdr">
+    📋 주문 현황
+    <span class="pc-panel-hdr-cnt" id="list-pc-cnt">0건</span>
+  </div>
+  <div class="screen-inner">
+
+  <!-- ── 검색창 ── -->
+  <div style="position:relative;margin-bottom:10px">
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none">🔍</span>
+    <input id="order-search-input" type="search" placeholder="이름, 주소, 연락처, 상품 검색..." oninput="onOrderSearch(this.value)"
+      style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:10px 12px 10px 36px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);transition:.2s"
+      onfocus="this.style.borderColor='#1a237e'" onblur="this.style.borderColor='#e0e0e0'">
+    <button id="order-search-clear" onclick="clearOrderSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;color:#aaa;line-height:1">×</button>
+  </div>
 
   <!-- ── 필터바 ── -->
   <div id="filter-bar-wrap">
@@ -511,6 +629,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="filter-chip" data-filter="kakao" onclick="setFilter('kakao',this)">💬 카카오</div>
       <div class="filter-chip" data-filter="sms" onclick="setFilter('sms',this)">📱 문자</div>
       <div class="filter-chip" data-filter="call" onclick="setFilter('call',this)">📞 전화</div>
+      <div class="filter-chip" data-filter="cancelled" onclick="setFilter('cancelled',this)" style="color:#f44336;border-color:#f44336">❌ 취소</div>
     </div>
   </div>
 
@@ -541,9 +660,13 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 
   </div><!-- /screen-inner -->
-</div>
+</div><!-- /list -->
 
-<!-- ══════════════ 새주문 ══════════════ -->
+</div><!-- /right-panel -->
+
+</div><!-- /pc-wrapper -->
+
+<!-- ══════════════ 새주문 (PC에서는 right-panel 안 토글로 이동됨, 모바일용 유지) ══════════════ -->
 <div class="screen" id="new">
   <!-- PC 패널 헤더 -->
   <div class="pc-panel-hdr">
@@ -733,8 +856,6 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 </div>
 
-</div><!-- /pc-wrapper -->
-
 <!-- ══════════════ 통계 (모바일 탭 화면) ══════════════ -->
 <div class="screen" id="stats">
   <div class="today-bar">
@@ -786,10 +907,75 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 </div>
 
+<!-- 기사 관리 화면 -->
+<div class="screen" id="drivers">
+  <div style="padding:20px">
+    <h2 style="font-size:18px;font-weight:800;margin-bottom:16px">🚗 기사 관리</h2>
+
+    <!-- 기사 등록 폼 -->
+    <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px">신규 기사 등록</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">이름</label>
+          <input id="drv-name" type="text" placeholder="홍길동" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">아이디</label>
+          <input id="drv-id" type="text" placeholder="driver01" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">비밀번호</label>
+        <input id="drv-pw" type="password" placeholder="비밀번호 설정" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <button onclick="registerDriver()" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">+ 기사 등록</button>
+    </div>
+
+    <!-- 기사 목록 -->
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">등록된 기사</div>
+    <div id="driver-list"></div>
+  </div>
+</div>
+
 <!-- 토스트 -->
 <div class="toast" id="toast"></div>
 
 <!-- PC 통계 모달 -->
+<!-- 기사관리 모달 -->
+<div class="stats-modal" id="drivers-modal" onclick="hideDriversModal(event)">
+  <div class="stats-modal-box" style="max-width:520px">
+    <div class="stats-modal-hdr">
+      <div class="stats-modal-title">🚗 기사 관리</div>
+      <button class="stats-modal-close" onclick="hideDriversModal()">✕</button>
+    </div>
+
+    <!-- 기사 등록 폼 -->
+    <div style="background:#f4f6f9;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:#1a237e">신규 기사 등록</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">이름</label>
+          <input id="modal-drv-name" type="text" placeholder="홍길동" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">아이디</label>
+          <input id="modal-drv-id" type="text" placeholder="driver01" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">비밀번호</label>
+        <input id="modal-drv-pw" type="password" placeholder="비밀번호 설정" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+      </div>
+      <button onclick="registerDriver('modal')" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ 기사 등록</button>
+    </div>
+
+    <!-- 기사 목록 -->
+    <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:#333">등록된 기사</div>
+    <div id="driver-list-modal" style="max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
 <div class="stats-modal" id="stats-modal" onclick="hideStatsModal(event)">
   <div class="stats-modal-box">
     <div class="stats-modal-hdr">
@@ -840,6 +1026,40 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="cdb-detail-title" id="cdb-detail-title">고객 상세</div>
     </div>
     <div class="cdb-detail-content" id="cdb-detail-content"></div>
+  </div>
+</div>
+
+<!-- 주문 상세 팝업 -->
+<div id="order-detail-modal" onclick="if(event.target===this)closeOrderDetail()" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center">
+  <div id="order-detail-box" style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding-bottom:24px">
+    <div style="position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;padding:16px 20px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;z-index:1">
+      <button onclick="closeOrderDetail()" style="background:#f5f5f5;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#555">← 닫기</button>
+      <div id="order-detail-title" style="font-size:16px;font-weight:800;color:#1a237e;flex:1"></div>
+    </div>
+    <div id="order-detail-content" style="padding:16px 20px"></div>
+  </div>
+</div>
+
+<!-- 마트 위치 설정 모달 -->
+<div id="oms-mart-modal" onclick="if(event.target===this)closeOmsMartSettings()" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.55);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;width:min(440px,92vw);padding:24px;box-shadow:0 8px 40px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:800;color:#1a237e">🏪 마트 위치 설정</div>
+      <button onclick="closeOmsMartSettings()" style="background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;color:#555">×</button>
+    </div>
+    <div id="oms-mart-addr-current" style="font-size:12px;color:#888;margin-bottom:14px;padding:10px;background:#f8f9ff;border-radius:8px">아직 설정되지 않았습니다</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 이름</label>
+      <input id="oms-mart-name-input" type="text" placeholder="예: 웰빙마트" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 주소</label>
+      <input id="oms-mart-addr-input" type="text" placeholder="예: 경기도 남양주시 화도읍..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+    </div>
+    <div style="font-size:11px;color:#f57c00;margin-bottom:16px;padding:8px 12px;background:#fff8e1;border-radius:8px">
+      ⚠️ 저장하면 모든 기사 앱과 OMS에 즉시 반영됩니다
+    </div>
+    <button onclick="saveOmsMartLocation()" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">📍 저장하기</button>
   </div>
 </div>
 
@@ -928,11 +1148,42 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 </div>
 
+<!-- 계정 관리 모달 -->
+<div class="acct-modal" id="acct-modal" onclick="if(event.target===this)closeAccountsModal()">
+  <div class="acct-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:800;color:#1a237e">🔐 OMS 계정 관리</div>
+      <button onclick="closeAccountsModal()" style="background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;color:#555">×</button>
+    </div>
+    <div style="font-size:12px;color:#888;background:#f0f4ff;border-radius:8px;padding:10px 12px;margin-bottom:14px">
+      💡 계정별로 로그인 아이디와 비밀번호를 설정합니다. 어드민은 계정 관리가 가능합니다.
+    </div>
+    <div id="acct-list" style="margin-bottom:16px"></div>
+    <div style="background:#f8f9ff;border-radius:12px;padding:16px;border:1.5px dashed #c5cae9">
+      <div style="font-size:13px;font-weight:700;color:#1a237e;margin-bottom:12px">➕ 새 계정 추가</div>
+      <input id="new-acct-id" type="text" placeholder="아이디 (영문·숫자·밑줄, 3~20자)"
+        style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;margin-bottom:8px;background:#fff">
+      <input id="new-acct-name" type="text" placeholder="이름 (예: 홍길동 매니저)"
+        style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;margin-bottom:8px;background:#fff">
+      <input id="new-acct-pw" type="password" placeholder="비밀번호 (4자 이상)"
+        style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;margin-bottom:8px;background:#fff">
+      <select id="new-acct-role"
+        style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;margin-bottom:12px;background:#fff;appearance:none">
+        <option value="manager">매니저 (일반 주문관리)</option>
+        <option value="admin">어드민 (계정관리 포함)</option>
+      </select>
+      <button onclick="addOmsAccount()" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+        ➕ 계정 추가
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- SheetJS -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<!-- Leaflet -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- 카카오맵 SDK (autoload=false → kakao.maps.load() 콜백으로 초기화) -->
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=39fb0580f590466411a2e2239b082414&libraries=services&autoload=false"></script>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -947,7 +1198,7 @@ const firebaseConfig = {
   authDomain: "wellbingmart-d5ee1.firebaseapp.com",
   databaseURL: "https://wellbingmart-d5ee1-default-rtdb.firebaseio.com",
   projectId: "wellbingmart-d5ee1",
-  storageBucket: "wellbingmart-d5ee1.appspot.com",
+  storageBucket: "wellbingmart-d5ee1.firebasestorage.app",
   messagingSenderId: "639456789012",
   appId: "1:639456789012:web:abcdef123456"
 };
@@ -955,31 +1206,202 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // ══════════════════════════════════════════
-// TMS 배송 사진 (IndexedDB 공유)
+// OMS 인증 시스템
 // ══════════════════════════════════════════
-let _omsPhotoDB = null;
-async function _initOmsPhotoDB() {
-  if (_omsPhotoDB) return _omsPhotoDB;
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('hat-photos', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('photos', { keyPath: 'id' });
-    req.onsuccess = e => { _omsPhotoDB = e.target.result; resolve(_omsPhotoDB); };
-    req.onerror = reject;
+const OMS_SESSION_KEY = 'omsSession_v2';
+let omsCurrentUser = null;
+
+function getOmsSession() {
+  try { return JSON.parse(sessionStorage.getItem(OMS_SESSION_KEY)); } catch(e) { return null; }
+}
+function setOmsSession(user) {
+  sessionStorage.setItem(OMS_SESSION_KEY, JSON.stringify(user));
+  omsCurrentUser = user;
+}
+function clearOmsSession() {
+  sessionStorage.removeItem(OMS_SESSION_KEY);
+  omsCurrentUser = null;
+}
+
+async function omsLogin() {
+  const idEl = document.getElementById('login-id');
+  const pwEl = document.getElementById('login-pw');
+  const errEl = document.getElementById('login-err');
+  const loadEl = document.getElementById('login-loading');
+  const id = (idEl.value || '').trim();
+  const pw = pwEl.value || '';
+
+  errEl.classList.remove('show');
+  if (!id || !pw) {
+    errEl.textContent = '아이디와 비밀번호를 입력해주세요';
+    errEl.classList.add('show');
+    return;
+  }
+
+  loadEl.classList.add('show');
+  document.querySelector('.login-btn').disabled = true;
+
+  try {
+    // Firebase에서 계정 조회
+    const snap = await db.ref('settings/omsAccounts').once('value');
+    let accts = snap.val() || {};
+
+    // 계정이 하나도 없으면 기본 admin 생성
+    if (!Object.keys(accts).length) {
+      const defaultAcct = { name: '관리자', password: 'wellbing1234', role: 'admin', createdAt: Date.now() };
+      await db.ref('settings/omsAccounts/admin').set(defaultAcct);
+      accts = { admin: defaultAcct };
+    }
+
+    const acct = accts[id];
+    if (!acct || acct.password !== pw) {
+      errEl.textContent = '아이디 또는 비밀번호가 올바르지 않습니다';
+      errEl.classList.add('show');
+      loadEl.classList.remove('show');
+      document.querySelector('.login-btn').disabled = false;
+      pwEl.value = '';
+      pwEl.focus();
+      return;
+    }
+
+    setOmsSession({ id, name: acct.name, role: acct.role || 'manager' });
+    showOmsApp();
+
+  } catch(e) {
+    errEl.textContent = '네트워크 오류. 잠시 후 다시 시도하세요.';
+    errEl.classList.add('show');
+    loadEl.classList.remove('show');
+    document.querySelector('.login-btn').disabled = false;
+  }
+}
+
+function showOmsApp() {
+  document.getElementById('oms-login-overlay').classList.add('hide');
+  // 유저 배지 표시
+  const badge = document.getElementById('oms-user-badge');
+  const nameEl = document.getElementById('oms-user-name');
+  if (badge && nameEl && omsCurrentUser) {
+    nameEl.textContent = omsCurrentUser.name;
+    badge.classList.add('show');
+  }
+  // 어드민이면 계정관리 버튼 표시
+  const acctBtn = document.getElementById('btn-accounts');
+  if (acctBtn && omsCurrentUser?.role === 'admin') {
+    acctBtn.style.display = 'inline-flex';
+  }
+}
+
+function omsLogout() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  clearOmsSession();
+  location.reload();
+}
+
+// ══════════════════════════════════════════
+// 계정 관리
+// ══════════════════════════════════════════
+function showAccountsModal() {
+  renderAccountsList();
+  document.getElementById('acct-modal').classList.add('show');
+}
+function closeAccountsModal() {
+  document.getElementById('acct-modal').classList.remove('show');
+}
+
+function renderAccountsList() {
+  db.ref('settings/omsAccounts').once('value').then(snap => {
+    const accts = snap.val() || {};
+    const entries = Object.entries(accts);
+    const listEl = document.getElementById('acct-list');
+    if (!entries.length) {
+      listEl.innerHTML = '<div style="text-align:center;color:#aaa;padding:12px">등록된 계정이 없습니다</div>';
+      return;
+    }
+    listEl.innerHTML = entries.map(([uid, a]) => `
+      <div style="background:#f8f9ff;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${a.name}
+            <span style="color:#999;font-size:11px;font-weight:400">(${uid})</span>
+            ${uid === omsCurrentUser?.id ? '<span style="font-size:11px;background:#e8f5e9;color:#2e7d32;padding:2px 6px;border-radius:4px;margin-left:4px">나</span>' : ''}
+          </div>
+          <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;${a.role==='admin'?'background:#e8eaf6;color:#1a237e':'background:#e8f5e9;color:#2e7d32'}">
+            ${a.role==='admin'?'🔑 어드민':'👤 매니저'}
+          </span>
+        </div>
+        <button onclick="changeOmsPassword('${uid}','${a.name}')"
+          style="border:none;border-radius:7px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;background:#fff3e0;color:#e65100;font-family:inherit">
+          비번변경
+        </button>
+        ${uid !== 'admin' ? `<button onclick="deleteOmsAccount('${uid}','${a.name}')"
+          style="border:none;border-radius:7px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;background:#ffebee;color:#c62828;font-family:inherit">
+          삭제
+        </button>` : ''}
+      </div>`).join('');
   });
 }
-async function _getDeliveryPhoto(id) {
-  try {
-    const db = await _initOmsPhotoDB();
-    return new Promise((resolve) => {
-      const req = db.transaction('photos','readonly').objectStore('photos').get(id);
-      req.onsuccess = e => resolve(e.target.result?.url || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch(e) { return null; }
+
+function addOmsAccount() {
+  const id = document.getElementById('new-acct-id').value.trim();
+  const name = document.getElementById('new-acct-name').value.trim();
+  const pw = document.getElementById('new-acct-pw').value;
+  const role = document.getElementById('new-acct-role').value;
+
+  if (!id || !name || !pw) { showToast('모든 필드를 입력하세요'); return; }
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(id)) { showToast('아이디는 영문·숫자·밑줄 3~20자'); return; }
+  if (pw.length < 4) { showToast('비밀번호는 4자 이상'); return; }
+
+  db.ref('settings/omsAccounts/' + id).once('value').then(snap => {
+    if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return null; }
+    return db.ref('settings/omsAccounts/' + id).set({ name, password: pw, role, createdAt: Date.now() });
+  }).then(res => {
+    if (res === null) return;
+    showToast('✅ ' + name + ' 계정이 추가됐습니다');
+    document.getElementById('new-acct-id').value = '';
+    document.getElementById('new-acct-name').value = '';
+    document.getElementById('new-acct-pw').value = '';
+    renderAccountsList();
+  }).catch(() => showToast('오류가 발생했습니다'));
 }
+
+function changeOmsPassword(uid, name) {
+  const newPw = prompt(`${name}(${uid})의 새 비밀번호를 입력하세요:`);
+  if (!newPw || !newPw.trim()) return;
+  if (newPw.trim().length < 4) { showToast('비밀번호는 4자 이상'); return; }
+  db.ref('settings/omsAccounts/' + uid + '/password').set(newPw.trim()).then(() => {
+    showToast('✅ 비밀번호가 변경됐습니다');
+    renderAccountsList();
+  }).catch(() => showToast('오류가 발생했습니다'));
+}
+
+function deleteOmsAccount(uid, name) {
+  if (uid === omsCurrentUser?.id) { showToast('자기 자신은 삭제할 수 없습니다'); return; }
+  if (!confirm(`${name}(${uid}) 계정을 삭제하시겠습니까?`)) return;
+  db.ref('settings/omsAccounts/' + uid).remove().then(() => {
+    showToast('✅ 계정이 삭제됐습니다');
+    renderAccountsList();
+  }).catch(() => showToast('오류가 발생했습니다'));
+}
+
+// ══════════════════════════════════════════
+// 앱 시작: 세션 체크
+// ══════════════════════════════════════════
+(function checkOmsAuth() {
+  const session = getOmsSession();
+  if (session) {
+    omsCurrentUser = session;
+    showOmsApp();
+  }
+  // 로그인 안 된 경우 → 로그인 오버레이가 이미 표시됨 (기본 표시 상태)
+})();
+
+// ══════════════════════════════════════════
+// TMS 배송 사진 (Firebase Storage URL 우선)
+// ══════════════════════════════════════════
 async function showDeliveryPhoto(photoId, el) {
-  const url = await _getDeliveryPhoto(photoId);
-  if (!url) { showToast('사진이 없습니다'); return; }
+  // 주문 객체에서 photoUrl(Storage URL) 먼저 확인
+  const order = orders.find(o => o.id === photoId || o.photoId === photoId);
+  const url = order?.photoUrl || null;
+  if (!url) { showToast('사진이 없습니다 (업로드 중일 수 있습니다)'); return; }
   // 풀스크린 뷰어
   let viewer = document.getElementById('oms-photo-viewer');
   if (!viewer) {
@@ -1022,11 +1444,11 @@ function loadOrders() {
 db.ref('orders').on('value', snap => {
   const data = snap.val() || {};
   const fbOrders = Object.values(data);
-  // Firebase 데이터로 로컬 업데이트 (중복 방지)
-  const localIds = new Set(orders.filter(o => !o.fromFb).map(o => o.id));
+  // Firebase가 source of truth: Firebase에 있는 주문은 항상 Firebase 버전 사용
+  const fbIds = new Set(fbOrders.map(o => o.id));
   orders = [
-    ...orders.filter(o => !o.fromFb),
-    ...fbOrders.map(o => ({ ...o, fromFb: true })).filter(o => !localIds.has(o.id))
+    ...orders.filter(o => !o.fromFb && !fbIds.has(o.id)), // 순수 로컬 전용 (Firebase에 없는 것)
+    ...fbOrders.map(o => ({ ...o, fromFb: true }))         // Firebase 버전 항상 우선
   ];
   orders.sort((a, b) => b.createdAt - a.createdAt);
   saveOrders();
@@ -1034,13 +1456,47 @@ db.ref('orders').on('value', snap => {
   renderStats();
   updateHeader();
   firebaseActive = true;
+  setTimeout(updateOmsMapMarkers, 500); // 지도 마커 업데이트
 }, err => {
   console.log('Firebase offline, using local storage');
   loadOrders();
   renderOrderList();
   renderStats();
   updateHeader();
+  setTimeout(updateOmsMapMarkers, 500);
 });
+
+// ══════════════════════════════════════════
+// PC 레이아웃 초기화: #new 폼을 right-panel 안으로 이동
+// ══════════════════════════════════════════
+(function initPcLayout() {
+  if (window.innerWidth < 768) return;
+  const newEl = document.getElementById('new');
+  const toggle = document.getElementById('new-order-toggle');
+  if (!newEl || !toggle) return;
+  // list 앞에 #new 삽입
+  const list = document.getElementById('list');
+  const rightPanel = document.getElementById('right-panel');
+  if (rightPanel && list) {
+    rightPanel.insertBefore(newEl, list);
+  }
+})();
+
+function toggleNewOrderPanel() {
+  const newEl = document.getElementById('new');
+  const toggle = document.getElementById('new-order-toggle');
+  if (!newEl || !toggle) return;
+  const isOpen = newEl.classList.contains('expanded');
+  newEl.classList.toggle('expanded', !isOpen);
+  toggle.classList.toggle('open', !isOpen);
+  if (!isOpen) {
+    // 열릴 때 첫 입력 포커스
+    setTimeout(() => {
+      const first = newEl.querySelector('input:not([type=hidden])');
+      if (first) first.focus();
+    }, 350);
+  }
+}
 
 // ══════════════════════════════════════════
 // 탭 네비게이션
@@ -1058,6 +1514,7 @@ function goTab(tab) {
     if (inp) inp.value = '';
     renderCustDB('cdb-list');
   }
+  if (tab === 'drivers') renderDriverList();
 }
 
 // ══════════════════════════════════════════
@@ -1095,14 +1552,48 @@ function setFilter(f, el) {
   renderOrderList();
 }
 
+let orderSearchQuery = '';
+
+function onOrderSearch(val) {
+  orderSearchQuery = val.trim();
+  const clearBtn = document.getElementById('order-search-clear');
+  if (clearBtn) clearBtn.style.display = orderSearchQuery ? 'block' : 'none';
+  renderOrderList();
+  renderTmsTable();
+}
+
+function clearOrderSearch() {
+  orderSearchQuery = '';
+  const inp = document.getElementById('order-search-input');
+  if (inp) inp.value = '';
+  const clearBtn = document.getElementById('order-search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  renderOrderList();
+  renderTmsTable();
+}
+
+function matchesSearch(o, q) {
+  if (!q) return true;
+  const lower = q.toLowerCase();
+  const itemStr = (o.items||[]).map(it => it.name).join(' ').toLowerCase();
+  return (o.customerName||'').toLowerCase().includes(lower)
+      || (o.address||'').toLowerCase().includes(lower)
+      || (o.phone||'').includes(q)
+      || itemStr.includes(lower)
+      || (o.note||'').toLowerCase().includes(lower)
+      || (o.assignedDriverName||'').toLowerCase().includes(lower);
+}
+
 function filterOrders() {
   const today = todayStart();
   let filtered = orders.filter(o => o.createdAt >= today);
-  if (currentFilter === 'all') return filtered;
-  if (['pending','confirmed','delivering','done','cancelled'].includes(currentFilter))
-    return filtered.filter(o => o.status === currentFilter);
-  if (['kakao','sms','call'].includes(currentFilter))
-    return filtered.filter(o => o.channel === currentFilter);
+  if (currentFilter !== 'all') {
+    if (['pending','confirmed','delivering','done','cancelled'].includes(currentFilter))
+      filtered = filtered.filter(o => o.status === currentFilter);
+    else if (['kakao','sms','call'].includes(currentFilter))
+      filtered = filtered.filter(o => o.channel === currentFilter);
+  }
+  if (orderSearchQuery) filtered = filtered.filter(o => matchesSearch(o, orderSearchQuery));
   return filtered;
 }
 
@@ -1126,7 +1617,7 @@ function renderOrderList() {
 
     const actions = orderActions(o);
 
-    return `<div class="order-card ch-${o.channel} ${o.status==='done'?'st-done':''}" id="oc-${o.id}">
+    return `<div class="order-card ch-${o.channel} ${o.status==='done'?'st-done':''}" id="oc-${o.id}" onclick="openOrderDetail('${o.id}')">
       <div class="oc-top">
         <div class="oc-num">${i+1}</div>
         <div class="oc-name">${o.customerName}</div>
@@ -1141,9 +1632,9 @@ function renderOrderList() {
         ${o.paymentMethod?`<span class="badge" style="background:#f5f5f5;color:#555">${PAY_LABELS[o.paymentMethod]||o.paymentMethod}</span>`:''}
         ${o.note?`<span style="font-size:11px;color:#888">📝 ${o.note}</span>`:''}
         ${totalAmt?`<div class="oc-amount">₩${totalAmt.toLocaleString()}</div>`:''}
+        ${o.photoUrl?`<span style="font-size:11px;color:#4A90E2;font-weight:600">📸 사진있음</span>`:''}
       </div>
-      ${actions?`<div class="oc-actions">${actions}</div>`:''}
-      ${o.photoId?`<div style="margin-top:8px"><button class="btn btn-sm" style="background:#f0f4ff;color:#4A90E2;font-size:12px;padding:6px 12px;width:auto" onclick="showDeliveryPhoto('${o.photoId}',this)">📸 배송 사진 보기</button></div>`:''}
+      <div class="oc-actions" onclick="event.stopPropagation()">${actions}</div>
     </div>`;
   }).join('');
 }
@@ -1157,15 +1648,116 @@ function orderActions(o) {
     <button class="btn btn-primary btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달 배정하기</button>
     <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">취소</button>`;
   if (o.status === 'delivering') return `
-    <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','done')">✅ 배달완료</button>`;
+    <span style="font-size:11px;font-weight:700;color:#1565C0">🚗 배달중</span>
+    <button class="btn btn-green btn-sm" style="flex:1;margin-top:4px" onclick="updateStatus('${o.id}','done')">✅ 완료 처리</button>`;
   if (o.status === 'done') return `
-    <button class="btn btn-gray btn-sm btn-sm" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
+    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
+  if (o.status === 'cancelled') return `
+    <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','pending')">🔄 주문 복원</button>`;
   return '';
+}
+
+// ══════════════════════════════════════════
+// 주문 상세 팝업
+// ══════════════════════════════════════════
+function openOrderDetail(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+
+  const modal = document.getElementById('order-detail-modal');
+  const title = document.getElementById('order-detail-title');
+  const content = document.getElementById('order-detail-content');
+
+  title.textContent = o.customerName + ' 고객';
+
+  const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
+  const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+  const orderTime = new Date(o.createdAt).toLocaleString('ko', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const completedTime = o.completedAt ? new Date(o.completedAt).toLocaleString('ko', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+
+  const statusColor = {pending:'#FF9800',confirmed:'#4CAF50',delivering:'#2196F3',done:'#9E9E9E',cancelled:'#F44336'};
+
+  const actions = orderActions(o);
+
+  content.innerHTML = `
+    <!-- 상태 배지 -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <span class="badge badge-${o.status}" style="font-size:13px;padding:5px 12px">${STATUS_LABELS[o.status]||o.status}</span>
+      <span class="badge badge-${o.channel}">${CH_LABELS[o.channel]||o.channel}</span>
+      ${o.paymentMethod?`<span class="badge" style="background:#f5f5f5;color:#555">${PAY_LABELS[o.paymentMethod]||o.paymentMethod}</span>`:''}
+      ${o.receiveMethod?`<span class="badge" style="background:#e8f5e9;color:#2e7d32">${o.receiveMethod==='door'?'🚪 문앞':o.receiveMethod==='hand'?'🤝 직접':''+o.receiveMethod}</span>`:''}
+    </div>
+
+    <!-- 고객 정보 -->
+    <div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">고객 정보</div>
+      <div style="font-size:15px;font-weight:700;color:#1a237e;margin-bottom:4px">👤 ${o.customerName}</div>
+      ${o.phone?`<div style="font-size:13px;color:#555;margin-bottom:4px">📞 ${o.phone}</div>`:''}
+      <div style="font-size:13px;color:#555">📍 ${o.address}</div>
+      ${o.note?`<div style="font-size:12px;color:#888;margin-top:6px;padding-top:6px;border-top:1px dashed #ddd">📝 ${o.note}</div>`:''}
+    </div>
+
+    <!-- 주문 상품 -->
+    ${itemStr?`<div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">주문 상품</div>
+      <div style="font-size:14px;color:#333">🛍️ ${itemStr}</div>
+      ${totalAmt?`<div style="font-size:16px;font-weight:800;color:#1a237e;margin-top:8px">₩${totalAmt.toLocaleString()}</div>`:''}
+    </div>`:''}
+
+    <!-- 배달 정보 -->
+    <div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">배달 정보</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div style="font-size:11px;color:#aaa">주문시간</div><div style="font-size:13px;font-weight:600">${orderTime}</div></div>
+        ${completedTime?`<div><div style="font-size:11px;color:#aaa">완료시간</div><div style="font-size:13px;font-weight:600;color:#2e7d32">✅ ${completedTime}</div></div>`:''}
+        ${o.assignedDriverName?`<div><div style="font-size:11px;color:#aaa">담당기사</div><div style="font-size:13px;font-weight:600">🚗 ${o.assignedDriverName}</div></div>`:''}
+        ${o.paymentStatus?`<div><div style="font-size:11px;color:#aaa">결제상태</div><div style="font-size:13px;font-weight:600">${o.paymentStatus==='paid'?'✅ 완료':'⏳ 미완료'}</div></div>`:''}
+      </div>
+    </div>
+
+    <!-- 배송 사진 -->
+    ${o.photoUrl?`<div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📸 배송 완료 사진</div>
+      <img src="${o.photoUrl}" onclick="window.open('${o.photoUrl}','_blank')" style="width:100%;max-height:280px;object-fit:cover;border-radius:10px;cursor:zoom-in;display:block" alt="배송 완료 사진">
+      <div style="font-size:11px;color:#aaa;margin-top:6px;text-align:center">탭하면 크게 보기</div>
+    </div>`:''}
+
+    <!-- 액션 버튼 -->
+    ${actions?`<div class="oc-actions" style="margin-top:4px">${actions}</div>`:''}
+    ${o.lat&&o.lng?`<button onclick="closeOrderDetail();focusOrderOnMap('${o.id}')" style="margin-top:8px;width:100%;background:#f0f4ff;color:#1a237e;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">🗺️ 지도에서 보기</button>`:''}
+  `;
+
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeOrderDetail() {
+  document.getElementById('order-detail-modal').style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 // ══════════════════════════════════════════
 // 주문 상태 업데이트
 // ══════════════════════════════════════════
+function assignDriver(orderId, driverId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+  const driver = driverAccountsList[driverId];
+  o.assignedDriverId   = driverId;
+  o.assignedDriverName = driver?.name || '';
+  o.updatedAt = Date.now();
+  saveOrders();
+  renderOrderList();
+  if (firebaseActive) {
+    db.ref('orders/' + orderId).update({
+      assignedDriverId:   driverId,
+      assignedDriverName: driver?.name || '',
+      updatedAt: o.updatedAt
+    });
+  }
+  showToast(driver ? `🚗 ${driver.name} 기사 배정 완료` : '배정 해제');
+}
+
 function updateStatus(id, status) {
   const o = orders.find(x => x.id === id);
   if (!o) return;
@@ -1175,6 +1767,9 @@ function updateStatus(id, status) {
   renderOrderList();
   if (firebaseActive) db.ref('orders/' + id).update({ status, updatedAt: o.updatedAt });
   showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
+  // 팝업이 열려있으면 내용 갱신
+  const modal = document.getElementById('order-detail-modal');
+  if (modal && modal.style.display === 'flex') openOrderDetail(id);
 }
 
 // ══════════════════════════════════════════
@@ -1184,26 +1779,39 @@ function sendToDelivery(orderId) {
   const o = orders.find(x => x.id === orderId);
   if (!o) return;
 
+  // 기사 미배정 시 경고
+  if (!o.assignedDriverId) {
+    showToast('⚠️ 기사를 먼저 배정해주세요');
+    return;
+  }
+
   const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
   const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
 
-  // deliveries 노드에 추가 → 기사앱·대시보드에 실시간 표시
   const delivery = {
     customerName: o.customerName,
     address: o.address,
     phone: o.phone || '-',
+    lat: o.lat || null,
+    lng: o.lng || null,
     note: [o.note, itemStr, PAY_LABELS[o.paymentMethod]||'', totalAmt?`₩${totalAmt.toLocaleString()}`:''].filter(Boolean).join(' · '),
     status: 'pending',
     orderId: o.id,
-    orderChannel: o.channel,
+    assignedDriverId:   o.assignedDriverId,
+    assignedDriverName: o.assignedDriverName || '',
     totalAmount: totalAmt,
     createdAt: Date.now()
   };
 
   if (firebaseActive) {
-    db.ref('deliveries/' + orderId).set(delivery).then(() => {
+    db.ref('orders/' + orderId).update({
+      status: 'delivering',
+      assignedDriverId:   o.assignedDriverId,
+      assignedDriverName: o.assignedDriverName || '',
+      updatedAt: Date.now()
+    }).then(() => {
       updateStatus(orderId, 'delivering');
-      showToast('🚀 기사앱으로 배달 전송 완료!');
+      showToast(`🚀 ${o.assignedDriverName} 기사에게 배달 전송 완료!`);
     });
   } else {
     updateStatus(orderId, 'delivering');
@@ -2531,45 +3139,317 @@ document.getElementById('apikey-modal').addEventListener('click', function(e) {
 // TMS 지도 & 실시간 배송 테이블
 // ══════════════════════════════════════════
 let tmsMap = null;
-let tmsDriverMarkers = {};   // driverId → L.marker
+let tmsDriverMarkers = {};   // driverId → kakao.maps.Marker
 let tmsDeliveryData = {};    // orderId  → delivery object
 let tmsDriverData = {};      // driverId → driver object
 
-// ── 지도 초기화 (PC 전용) ──
+// ── 지도 초기화 (PC 전용, 카카오맵) ──
 function initTmsMap() {
-  if (tmsMap || typeof L === 'undefined') return;
+  if (tmsMap) return;
+  if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined') return;
   const el = document.getElementById('tms-map');
   if (!el) return;
-  tmsMap = L.map('tms-map', { zoomControl: true, attributionControl: false })
-    .setView([37.5665, 126.9780], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18
-  }).addTo(tmsMap);
-  // 지도 크기 새로고침 (flexbox 높이 확정 후)
-  setTimeout(() => tmsMap.invalidateSize(), 200);
+
+  // 카카오맵은 컨테이너에 명시적 px 크기가 필요
+  const parent = el.parentElement;
+  const h = parent ? parent.offsetHeight : 0;
+  if (h > 0) {
+    el.style.width  = parent.offsetWidth  + 'px';
+    el.style.height = h + 'px';
+  } else {
+    el.style.width  = (window.innerWidth - 440) + 'px';
+    el.style.height = (window.innerHeight - 64)  + 'px';
+  }
+
+  const mart = getMartLocation();
+  const center = new kakao.maps.LatLng(mart.lat, mart.lng);
+  tmsMap = new kakao.maps.Map(el, { center, level: 5 });
+  tmsMap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+
+  // 창 크기 변경 시 지도 크기 재조정
+  window.addEventListener('resize', () => {
+    if (!tmsMap) return;
+    const p = el.parentElement;
+    if (p && p.offsetHeight > 0) {
+      el.style.width  = p.offsetWidth  + 'px';
+      el.style.height = p.offsetHeight + 'px';
+      tmsMap.relayout();
+    }
+  });
+
+  setTimeout(updateOmsMapMarkers, 300);
 }
 
-// ── 기사 마커 아이콘 생성 ──
-function makeDriverIcon(name) {
-  const label = (name || '?')[0];
-  return L.divIcon({
-    className: '',
-    html: `<div style="background:#1a237e;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);letter-spacing:0">${label}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17]
+// ── 마커 오버레이 HTML 생성 헬퍼 ──
+function _makeOverlay(html, anchor) {
+  return new kakao.maps.CustomOverlay({
+    content: html,
+    anchor: anchor || 'center',
+    clickable: true
   });
 }
 
-// ── 배달 위치 마커 아이콘 ──
-function makeDeliveryIcon(num, status) {
+// ── 기사 마커 아이콘 (CustomOverlay) ──
+function makeDriverMarker(lat, lng, name, updatedAt) {
+  const label = (name || '?')[0];
+  const ageMs = updatedAt ? Date.now() - updatedAt : null;
+  const isStale = ageMs && ageMs > 5 * 60 * 1000; // 5분 이상 미업데이트
+  const bg = isStale ? '#9e9e9e' : '#1a237e';
+  const ageText = ageMs
+    ? (ageMs < 60000 ? '방금 전' : Math.floor(ageMs / 60000) + '분 전')
+    : '';
+  const content = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="background:${bg};color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.45);cursor:pointer;position:relative">
+        ${label}
+        <span style="position:absolute;bottom:-3px;right:-3px;width:12px;height:12px;border-radius:50%;background:${isStale?'#f44336':'#4CAF50'};border:2px solid #fff"></span>
+      </div>
+      <div style="background:${bg};color:#fff;border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.3)">${name||'?'}</div>
+      ${ageText ? `<div style="background:rgba(0,0,0,.55);color:#fff;border-radius:6px;padding:1px 5px;font-size:9px;white-space:nowrap">${ageText}</div>` : ''}
+    </div>`;
+  const overlay = new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content,
+    anchor: 'center',
+    zIndex: 10
+  });
+  return overlay;
+}
+
+// ── 마트 마커 ──
+function makeMartMarker(lat, lng, name) {
+  const content = `<div style="background:#FF6B00;color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer" title="${name||'마트'}">🏪</div>`;
+  return new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content,
+    anchor: 'center',
+    zIndex: 9
+  });
+}
+
+// ── 배달 위치 마커 ──
+function makeDeliveryMarker(lat, lng, num, status, orderId) {
   const colors = { pending:'#FF9800', confirmed:'#4CAF50', delivering:'#2196F3', done:'#9E9E9E', cancelled:'#F44336' };
   const bg = colors[status] || '#FF9800';
-  return L.divIcon({
-    className: '',
-    html: `<div style="background:${bg};color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3)">${num}</div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+  const content = `<div onclick="focusOrderOnMap('${orderId}')" style="background:${bg};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer">${num}</div>`;
+  return new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content,
+    anchor: 'center',
+    zIndex: 5
   });
+}
+
+// ── 마트 위치 (Firebase 공유) ──
+let _martLocation = { lat: 37.6447, lng: 127.3028, name: '웰빙마트' };
+
+function getMartLocation() { return _martLocation; }
+
+// Firebase에서 마트 위치 실시간 수신
+db.ref('settings/martLocation').on('value', snap => {
+  const data = snap.val();
+  if (data && data.lat && data.lng) {
+    _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '웰빙마트', address: data.address || '' };
+    localStorage.setItem('mart_location', JSON.stringify(_martLocation));
+    updateOmsMapMarkers(); // 지도 마커 즉시 갱신
+    const el = document.getElementById('oms-mart-addr-current');
+    if (el) el.textContent = '현재: ' + (data.address || `${data.lat}, ${data.lng}`);
+  }
+});
+
+async function saveOmsMartLocation() {
+  const addr = document.getElementById('oms-mart-addr-input').value.trim();
+  const name = document.getElementById('oms-mart-name-input').value.trim() || '웰빙마트';
+  if (!addr) { showToast('주소를 입력하세요'); return; }
+
+  const el = document.getElementById('oms-mart-addr-current');
+  el.textContent = '좌표 검색 중...';
+
+  try {
+    const q = encodeURIComponent(addr);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1&accept-language=ko`);
+    const data = await res.json();
+    if (!data.length) throw new Error('주소를 찾을 수 없습니다');
+
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    const martData = { address: addr, name, lat, lng, updatedAt: Date.now() };
+
+    // Firebase에 저장 → 모든 OMS/TMS 자동 반영
+    await db.ref('settings/martLocation').set(martData);
+    showToast('✅ 마트 위치 저장 완료! 모든 기기에 반영됩니다');
+    document.getElementById('oms-mart-modal').style.display = 'none';
+  } catch(e) {
+    el.textContent = '❌ ' + e.message;
+  }
+}
+
+function openOmsMartSettings() {
+  const m = _martLocation;
+  const el = document.getElementById('oms-mart-addr-current');
+  if (el) el.textContent = m.address ? '현재: ' + m.address : '아직 설정되지 않았습니다';
+  const ni = document.getElementById('oms-mart-name-input');
+  if (ni) ni.value = m.name || '';
+  const ai = document.getElementById('oms-mart-addr-input');
+  if (ai) ai.value = m.address || '';
+  document.getElementById('oms-mart-modal').style.display = 'flex';
+}
+
+function closeOmsMartSettings() {
+  document.getElementById('oms-mart-modal').style.display = 'none';
+}
+
+// ── OMS 지도 마커 업데이트 ──
+let _omsMartMarker = null;
+let _omsOrderMarkers = {};
+
+function updateOmsMapMarkers() {
+  if (!tmsMap) return;
+
+  // 마트 핀
+  const mart = getMartLocation();
+  if (_omsMartMarker) _omsMartMarker.setMap(null);
+  _omsMartMarker = makeMartMarker(mart.lat, mart.lng, mart.name || '마트');
+  _omsMartMarker.setMap(tmsMap);
+
+  // 기존 주문 마커 제거
+  Object.values(_omsOrderMarkers).forEach(m => m.setMap(null));
+  _omsOrderMarkers = {};
+
+  // 오늘 주문 중 좌표 있는 것
+  const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+  const todayOrders = orders.filter(o => o.createdAt >= today && o.lat && o.lng && o.status !== 'cancelled');
+
+  todayOrders.forEach((o, i) => {
+    const marker = makeDeliveryMarker(o.lat, o.lng, i + 1, o.status, o.id);
+    marker.setMap(tmsMap);
+    _omsOrderMarkers[o.id] = marker;
+  });
+
+  // bounds 조정
+  const allPoints = [
+    new kakao.maps.LatLng(mart.lat, mart.lng),
+    ...todayOrders.map(o => new kakao.maps.LatLng(o.lat, o.lng))
+  ];
+  if (allPoints.length > 1) {
+    try {
+      const bounds = allPoints.reduce((b, p) => b.extend(p), new kakao.maps.LatLngBounds());
+      tmsMap.setBounds(bounds, 60);
+    } catch(e) {}
+  } else {
+    tmsMap.setCenter(new kakao.maps.LatLng(mart.lat, mart.lng));
+    tmsMap.setLevel(5);
+  }
+}
+
+// ── 주문 카드 클릭 시 지도 확대 ──
+function focusOrderOnMap(orderId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o || !o.lat || !o.lng) { showToast('이 주문은 좌표 정보가 없습니다'); return; }
+  if (!tmsMap) return;
+
+  tmsMap.setCenter(new kakao.maps.LatLng(o.lat, o.lng));
+  tmsMap.setLevel(3);
+
+  // 주문 카드 하이라이트
+  document.querySelectorAll('.order-card').forEach(el => { el.style.outline = ''; });
+  const card = document.getElementById('oc-' + orderId);
+  if (card) {
+    card.style.outline = '3px solid #1a237e';
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (card) card.style.outline = ''; }, 2500);
+  }
+  // 테이블 행 하이라이트
+  const row = document.getElementById('tr-' + orderId);
+  if (row) {
+    row.classList.add('tms-tr-highlight');
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (row) row.classList.remove('tms-tr-highlight'); }, 2500);
+  }
+}
+
+// ══════════════════════════════════════════
+// 기사 계정 관리
+// ══════════════════════════════════════════
+let driverAccountsList = {};
+
+db.ref('driverAccounts').on('value', snap => {
+  driverAccountsList = snap.val() || {};
+  renderDriverList();
+});
+
+function showDriversModal() {
+  document.getElementById('drivers-modal').classList.add('show');
+  renderDriverList();
+}
+function hideDriversModal(e) {
+  if (e && e.target !== document.getElementById('drivers-modal')) return;
+  document.getElementById('drivers-modal').classList.remove('show');
+}
+
+function renderDriverList() {
+  const entries = Object.entries(driverAccountsList);
+  const html = !entries.length
+    ? '<div style="text-align:center;color:#999;padding:24px">등록된 기사가 없습니다</div>'
+    : entries.map(([id, d]) => `
+      <div style="background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${d.name} <span style="font-size:11px;color:#999;font-weight:400">(${id})</span></div>
+          <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;${d.active ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fce4ec;color:#c62828'}">${d.active ? '활성' : '비활성'}</span>
+        </div>
+        <button onclick="toggleDriverActive('${id}', ${d.active})"
+          style="border:none;border-radius:7px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;${d.active ? 'background:#fce4ec;color:#c62828' : 'background:#e8f5e9;color:#2e7d32'}">
+          ${d.active ? '비활성화' : '활성화'}
+        </button>
+        <button onclick="deleteDriver('${id}', '${d.name}')"
+          style="border:none;border-radius:7px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#f5f5f5;color:#888">
+          삭제
+        </button>
+      </div>`).join('');
+
+  // 모달 목록과 탭 목록 모두 업데이트
+  const modal = document.getElementById('driver-list-modal');
+  if (modal) modal.innerHTML = html;
+  const tab = document.getElementById('driver-list');
+  if (tab) tab.innerHTML = html;
+}
+
+function registerDriver(src) {
+  // src='modal' → 기사관리 모달, 나머지 → 기사 탭 화면
+  const prefix = src === 'modal' ? 'modal-drv-' : 'drv-';
+  const name = document.getElementById(prefix + 'name').value.trim();
+  const id   = document.getElementById(prefix + 'id').value.trim();
+  const pw   = document.getElementById(prefix + 'pw').value.trim();
+
+  if (!name || !id || !pw) { showToast('이름, 아이디, 비밀번호를 모두 입력하세요'); return; }
+  if (!/^[a-zA-Z0-9_]+$/.test(id)) { showToast('아이디는 영문/숫자/밑줄만 가능합니다'); return; }
+
+  db.ref('driverAccounts/' + id).once('value').then(snap => {
+    if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return; }
+    return db.ref('driverAccounts/' + id).set({
+      name, password: pw, active: true, createdAt: Date.now()
+    });
+  }).then(() => {
+    showToast('✅ ' + name + ' 기사 등록 완료');
+    document.getElementById(prefix + 'name').value = '';
+    document.getElementById(prefix + 'id').value = '';
+    document.getElementById(prefix + 'pw').value = '';
+  }).catch(e => showToast('오류: ' + e.message));
+}
+
+function toggleDriverActive(id, currentActive) {
+  const msg = currentActive ? '이 기사를 비활성화하면 즉시 로그인이 차단됩니다. 진행할까요?' : '이 기사를 활성화할까요?';
+  if (!confirm(msg)) return;
+  db.ref('driverAccounts/' + id).update({ active: !currentActive })
+    .then(() => showToast(currentActive ? '비활성화 완료' : '활성화 완료'))
+    .catch(e => showToast('오류: ' + e.message));
+}
+
+function deleteDriver(id, name) {
+  if (!confirm(name + ' 기사 계정을 완전히 삭제할까요?')) return;
+  db.ref('driverAccounts/' + id).remove()
+    .then(() => showToast('삭제 완료'))
+    .catch(e => showToast('오류: ' + e.message));
 }
 
 // ── Firebase: 기사 실시간 위치 구독 ──
@@ -2577,7 +3457,7 @@ db.ref('drivers').on('value', snap => {
   tmsDriverData = snap.val() || {};
 
   // 기존 기사 마커 제거
-  Object.values(tmsDriverMarkers).forEach(m => { if (tmsMap) m.remove(); });
+  Object.values(tmsDriverMarkers).forEach(m => { if (tmsMap) m.setMap(null); });
   tmsDriverMarkers = {};
 
   const onlineDrivers = [];
@@ -2589,31 +3469,25 @@ db.ref('drivers').on('value', snap => {
 
     if (!tmsMap || !loc || !loc.lat || !loc.lng) return;
 
-    const marker = L.marker([loc.lat, loc.lng], {
-      icon: makeDriverIcon(driver.name || driverId),
-      zIndexOffset: 1000
-    }).addTo(tmsMap);
-
-    const deliveries = Object.values(tmsDeliveryData)
-      .filter(d => d.driverId === driverId || d.driverName === driver.name)
-      .map(d => d.customerName || d.address)
-      .join('<br>') || '배달 없음';
-
-    marker.bindPopup(
-      `<b>🚗 ${driver.name || driverId}</b><br>` +
-      `상태: ${driver.status || '이동중'}<br>` +
-      `<small>배달: ${deliveries}</small>`
-    );
+    const marker = makeDriverMarker(loc.lat, loc.lng, driver.name || driverId, loc.updatedAt);
+    marker.setMap(tmsMap);
     tmsDriverMarkers[driverId] = marker;
   });
 
   // 기사 현황 바 업데이트
   updateDriverStatusBar(onlineDrivers);
 
-  // 지도 뷰 조정
+  // 지도 뷰 조정 (기사 마커 기준)
   if (tmsMap && Object.keys(tmsDriverMarkers).length > 0) {
-    const group = L.featureGroup(Object.values(tmsDriverMarkers));
-    try { tmsMap.fitBounds(group.getBounds().pad(0.3), { maxZoom: 14 }); } catch(e) {}
+    try {
+      const pts = Object.entries(tmsDriverData)
+        .filter(([,d]) => d.location?.lat && d.location?.lng)
+        .map(([,d]) => new kakao.maps.LatLng(d.location.lat, d.location.lng));
+      if (pts.length > 0) {
+        const bounds = pts.reduce((b, p) => b.extend(p), new kakao.maps.LatLngBounds());
+        tmsMap.setBounds(bounds, 60);
+      }
+    } catch(e) {}
   }
 
   renderTmsTable();
@@ -2655,10 +3529,14 @@ function renderTmsTable() {
 
   tbody.innerHTML = filtered.map((o, i) => {
     const delivery = tmsDeliveryData[o.id] || {};
-    const driverName = delivery.driverName || delivery.assignedDriver || '';
-    const eta = delivery.eta
-      ? new Date(delivery.eta).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
-      : '-';
+    // TMS 기사 자동 배정 또는 OMS 수동 배정
+    const driverName = o.assignedDriverName || delivery.driverName || delivery.assignedDriver || '';
+    const driverId   = o.assignedDriverId   || '';
+    const eta = o.completedAt
+      ? '✅ ' + new Date(o.completedAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
+      : (delivery.eta
+        ? new Date(delivery.eta).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
+        : '-');
     const orderTime = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
     const statusClass = `tms-tr-${o.status || 'pending'}`;
 
@@ -2669,23 +3547,33 @@ function renderTmsTable() {
     else if (o.status === 'confirmed') actionHtml = `
       <button class="btn btn-primary btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="sendToDelivery('${o.id}')">🚀 배달 배정</button>`;
     else if (o.status === 'delivering') actionHtml = `
-      <button class="btn btn-green btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','done')">✅ 배달완료</button>`;
+      <div style="font-size:11px;font-weight:700;color:#1565C0;margin-bottom:3px">🚗 배달중</div>
+      <button class="btn btn-green btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','done')">✅ 완료 처리</button>`;
     else if (o.status === 'done') actionHtml = `
       <button class="btn btn-gray btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
+    else if (o.status === 'cancelled') actionHtml = `
+      <div style="font-size:11px;font-weight:700;color:#f44336;margin-bottom:3px">❌ 취소됨</div>
+      <button class="btn btn-green btn-sm" style="width:100%;padding:5px 8px;font-size:11px" onclick="updateStatus('${o.id}','pending')">🔄 복원</button>`;
 
     const itemSummary = (o.items||[]).map(it=>`${it.name} ${it.qty}개`).join(', ');
 
-    return `<tr class="${statusClass}">
+    const hasCoord = o.lat && o.lng;
+    return `<tr class="${statusClass}" id="tr-${o.id}" onclick="openOrderDetail('${o.id}')" style="cursor:pointer">
       <td style="text-align:center;font-weight:700;color:#aaa;font-size:11px">${i+1}</td>
       <td>
-        <div style="font-weight:700;color:#1a237e;font-size:13px">${o.customerName}</div>
-        <div style="font-size:11px;color:#666;margin-top:2px;line-height:1.4">📍 ${o.address}</div>
+        <div style="font-weight:700;color:#1a237e;font-size:13px">${o.customerName}${hasCoord ? ' 📍' : ''}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;line-height:1.4">${o.address}</div>
         ${itemSummary ? `<div style="font-size:10px;color:#999;margin-top:2px">🛍 ${itemSummary}</div>` : ''}
+        ${o.photoUrl ? `<span style="font-size:10px;color:#4A90E2;font-weight:600">📸 사진있음</span>` : ''}
       </td>
-      <td>
-        <div style="font-size:12px;font-weight:600;color:${driverName ? '#1a237e' : '#ccc'}">
-          ${driverName ? '🚗 ' + driverName : '미배정'}
-        </div>
+      <td onclick="event.stopPropagation()">
+        <select onchange="assignDriver('${o.id}',this.value)"
+          style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:4px 6px;font-size:11px;font-family:inherit;color:${driverName?'#1a237e':'#aaa'};background:#fafafa;cursor:pointer;outline:none">
+          <option value="" ${!driverId?'selected':''}>미배정</option>
+          ${Object.entries(driverAccountsList).filter(([,d])=>d.active).map(([id,d])=>
+            `<option value="${id}" ${driverId===id?'selected':''}>${d.name}</option>`
+          ).join('')}
+        </select>
         <div style="margin-top:4px"><span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span></div>
       </td>
       <td>
@@ -2697,7 +3585,7 @@ function renderTmsTable() {
         ${o.note ? `<div style="font-size:11px;color:#888;margin-top:2px">📝 ${o.note}</div>` : ''}
         ${PAY_LABELS[o.paymentMethod] ? `<div style="font-size:10px;color:#aaa;margin-top:1px">${PAY_LABELS[o.paymentMethod]}</div>` : ''}
       </td>
-      <td>
+      <td onclick="event.stopPropagation()">
         <div class="tms-actions">${actionHtml}</div>
       </td>
     </tr>`;
@@ -2713,11 +3601,7 @@ renderOrderList = function() {
 
 // ── PC 접속 시 지도 초기화 ──
 if (window.innerWidth >= 768) {
-  document.addEventListener('DOMContentLoaded', () => setTimeout(initTmsMap, 150));
-  // DOMContentLoaded가 이미 발화된 경우 대비
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(initTmsMap, 200);
-  }
+  kakao.maps.load(() => setTimeout(initTmsMap, 100));
 }
 
 // ══════════════════════════════════════════
