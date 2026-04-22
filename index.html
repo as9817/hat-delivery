@@ -869,7 +869,13 @@ function startFirebaseOrderSync() {
         // 기존 주문: 상태 동기화
         if (local.status !== fbOrder.status) {
           local.status = fbOrder.status;
-          if (isCancelled) local.cancelledByOms = true;
+          if (isCancelled && !local.cancelledByOms) {
+            local.cancelledByOms = true;
+            // 마트 취소 팝업
+            setTimeout(() => {
+              alert(`🚫 마트에서 주문을 취소했습니다.\n\n고객명: ${local.customerName}\n주소: ${local.address}`);
+            }, 300);
+          }
           changed = true;
         }
         // 배정 정보 업데이트

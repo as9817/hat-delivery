@@ -1776,11 +1776,23 @@ function assignDriver(orderId, driverId) {
 function updateStatus(id, status) {
   const o = orders.find(x => x.id === id);
   if (!o) return;
+
+  // 취소 시 확인 팝업
+  if (status === 'cancelled') {
+    if (!confirm(`🚫 "${o.customerName}" 주문을 취소하시겠습니까?\n\n취소하면 기사 앱에도 즉시 반영됩니다.`)) return;
+  }
+
   o.status = status;
   o.updatedAt = Date.now();
+  // 취소 시 취소 시각 기록 (TMS 팝업 트리거용)
+  if (status === 'cancelled') o.cancelledAt = Date.now();
   saveOrders();
   renderOrderList();
-  if (firebaseActive) db.ref('orders/' + id).update({ status, updatedAt: o.updatedAt });
+  if (firebaseActive) {
+    const update = { status, updatedAt: o.updatedAt };
+    if (status === 'cancelled') update.cancelledAt = o.cancelledAt;
+    db.ref('orders/' + id).update(update);
+  }
   showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
   // 팝업이 열려있으면 내용 갱신
   const modal = document.getElementById('order-detail-modal');
