@@ -507,10 +507,8 @@
       <label class="form-label" style="margin-top:10px">💳 결제 방식</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="pay-btns">
         <button class="pay-btn active" data-pay="prepaid" onclick="selectPay(this)">✅ 완납</button>
-        <button class="pay-btn" data-pay="card" onclick="selectPay(this)">💳 현장카드</button>
-        <button class="pay-btn" data-pay="cash" onclick="selectPay(this)">💵 현장현금</button>
-        <button class="pay-btn" data-pay="transfer" onclick="selectPay(this)">🏦 계좌이체</button>
-        <button class="pay-btn" data-pay="credit" onclick="selectPay(this)">📋 외상</button>
+        <button class="pay-btn" data-pay="onsite" onclick="selectPay(this)">💳 현장결제</button>
+        <button class="pay-btn" data-pay="unpaid" onclick="selectPay(this)">📋 미불(외상)</button>
       </div>
       <div class="row-btns" style="margin-top:4px">
         <button class="btn btn-outline" onclick="toggleEdit()">✏️ 정보 수정하기</button>
