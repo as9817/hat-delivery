@@ -681,7 +681,7 @@ async function doLogin() {
     const snap = await _fbDb.ref('driverAccounts/' + id).once('value');
     const driver = snap.val();
     if (!driver) { err.textContent = '존재하지 않는 아이디입니다'; err.style.display = 'block'; return; }
-    if (!driver.active) { err.textContent = '비활성화된 계정입니다. 관리자에게 문의하세요'; err.style.display = 'block'; return; }
+    if (driver.active === false) { err.textContent = '비활성화된 계정입니다. 관리자에게 문의하세요'; err.style.display = 'block'; return; }
     if (driver.password !== pw) { err.textContent = '비밀번호가 틀렸습니다'; err.style.display = 'block'; return; }
 
     currentDriver = { id, name: driver.name };
