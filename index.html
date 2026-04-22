@@ -434,7 +434,7 @@
     <div class="card">
       <div style="font-weight:700;margin-bottom:12px">수령방법 <span style="color:#e53935">*</span></div>
       <div class="radio-group" id="receive-group">
-        <label class="radio-item"><input type="radio" name="receive" value="door"> 문 앞 배송</label>
+        <label class="radio-item"><input type="radio" name="receive" value="door" checked> 문 앞 배송</label>
         <label class="radio-item"><input type="radio" name="receive" value="direct"> 고객 직접수령</label>
         <label class="radio-item"><input type="radio" name="receive" value="guard"> 경비실</label>
         <label class="radio-item"><input type="radio" name="receive" value="etc"> 기타</label>
@@ -453,10 +453,9 @@
     <div class="card">
       <div style="font-weight:700;margin-bottom:12px">결제여부 <span style="color:#e53935">*</span></div>
       <div class="radio-group" id="payment-group">
-        <label class="radio-item"><input type="radio" name="payment" value="prepaid"> 완납됨</label>
-        <label class="radio-item"><input type="radio" name="payment" value="card"> 현장 카드 결제함</label>
-        <label class="radio-item"><input type="radio" name="payment" value="cash"> 현장 현금 결제함</label>
-        <label class="radio-item"><input type="radio" name="payment" value="transfer"> 계좌이체 함</label>
+        <label class="radio-item"><input type="radio" name="payment" value="prepaid" checked> 완납됨</label>
+        <label class="radio-item"><input type="radio" name="payment" value="onsite"> 현장 결제</label>
+        <label class="radio-item"><input type="radio" name="payment" value="unpaid"> 미불(외상)</label>
         <label class="radio-item"><input type="radio" name="payment" value="credit"> 외상</label>
       </div>
     </div>
