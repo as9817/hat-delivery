@@ -1537,9 +1537,9 @@ function openCompleteScreen(id) {
   document.getElementById('complete-delivery-id').value = id;
   document.getElementById('complete-addr').textContent = d.address;
   document.getElementById('complete-name').textContent = d.customerName + ' · ' + d.phone;
-  // 초기화
-  document.querySelectorAll('input[name=receive]').forEach(r => r.checked = false);
-  document.querySelectorAll('input[name=payment]').forEach(r => r.checked = false);
+  // 초기화 (기본값: 문 앞 배송, 완납됨)
+  document.querySelectorAll('input[name=receive]').forEach(r => r.checked = r.value === 'door');
+  document.querySelectorAll('input[name=payment]').forEach(r => r.checked = r.value === 'prepaid');
   document.getElementById('complete-memo').value = '';
   document.getElementById('complete-photo-btn').textContent = '📷 사진 첨부하기';
   document.getElementById('complete-photo-preview').style.display = 'none';
