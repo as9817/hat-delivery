@@ -546,6 +546,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <button class="header-pc-btn" onclick="showImportModal()">📥 가져오기</button>
       <button class="header-pc-btn" onclick="showDriversModal()">🚗 기사관리</button>
       <button class="header-pc-btn" onclick="openOmsMartSettings()">🏪 마트위치</button>
+      <button class="header-pc-btn" onclick="openLearnedModal()">📚 학습주소</button>
       <span id="oms-user-badge">👤 <span id="oms-user-name">-</span></span>
       <button id="btn-accounts" class="header-pc-btn" onclick="showAccountsModal()" style="display:none">🔐 계정관리</button>
       <button class="header-pc-btn" onclick="omsLogout()" style="background:rgba(244,67,54,.25);border:1.5px solid rgba(244,67,54,.4)">로그아웃</button>
@@ -1037,6 +1038,20 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div id="order-detail-title" style="font-size:16px;font-weight:800;color:#1a237e;flex:1"></div>
     </div>
     <div id="order-detail-content" style="padding:16px 20px"></div>
+  </div>
+</div>
+
+<!-- 학습 주소 관리 모달 -->
+<div id="oms-learned-modal" onclick="if(event.target===this)closeLearnedModal()" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.55);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;width:min(560px,95vw);max-height:80vh;display:flex;flex-direction:column;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:17px;font-weight:800;color:#1a237e">📚 학습된 주소 관리</div>
+      <button onclick="closeLearnedModal()" style="background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;color:#555">×</button>
+    </div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">기사가 수정한 주소가 자동 학습됩니다. 잘못된 항목은 삭제하세요.</div>
+    <div id="learned-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px">
+      <div style="color:#aaa;text-align:center;padding:30px">불러오는 중...</div>
+    </div>
   </div>
 </div>
 
@@ -3147,6 +3162,7 @@ let tmsDriverData = {};      // driverId → driver object
 function initTmsMap() {
   if (tmsMap) return;
   if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined') return;
+  _mapInitialized = true;
   const el = document.getElementById('tms-map');
   if (!el) return;
 
@@ -3241,7 +3257,10 @@ function makeDeliveryMarker(lat, lng, num, status, orderId) {
 }
 
 // ── 마트 위치 (Firebase 공유) ──
-let _martLocation = { lat: 37.6447, lng: 127.3028, name: '웰빙마트' };
+// localStorage 캐시 우선, 없으면 서울 용산구 기본값
+const _cachedMart = JSON.parse(localStorage.getItem('mart_location') || 'null');
+let _martLocation = _cachedMart || { lat: 37.5391, lng: 126.9893, name: '웰빙마트' };
+let _mapInitialized = false;
 
 function getMartLocation() { return _martLocation; }
 
@@ -3251,7 +3270,12 @@ db.ref('settings/martLocation').on('value', snap => {
   if (data && data.lat && data.lng) {
     _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '웰빙마트', address: data.address || '' };
     localStorage.setItem('mart_location', JSON.stringify(_martLocation));
-    updateOmsMapMarkers(); // 지도 마커 즉시 갱신
+    if (_mapInitialized) {
+      updateOmsMapMarkers(); // 지도 이미 초기화됐으면 마커만 갱신
+    } else {
+      // 지도 아직 안 만들어졌으면 이제 초기화
+      kakao.maps.load(() => setTimeout(initTmsMap, 100));
+    }
     const el = document.getElementById('oms-mart-addr-current');
     if (el) el.textContent = '현재: ' + (data.address || `${data.lat}, ${data.lng}`);
   }
@@ -3263,24 +3287,42 @@ async function saveOmsMartLocation() {
   if (!addr) { showToast('주소를 입력하세요'); return; }
 
   const el = document.getElementById('oms-mart-addr-current');
-  el.textContent = '좌표 검색 중...';
+  el.textContent = '📍 카카오 좌표 검색 중...';
 
   try {
-    const q = encodeURIComponent(addr);
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1&accept-language=ko`);
-    const data = await res.json();
-    if (!data.length) throw new Error('주소를 찾을 수 없습니다');
+    // 카카오 지오코더로 정확한 좌표 획득
+    const geocoded = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => reject(new Error('카카오 지도 SDK 타임아웃 - 페이지를 새로고침 후 다시 시도하세요')), 10000);
+      kakao.maps.load(() => {
+        const geocoder = new kakao.maps.services.Geocoder();
+        geocoder.addressSearch(addr, (result, status) => {
+          clearTimeout(timeoutId);
+          console.log('[saveOmsMartLocation] geocoder status:', status, 'results:', result?.length);
+          if (status === kakao.maps.services.Status.OK && result.length > 0) {
+            const r = result[0];
+            console.log('[saveOmsMartLocation] road_address:', r.road_address?.address_name, 'coords:', r.y, r.x);
+            resolve({ lat: parseFloat(r.y), lng: parseFloat(r.x), roadAddr: r.road_address?.address_name || addr });
+          } else {
+            reject(new Error('주소를 찾을 수 없습니다. 더 자세히 입력해주세요 (상태: ' + status + ')'));
+          }
+        });
+      });
+    });
 
-    const lat = parseFloat(data[0].lat);
-    const lng = parseFloat(data[0].lon);
-    const martData = { address: addr, name, lat, lng, updatedAt: Date.now() };
+    const { lat, lng, roadAddr } = geocoded;
+    el.textContent = `✅ 좌표 확인: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+    const martData = { address: roadAddr || addr, name, lat, lng, updatedAt: Date.now() };
 
     // Firebase에 저장 → 모든 OMS/TMS 자동 반영
     await db.ref('settings/martLocation').set(martData);
-    showToast('✅ 마트 위치 저장 완료! 모든 기기에 반영됩니다');
-    document.getElementById('oms-mart-modal').style.display = 'none';
+    console.log('[saveOmsMartLocation] Firebase 저장 완료:', martData);
+    showToast(`✅ 마트 위치 저장 완료! lat:${lat.toFixed(5)}, lng:${lng.toFixed(5)}`);
+    setTimeout(() => { document.getElementById('oms-mart-modal').style.display = 'none'; }, 1500);
   } catch(e) {
+    console.error('[saveOmsMartLocation] 오류:', e);
     el.textContent = '❌ ' + e.message;
+    showToast('❌ 저장 실패: ' + e.message);
   }
 }
 
@@ -3297,6 +3339,43 @@ function openOmsMartSettings() {
 
 function closeOmsMartSettings() {
   document.getElementById('oms-mart-modal').style.display = 'none';
+}
+
+// ── 학습 주소 관리 ──
+function openLearnedModal() {
+  document.getElementById('oms-learned-modal').style.display = 'flex';
+  loadLearnedList();
+}
+function closeLearnedModal() {
+  document.getElementById('oms-learned-modal').style.display = 'none';
+}
+function loadLearnedList() {
+  const el = document.getElementById('learned-list');
+  db.ref('settings/learnedLocations').once('value', snap => {
+    const data = snap.val();
+    if (!data || !Object.keys(data).length) {
+      el.innerHTML = '<div style="color:#aaa;text-align:center;padding:30px">학습된 주소가 없습니다</div>';
+      return;
+    }
+    el.innerHTML = Object.entries(data).map(([key, val]) => `
+      <div style="background:#f8f9ff;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px;color:#1a237e;margin-bottom:4px">👤 ${key}</div>
+          <div style="font-size:13px;color:#333">${val.road_address || '-'}</div>
+          ${val.detail_address ? `<div style="font-size:12px;color:#666;margin-top:2px">상세: ${val.detail_address}</div>` : ''}
+          ${val.note ? `<div style="font-size:11px;color:#aaa;margin-top:4px">${val.note}</div>` : ''}
+          <div style="font-size:11px;color:#bbb;margin-top:2px">${val.updatedAt ? new Date(val.updatedAt).toLocaleString('ko-KR') : ''}</div>
+        </div>
+        <button onclick="deleteLearnedLocation('${key}')" style="background:#ffebee;border:none;border-radius:8px;padding:8px 12px;color:#e53935;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🗑 삭제</button>
+      </div>
+    `).join('');
+  });
+}
+function deleteLearnedLocation(key) {
+  if (!confirm(`"${key}" 학습 주소를 삭제할까요?`)) return;
+  db.ref('settings/learnedLocations/' + key).remove()
+    .then(() => { showToast('삭제 완료'); loadLearnedList(); })
+    .catch(() => showToast('삭제 실패'));
 }
 
 // ── OMS 지도 마커 업데이트 ──
@@ -3600,8 +3679,12 @@ renderOrderList = function() {
 };
 
 // ── PC 접속 시 지도 초기화 ──
+// localStorage에 마트 위치 캐시가 있으면 즉시, 없으면 Firebase 수신 후 초기화
 if (window.innerWidth >= 768) {
-  kakao.maps.load(() => setTimeout(initTmsMap, 100));
+  if (_cachedMart) {
+    kakao.maps.load(() => setTimeout(initTmsMap, 100));
+  }
+  // Firebase 수신 시 _mapInitialized 체크 후 초기화 (위 리스너에서 처리)
 }
 
 // ══════════════════════════════════════════

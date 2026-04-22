@@ -6,17 +6,46 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="햇배달">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#FF6B00">
+  <link rel="manifest" href="/hat-delivery/manifest.json">
+  <link rel="apple-touch-icon" href="/hat-delivery/icons/icon-192.png">
   <title>햇배달</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=39fb0580f590466411a2e2239b082414&libraries=services&autoload=false"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F4F6F9; }
+
+    /* ── 로그인 화면 ── */
+    #login-screen {
+      position: fixed; inset: 0; background: linear-gradient(160deg, #FF6B00, #FF9040);
+      z-index: 9999; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 32px 24px;
+    }
+    #login-screen.hidden { display: none; }
+    .login-logo { font-size: 36px; font-weight: 900; color: #fff; margin-bottom: 6px; }
+    .login-sub  { font-size: 14px; color: rgba(255,255,255,.8); margin-bottom: 40px; }
+    .login-box  {
+      width: 100%; max-width: 360px; background: #fff;
+      border-radius: 20px; padding: 28px 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.15);
+    }
+    .login-box label { font-size: 13px; font-weight: 700; color: #555; display: block; margin-bottom: 6px; }
+    .login-box input {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; font-family: inherit;
+      margin-bottom: 16px; outline: none; transition: border .2s;
+    }
+    .login-box input:focus { border-color: #FF6B00; }
+    .login-err { color: #e53935; font-size: 13px; margin-bottom: 12px; display: none; text-align: center; }
+    .login-driver-name {
+      text-align: center; font-size: 13px; color: #888; margin-top: 16px;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
       -webkit-font-smoothing: antialiased;
@@ -153,6 +182,18 @@
 
     /* ── 경로 최적화 화면 ── */
     #mapview { }
+    .pay-btn {
+      border: 1.5px solid #ddd; border-radius: 20px; padding: 7px 14px;
+      font-size: 13px; font-weight: 600; background: #fff; cursor: pointer;
+      transition: all .15s; font-family: inherit;
+    }
+    .pay-btn.active { background: #FF6B00; color: #fff; border-color: #FF6B00; }
+    .radio-group { display: flex; flex-direction: column; gap: 10px; }
+    .radio-item {
+      display: flex; align-items: center; gap: 10px; font-size: 15px;
+      padding: 10px; border: 1.5px solid #eee; border-radius: 10px; cursor: pointer;
+    }
+    .radio-item input[type=radio] { width: 18px; height: 18px; accent-color: #FF6B00; }
     .route-item {
       display: flex; align-items: center; gap: 12px;
       padding: 12px 0; border-bottom: 1px solid #F5F5F5;
@@ -179,7 +220,7 @@
     }
     #map-container { height: calc(100vh - 56px); width: 100%; background: #e8e8e8; }
     .map-controls {
-      position: absolute; top: 10px; right: 10px: z-index: 1000;
+      position: absolute; top: 10px; right: 10px; z-index: 1000;
       display: flex; flex-direction: column; gap: 6px;
     }
     .map-btn {
@@ -255,6 +296,7 @@
     }
     .nav-kakao { background: #FEE500; color: #3A1D1D; }
     .nav-naver { background: #03C75A; color: #fff; }
+    .nav-tmap  { background: #E8003D; color: #fff; }
     .nav-cancel { background: #F2F2F7; color: #888; }
 
     /* ── 사진 뷰어 ── */
@@ -279,15 +321,29 @@
     }
     .toast.show { opacity: 1; }
 
-    /* ── Leaflet 커스텀 ── */
-    .leaflet-popup-content { font-size: 13px; line-height: 1.6; }
-    .zone-label-tooltip {
-      background: transparent !important; border: none !important;
-      box-shadow: none !important; font-weight: 700; font-size: 12px; color: #333;
-    }
+    /* ── 카카오맵 커스텀 ── */
+    .kakao-info-window { font-size: 13px; line-height: 1.6; background:#fff; border-radius:8px; padding:10px 12px; box-shadow:0 2px 8px rgba(0,0,0,.2); min-width:160px; }
+    .kakao-info-window b { color:#1a1a2e; }
+    .zone-label { background:transparent; border:none; font-weight:700; font-size:12px; color:#333; pointer-events:none; }
   </style>
 </head>
 <body>
+
+<!-- ══════════════ 로그인 화면 ══════════════ -->
+<div id="login-screen">
+  <div class="login-logo">🌞 햇배달</div>
+  <div class="login-sub">기사용 배송 관리 앱</div>
+  <div class="login-box">
+    <label>아이디</label>
+    <input id="login-id" type="text" placeholder="아이디 입력" autocomplete="username" />
+    <label>비밀번호</label>
+    <input id="login-pw" type="password" placeholder="비밀번호 입력" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter') doLogin()" />
+    <div class="login-err" id="login-err"></div>
+    <button class="btn btn-orange" onclick="doLogin()">로그인</button>
+  </div>
+</div>
+
 <div id="app">
 
   <!-- ══════════════ 홈: 배송 목록 ══════════════ -->
@@ -298,8 +354,13 @@
           <div class="app-logo">🌞 햇배달</div>
           <div class="app-date" id="today-date"></div>
         </div>
+        <span id="header-driver-name" style="font-size:12px;opacity:.9;font-weight:700;margin-right:6px"></span>
         <button class="btn-reset" onclick="openMartSettings()" style="margin-right:6px">⚙️ 마트</button>
-        <button class="btn-reset" onclick="resetAll()">🗑 초기화</button>
+        <button class="btn-reset" onclick="doLogout()">🚪 로그아웃</button>
+      </div>
+      <!-- GPS 상태 표시 -->
+      <div id="gps-status" style="display:flex;align-items:center;gap:5px;margin-bottom:6px;font-size:11px">
+        <span>⚪</span><span style="color:#aaa;font-weight:600">위치공유 꺼짐</span>
       </div>
       <div id="progress-label" class="progress-label">5건 남음 · 완료 0/5건</div>
       <div class="progress-strip" style="margin-top:6px">
@@ -356,6 +417,59 @@
     <button class="btn btn-outline" onclick="loadSamples()">🧾 샘플 배송 5건 불러오기</button>
   </div>
 
+  <!-- ══════════════ 배송 완료 화면 ══════════════ -->
+  <div id="complete" class="screen">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <button onclick="goTab('home')" style="background:none;border:none;font-size:22px;cursor:pointer">‹</button>
+      <div style="font-size:17px;font-weight:800">배송완료</div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:18px">📍</span>
+        <div style="font-size:14px;font-weight:600;color:#222" id="complete-addr"></div>
+      </div>
+      <div style="font-size:13px;color:#888" id="complete-name"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">수령방법 <span style="color:#e53935">*</span></div>
+      <div class="radio-group" id="receive-group">
+        <label class="radio-item"><input type="radio" name="receive" value="door"> 문 앞 배송</label>
+        <label class="radio-item"><input type="radio" name="receive" value="direct"> 고객 직접수령</label>
+        <label class="radio-item"><input type="radio" name="receive" value="guard"> 경비실</label>
+        <label class="radio-item"><input type="radio" name="receive" value="etc"> 기타</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">사진 <span style="color:#e53935">*</span></div>
+      <div style="font-size:12px;color:#888;margin-bottom:10px">배송 당일에 찍은 사진만 첨부 가능합니다.<br>직접수령의 경우 배송지의 주소를 확인할 수 있도록 찍어주세요.</div>
+      <button class="btn" style="background:#F2F2F7;color:#555;border:1.5px dashed #ccc" onclick="captureCompletePhoto()" id="complete-photo-btn">
+        📷 사진 첨부하기
+      </button>
+      <img id="complete-photo-preview" src="" alt="" style="display:none;width:100%;border-radius:10px;margin-top:10px;max-height:200px;object-fit:cover">
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">결제여부 <span style="color:#e53935">*</span></div>
+      <div class="radio-group" id="payment-group">
+        <label class="radio-item"><input type="radio" name="payment" value="prepaid"> 완납됨</label>
+        <label class="radio-item"><input type="radio" name="payment" value="card"> 현장 카드 결제함</label>
+        <label class="radio-item"><input type="radio" name="payment" value="cash"> 현장 현금 결제함</label>
+        <label class="radio-item"><input type="radio" name="payment" value="transfer"> 계좌이체 함</label>
+        <label class="radio-item"><input type="radio" name="payment" value="credit"> 외상</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">메모</div>
+      <textarea id="complete-memo" rows="3" style="width:100%;border:1px solid #eee;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;resize:none" placeholder="전달사항이 있으면 입력해주세요"></textarea>
+    </div>
+
+    <button class="btn btn-orange" style="font-size:16px;padding:16px" onclick="submitComplete()">배송 완료하기</button>
+    <input type="hidden" id="complete-delivery-id">
+  </div>
+
   <!-- ══════════════ OCR 진행 중 ══════════════ -->
   <div id="scanning" class="screen">
     <div class="card">
@@ -386,8 +500,20 @@
       <input class="form-input" id="res-name" type="text" placeholder="고객명">
       <label class="form-label">배송 주소</label>
       <input class="form-input" id="res-addr" placeholder="배송 주소">
+      <div id="res-detail-wrap" style="display:none;margin-top:6px">
+        <span style="font-size:12px;color:#888">상세주소</span>
+        <span id="res-detail-badge" style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:3px 10px;border-radius:6px;font-weight:700"></span>
+      </div>
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
+      <label class="form-label" style="margin-top:10px">💳 결제 방식</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="pay-btns">
+        <button class="pay-btn active" data-pay="prepaid" onclick="selectPay(this)">✅ 완납</button>
+        <button class="pay-btn" data-pay="card" onclick="selectPay(this)">💳 현장카드</button>
+        <button class="pay-btn" data-pay="cash" onclick="selectPay(this)">💵 현장현금</button>
+        <button class="pay-btn" data-pay="transfer" onclick="selectPay(this)">🏦 계좌이체</button>
+        <button class="pay-btn" data-pay="credit" onclick="selectPay(this)">📋 외상</button>
+      </div>
       <div class="row-btns" style="margin-top:4px">
         <button class="btn btn-outline" onclick="toggleEdit()">✏️ 정보 수정하기</button>
         <button class="btn btn-orange" onclick="confirmAdd()">+ 배송 목록에 추가</button>
@@ -418,6 +544,7 @@
       <button class="map-btn orange" id="btn-mode-route"  onclick="mapZone.showMode('route')">📍 배송 순서</button>
       <button class="map-btn blue"   id="btn-mode-zone"   onclick="mapZone.showMode('zone')">🗾 구역 관리</button>
       <button class="map-btn green"  id="btn-draw-zone"   onclick="mapZone.startDraw()" style="display:none">✏️ 구역 그리기</button>
+      <button class="map-btn" id="btn-finish-draw" onclick="mapZone.finishDraw()" style="display:none;background:#1a237e;color:#fff">✅ 완료</button>
       <button class="map-btn grey"   id="btn-clear-zones" onclick="mapZone.clearZones()" style="display:none">🗑 구역 삭제</button>
       <button class="map-btn purple" id="btn-check-pip"   onclick="mapZone.checkPIP()" style="display:none">✅ 구역 배정 확인</button>
       <button class="map-btn" id="btn-auto-cluster" onclick="mapZone.autoCluster()" style="display:none;background:#E65100">🤖 기사 자동 배분</button>
@@ -427,7 +554,7 @@
     <div class="map-result" id="map-result"></div>
 
     <!-- 그리기 힌트 -->
-    <div class="map-hint" id="map-hint">클릭으로 꼭짓점 추가 · 더블클릭으로 완료</div>
+    <div class="map-hint" id="map-hint">클릭으로 꼭짓점 추가 · ✅완료 버튼으로 구역 확정</div>
 
     <!-- 범례 -->
     <div class="map-legend" id="map-legend">
@@ -505,13 +632,16 @@
       <div class="modal-addr" id="modal-addr"></div>
       <button class="nav-btn nav-kakao" onclick="launchNav('kakao')">🚕 카카오내비</button>
       <button class="nav-btn nav-naver" onclick="launchNav('naver')">🧭 네이버 내비</button>
+      <button class="nav-btn nav-tmap"  onclick="launchNav('tmap')">🗺️ 티맵</button>
       <button class="nav-btn nav-cancel" onclick="closeNavModal()">취소</button>
     </div>
   </div>
 
   <!-- ══════════════ 사진 뷰어 모달 ══════════════ -->
-  <div class="photo-viewer" id="photo-viewer">
-    <img id="photo-viewer-img" src="" alt="배송 완료 사진">
+  <div class="photo-viewer" id="photo-viewer" onclick="if(event.target===this)closePhotoViewer()">
+    <!-- X 닫기 버튼 (우상단) -->
+    <button onclick="closePhotoViewer()" style="position:absolute;top:16px;right:16px;z-index:10;background:rgba(255,255,255,.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">×</button>
+    <img id="photo-viewer-img" src="" alt="배송 완료 사진" onclick="event.stopPropagation()">
     <div class="photo-viewer-btns">
       <button class="btn btn-dark" style="flex:1" onclick="closePhotoViewer()">닫기</button>
       <button class="btn" style="flex:1;background:#e53935;color:#fff" id="btn-delete-photo" onclick="deletePhotoConfirm()">🗑 삭제</button>
@@ -524,6 +654,176 @@
 
 <script>
 // ══════════════════════════════════════════════════════
+// 로그인 / 세션 관리
+// ══════════════════════════════════════════════════════
+const SESSION_KEY = 'driver_session_v1';
+let currentDriver = null; // { id, name }
+
+function getSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+}
+function saveSession(driver) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(driver));
+}
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+async function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const pw = document.getElementById('login-pw').value.trim();
+  const err = document.getElementById('login-err');
+  err.style.display = 'none';
+
+  if (!id || !pw) { err.textContent = '아이디와 비밀번호를 입력하세요'; err.style.display = 'block'; return; }
+
+  try {
+    const snap = await _fbDb.ref('driverAccounts/' + id).once('value');
+    const driver = snap.val();
+    if (!driver) { err.textContent = '존재하지 않는 아이디입니다'; err.style.display = 'block'; return; }
+    if (!driver.active) { err.textContent = '비활성화된 계정입니다. 관리자에게 문의하세요'; err.style.display = 'block'; return; }
+    if (driver.password !== pw) { err.textContent = '비밀번호가 틀렸습니다'; err.style.display = 'block'; return; }
+
+    currentDriver = { id, name: driver.name };
+    saveSession(currentDriver);
+    showApp();
+  } catch(e) {
+    err.textContent = '로그인 중 오류가 발생했습니다: ' + e.message;
+    err.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  if (!confirm('로그아웃 하시겠어요?')) return;
+  stopGpsTracking();
+  if (_fbDb && _fbOrdersListener) {
+    _fbDb.ref('orders').off('value', _fbOrdersListener);
+    _fbOrdersListener = null;
+  }
+  clearSession();
+  currentDriver = null;
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-id').value = '';
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-err').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  const el = document.getElementById('header-driver-name');
+  if (el && currentDriver) el.textContent = currentDriver.name + ' 기사님';
+  startGpsTracking();        // 로그인 시 GPS 자동 시작
+  startFirebaseOrderSync();  // 로그인 시 배정 주문 수신 시작
+}
+
+// ══════════════════════════════════════════════════════
+// 실시간 GPS 추적
+// ══════════════════════════════════════════════════════
+let _gpsWatchId = null;
+let _gpsLastSent = 0;
+const GPS_INTERVAL_MS = 5000; // 5초마다 Firebase 전송
+
+function startGpsTracking() {
+  if (!currentDriver || !_fbDb) return;
+  if (!navigator.geolocation) {
+    updateGpsStatus('unsupported');
+    return;
+  }
+  if (_gpsWatchId !== null) return; // 이미 실행 중
+
+  updateGpsStatus('requesting');
+
+  _gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      const { latitude: lat, longitude: lng, heading, speed, accuracy } = pos.coords;
+      const now = Date.now();
+
+      // 5초 간격으로 Firebase 전송 (너무 자주 쓰지 않도록)
+      if (now - _gpsLastSent < GPS_INTERVAL_MS) return;
+      _gpsLastSent = now;
+
+      _fbDb.ref('drivers/' + currentDriver.id).update({
+        name: currentDriver.name,
+        online: true,
+        status: 'online',
+        location: {
+          lat, lng,
+          heading: heading || 0,
+          speed: speed ? Math.round(speed * 3.6) : 0, // m/s → km/h
+          accuracy: Math.round(accuracy),
+          updatedAt: now
+        },
+        updatedAt: now
+      }).catch(() => {});
+
+      updateGpsStatus('active', accuracy);
+    },
+    err => {
+      console.warn('GPS 오류:', err.message);
+      if (err.code === 1) updateGpsStatus('denied');
+      else updateGpsStatus('error');
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 3000
+    }
+  );
+}
+
+function stopGpsTracking() {
+  if (_gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(_gpsWatchId);
+    _gpsWatchId = null;
+  }
+  if (currentDriver && _fbDb) {
+    _fbDb.ref('drivers/' + currentDriver.id).update({
+      online: false,
+      status: 'offline',
+      updatedAt: Date.now()
+    }).catch(() => {});
+  }
+  updateGpsStatus('off');
+}
+
+function updateGpsStatus(state, accuracy) {
+  const el = document.getElementById('gps-status');
+  if (!el) return;
+  const states = {
+    requesting: { icon: '🔵', text: 'GPS 연결 중...', color: '#888' },
+    active:     { icon: '🟢', text: accuracy ? `위치공유 중 (±${Math.round(accuracy)}m)` : '위치공유 중', color: '#2e7d32' },
+    denied:     { icon: '🔴', text: 'GPS 권한 필요', color: '#c62828' },
+    error:      { icon: '🟡', text: 'GPS 오류', color: '#e65100' },
+    off:        { icon: '⚪', text: '위치공유 꺼짐', color: '#aaa' },
+    unsupported:{ icon: '⚫', text: 'GPS 미지원', color: '#aaa' },
+  };
+  const s = states[state] || states.off;
+  el.innerHTML = `<span>${s.icon}</span><span style="color:${s.color};font-size:11px;font-weight:600">${s.text}</span>`;
+}
+
+function checkSession() {
+  const s = getSession();
+  if (s) {
+    // 세션 있으면 Firebase에서 계정 유효성 재확인
+    _fbDb.ref('drivers/' + s.id).once('value').then(snap => {
+      const driver = snap.val();
+      if (driver && driver.active) {
+        currentDriver = { id: s.id, name: driver.name };
+        showApp();
+      } else {
+        clearSession();
+        // 로그인 화면 유지
+      }
+    }).catch(() => {
+      // Firebase 오프라인 시 세션 그대로 사용
+      currentDriver = s;
+      showApp();
+    });
+  }
+  // 세션 없으면 로그인 화면 표시 (기본 상태)
+}
+
+// ══════════════════════════════════════════════════════
 // Firebase 초기화
 // ══════════════════════════════════════════════════════
 const _fbConfig = {
@@ -531,18 +831,111 @@ const _fbConfig = {
   authDomain: "wellbingmart-d5ee1.firebaseapp.com",
   databaseURL: "https://wellbingmart-d5ee1-default-rtdb.firebaseio.com",
   projectId: "wellbingmart-d5ee1",
-  storageBucket: "wellbingmart-d5ee1.appspot.com",
+  storageBucket: "wellbingmart-d5ee1.firebasestorage.app",
   messagingSenderId: "639456789012",
   appId: "1:639456789012:web:abcdef123456"
 };
 let _fbDb = null;
+let _fbStorage = null;
 try {
   firebase.initializeApp(_fbConfig);
   _fbDb = firebase.database();
+  _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
+// ── Firebase 주문 실시간 동기화 (배정 주문 수신 + 상태 변경 반영) ──
+let _fbOrdersListener = null;
+
+function startFirebaseOrderSync() {
+  if (!_fbDb || !currentDriver) return;
+  if (_fbOrdersListener) _fbDb.ref('orders').off('value', _fbOrdersListener);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  _fbOrdersListener = _fbDb.ref('orders').on('value', snap => {
+    const data = snap.val() || {};
+    loadDeliveries();
+
+    let newCount = 0;
+    let changed = false;
+
+    Object.values(data).forEach(fbOrder => {
+      const isMyOrder = fbOrder.assignedDriverId === currentDriver.id;
+      const isToday = fbOrder.createdAt >= today.getTime();
+      const isCancelled = fbOrder.status === 'cancelled';
+
+      const local = deliveries.find(d => d.id === fbOrder.id);
+
+      if (local) {
+        // 기존 주문: 상태 동기화
+        if (local.status !== fbOrder.status) {
+          local.status = fbOrder.status;
+          if (isCancelled) local.cancelledByOms = true;
+          changed = true;
+        }
+        // 배정 정보 업데이트
+        if (isMyOrder && !local.assignedDriverId) {
+          local.assignedDriverId = currentDriver.id;
+          local.assignedDriverName = currentDriver.name;
+          changed = true;
+        }
+      } else if (isMyOrder && isToday && !isCancelled) {
+        // 새로 배정된 주문 추가
+        deliveries.push({ ...fbOrder, fromOms: true });
+        newCount++;
+        changed = true;
+      }
+    });
+
+    if (newCount > 0) {
+      showToast(`📦 새 배송 ${newCount}건이 배정됐습니다!`);
+    }
+    if (changed) {
+      saveDeliveries();
+      renderHome();
+    }
+  });
+}
+
+// ── dataUrl → Blob 직접 변환 (fetch 미사용, 더 안정적) ──
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(',');
+  const mime = (parts[0].match(/:(.*?);/) || ['','image/jpeg'])[1];
+  const bstr = atob(parts[1]);
+  const u8arr = new Uint8Array(bstr.length);
+  for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+  return new Blob([u8arr], { type: mime });
+}
+
+// ── Firebase Storage 사진 업로드 ──
+async function uploadPhotoToStorage(deliveryId, dataUrl) {
+  if (!_fbStorage) { console.warn('Storage 미초기화'); return null; }
+  try {
+    const blob = dataUrlToBlob(dataUrl);
+    const ref = _fbStorage.ref(`delivery-photos/${deliveryId}.jpg`);
+    await ref.put(blob, { contentType: 'image/jpeg' });
+    const url = await ref.getDownloadURL();
+    return url;
+  } catch(e) {
+    console.warn('Storage 업로드 실패:', e);
+    return null;
+  }
+}
+
+// Firebase 초기화 후 세션 확인
+if (_fbDb) {
+  checkSession();
+} else {
+  // Firebase 없으면 로그인 불가 안내
+  document.getElementById('login-err').textContent = '서버 연결 실패. 잠시 후 다시 시도하세요';
+  document.getElementById('login-err').style.display = 'block';
+}
+
 function saveToFirebase(item) {
-  if (!_fbDb) return;
+  if (!_fbDb) {
+    console.warn('[Firebase] _fbDb가 null — 초기화 실패');
+    return;
+  }
   const order = {
     id: item.id,
     customerName: item.customerName,
@@ -552,9 +945,21 @@ function saveToFirebase(item) {
     lng: item.lng || null,
     status: 'pending',
     channel: 'tms',
-    createdAt: item.addedAt || Date.now()
+    paymentMethod: item.paymentMethod || '',
+    createdAt: item.addedAt || Date.now(),
+    // 기사 앱에서 등록한 주문 → 해당 기사 자동 배정
+    assignedDriverId:   currentDriver?.id   || '',
+    assignedDriverName: currentDriver?.name || ''
   };
-  _fbDb.ref('orders/' + item.id).set(order).catch(e => console.warn('Firebase 저장 실패:', e));
+  _fbDb.ref('orders/' + item.id).set(order)
+    .then(() => {
+      console.log('[Firebase] 주문 저장 성공:', item.id);
+      showToast('☁️ OMS 실시간 반영 완료');
+    })
+    .catch(e => {
+      console.error('[Firebase] 저장 실패:', e);
+      showToast('⚠️ OMS 연동 실패: Firebase 보안 규칙을 확인하세요', 4000);
+    });
 }
 
 // ══════════════════════════════════════════════════════
@@ -611,7 +1016,9 @@ function goTab(tab) {
   if (tabEl) tabEl.classList.add('active');
 
   if (tab === 'home') renderHome();
-  if (tab === 'mapzone') setTimeout(() => mapZone.init(), 80);
+  if (tab === 'mapzone') {
+    setTimeout(() => kakao.maps.load(() => mapZone.init()), 80);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -633,26 +1040,29 @@ function renderHome() {
   if (!total) { list.innerHTML = ''; none.style.display = 'block'; return; }
   none.style.display = 'none';
 
-  list.innerHTML = deliveries.map((d, i) => `
-    <div class="delivery-item ${d.status === 'done' ? 'done' : ''}" id="item-${d.id}">
+  list.innerHTML = deliveries.map((d, i) => {
+    const isCancelled = d.status === 'cancelled';
+    const isDone = d.status === 'done';
+    return `
+    <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
       <div class="dl-top">
         <div class="dl-num">${i+1}</div>
         <div style="flex:1">
-          <div class="dl-name">${d.customerName}</div>
-          <div class="dl-addr">${d.address}</div>
+          <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
+          <div class="dl-addr">${d.address}${d.detailAddress ? `<span style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:2px 7px;border-radius:5px;font-weight:700">${d.detailAddress}</span>` : ''}</div>
           <div class="dl-phone">📞 ${d.phone}</div>
         </div>
         ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : ''}
       </div>
-      <div class="row-btns">
+      ${isCancelled ? '' : `<div class="row-btns">
         <button class="btn btn-blue" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
-        <button class="btn ${d.status==='done'?'btn-outline':'btn-green'}" onclick="toggleDone('${d.id}')">
-          ${d.status==='done' ? '↩ 되돌리기' : '완료 체크'}
+        <button class="btn ${isDone?'btn-outline':'btn-green'}" onclick="${isDone ? `toggleDone('${d.id}')` : `openCompleteScreen('${d.id}')`}">
+          ${isDone ? '↩ 되돌리기' : '완료 체크'}
         </button>
         <button class="btn" style="background:#F2F2F7;color:#555;width:auto;padding:14px 14px" onclick="openEditModal('${d.id}')">✏️</button>
-      </div>
-    </div>
-  `).join('');
+      </div>`}
+    </div>`;
+  }).join('');
 
   // 사진 썸네일 로드
   deliveries.filter(d => d.photoId).forEach(d => {
@@ -698,24 +1108,228 @@ function addManual() {
 }
 
 // ══════════════════════════════════════════════════════
-// 지오코딩 → 배달 추가
+// 지오코딩 → 배달 추가 (Kakao API 사용)
+//
+// 특수 주소 패턴 처리 목록:
+// [2026-04] 아프리카식당(미쁠지하) → 상호명 "아프리카식당" 키워드 검색
+// [2026-04] 아시안스타 (주소 없음)  → 성명 자체가 상호명 → 키워드 검색
+// [2026-04] 용산APT 나-516          → 아파트 한글동 패턴 → "용산아파트 나동 516호"
+// [2026-04] 대림111-402호           → 아파트 숫자동 패턴 → "대림 111동 402호"
+// [2026-04] 녹지정지하              → 건물명+지하층 → "녹지정 지하" 키워드 검색
 // ══════════════════════════════════════════════════════
+
+// ── 마트 위치 기반으로 지역(시/구/동) 파악 ──
+// GPS 대신 마트 고정 위치 사용:
+// - 배달 반경 = 마트 주변이므로 마트 기준이 논리적으로 정확
+// - 기사가 배달 중일 때 GPS 쓰면 엉뚱한 동 나올 수 있음
+// - OMS(PC)에서 입력 시 GPS 자체가 없음
+function getRegionFromMart() {
+  return new Promise(resolve => {
+    const mart = getMartLocation(); // Firebase 동기화된 마트 위치
+    kakao.maps.load(() => {
+      const geocoder = new kakao.maps.services.Geocoder();
+      geocoder.coord2RegionCode(mart.lng, mart.lat, (result, status) => {
+        if (status === kakao.maps.services.Status.OK) {
+          const region = result.find(r => r.region_type === 'B') || result[0];
+          resolve({
+            lat: mart.lat, lng: mart.lng, // 마트 좌표 (키워드 검색 반경에 사용)
+            sido: region.region_1depth_name,
+            sigungu: region.region_2depth_name,
+            dong: region.region_3depth_name,
+            full: `${region.region_1depth_name} ${region.region_2depth_name} ${region.region_3depth_name}`
+          });
+        } else {
+          resolve({ lat: mart.lat, lng: mart.lng }); // 지역코드 실패해도 좌표는 반환
+        }
+      });
+    });
+  });
+}
+
+// ── 카카오 주소 검색 (도로명/지번) ──
+function kakaoGeocode(address) {
+  return new Promise(resolve => {
+    kakao.maps.load(() => {
+      const geocoder = new kakao.maps.services.Geocoder();
+      geocoder.addressSearch(address, (result, status) => {
+        if (status === kakao.maps.services.Status.OK && result.length > 0) {
+          const r = result[0];
+          resolve({
+            lat: parseFloat(r.y),
+            lng: parseFloat(r.x),
+            roadAddress: r.road_address?.address_name || '',
+            jibunAddress: r.address?.address_name || address
+          });
+        } else resolve(null);
+      });
+    });
+  });
+}
+
+// ── 카카오 키워드(상호명/건물명) 검색 ──
+function kakaoKeywordSearch(keyword, gpsLat, gpsLng) {
+  return new Promise(resolve => {
+    kakao.maps.load(() => {
+      const ps = new kakao.maps.services.Places();
+      const opts = {};
+      if (gpsLat && gpsLng) {
+        // GPS 위치 기준 반경 5km 내 우선 검색
+        opts.location = new kakao.maps.LatLng(gpsLat, gpsLng);
+        opts.radius = 5000;
+        opts.sort = kakao.maps.services.SortBy.DISTANCE;
+      }
+      ps.keywordSearch(keyword, (result, status) => {
+        if (status === kakao.maps.services.Status.OK && result.length > 0) {
+          const r = result[0];
+          resolve({
+            lat: parseFloat(r.y),
+            lng: parseFloat(r.x),
+            roadAddress: r.road_address_name || '',
+            jibunAddress: r.address_name || '',
+            placeName: r.place_name
+          });
+        } else resolve(null);
+      }, opts);
+    });
+  });
+}
+
+// ── 아파트 동호수 표기 정규화 ──
+// "용산APT 나-516" → "용산아파트 나동 516호"
+// "대림111-402호"  → "대림 111동 402호"
+function normalizeAptAddress(address) {
+  let norm = address.trim();
+  norm = norm.replace(/APT\.?/gi, '아파트');
+  // 한글동: 가/나/다/.../하 + 숫자 → "나동 516호"
+  norm = norm.replace(/([가나다라마바사아자차카타파하])\s*[-－]\s*(\d+)호?/g, '$1동 $2호');
+  // 영문동: A/B/C + 숫자
+  norm = norm.replace(/([A-Za-z])\s*[-－]\s*(\d+)호?/g, '$1동 $2호');
+  // 숫자동: 111-402호 → 111동 402호
+  norm = norm.replace(/(\d{2,3})\s*[-－]\s*(\d{2,4})호?$/g, '$1동 $2호');
+  return norm;
+}
+
+// ── 주소 유형 분석 ──
+// 리턴: { type: 'address'|'apt'|'business_name', ... }
+function analyzeAddressType(address, customerName) {
+  const addr = (address || '').trim();
+
+  // ① 주소 없음 → 성명이 상호명
+  if (!addr) {
+    return { type: 'business_name', keyword: customerName, suffix: '' };
+  }
+
+  // ② 아파트 동호 패턴
+  //    "용산APT 나-516", "대림아파트 A-302", "대림111-402호"
+  const hasAptWord = /APT|apt|아파트|빌라|오피스텔|빌딩|타워/i.test(addr);
+  const hasKorDong = /[가나다라마바사아자차카타파하]\s*[-－]\s*\d+/.test(addr);
+  const hasNumDong = /\d{2,3}\s*[-－]\s*\d{2,4}호/.test(addr);
+  if (hasAptWord || hasKorDong || hasNumDong) {
+    return { type: 'apt', address: normalizeAptAddress(addr) };
+  }
+
+  // ③ 건물명+층 패턴: "녹지정지하", "아프리카식당지하", "○○건물 2층"
+  //    2~10글자 건물명 + (지하|B층|숫자층) 로 끝나는 경우
+  const floorMatch = addr.match(/^(.{2,10}?)\s*(지하\d*층?|B\d?F?|\d+층)$/);
+  if (floorMatch) {
+    return { type: 'business_name', keyword: floorMatch[1].trim(), suffix: floorMatch[2] };
+  }
+
+  // ④ 괄호가 있는 상호명: "아프리카식당(미쁠지하)"
+  //    → 괄호 제거 후 앞부분을 상호명으로
+  const parenMatch = addr.match(/^([^(（]+)[（(]/);
+  const hasParen = /[（(]/.test(addr);
+
+  // ⑤ 주소 키워드 없이 짧은 경우 → 상호명
+  const hasAddrKeyword = /특별시|광역시|도[^로]|시[구군]|구[읍면동]|동\d|로\s*\d|길\s*\d|번지|번가/.test(addr);
+  const cleanAddr = hasParen ? (parenMatch ? parenMatch[1].trim() : addr) : addr;
+
+  if (!hasAddrKeyword && cleanAddr.length <= 15) {
+    return { type: 'business_name', keyword: cleanAddr, suffix: '' };
+  }
+
+  // ⑥ 일반 주소
+  return { type: 'address', address: addr };
+}
+
+// ── 메인 지오코딩 함수 ──
 async function geocodeAndAdd(info) {
   let lat = null, lng = null;
-  try {
-    const q = encodeURIComponent(info.address + ', 대한민국');
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
-    const data = await res.json();
-    if (data.length) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); }
-  } catch(e) {}
+  let resolvedAddress = info.address || info.customerName;
+
+  showToast('📍 주소 조회 중...');
+
+  // 마트 위치 기반으로 지역 파악 (기사 GPS 대신 마트 고정위치 사용)
+  const region = await getRegionFromMart();
+
+  // 주소 유형 분석
+  const analysis = analyzeAddressType(info.address, info.customerName);
+
+  if (analysis.type === 'business_name') {
+    // ──── 상호명/건물명 검색 ────
+    const kw = analysis.keyword;
+    // 지역명 붙여서 먼저 시도, 실패하면 키워드만
+    const kwWithRegion = region?.sigungu ? `${region.sigungu} ${kw}` : kw;
+    let result = await kakaoKeywordSearch(kwWithRegion, region?.lat, region?.lng);
+    if (!result) result = await kakaoKeywordSearch(kw, region?.lat, region?.lng);
+
+    if (result) {
+      lat = result.lat;
+      lng = result.lng;
+      const base = result.roadAddress || result.jibunAddress || result.placeName || kw;
+      resolvedAddress = analysis.suffix ? `${base} ${analysis.suffix}` : base;
+    } else {
+      showToast(`⚠️ "${kw}" 상호를 찾지 못했습니다. 직접 확인해주세요`);
+      resolvedAddress = info.address || info.customerName;
+    }
+
+  } else {
+    // ──── 주소 검색 (일반 주소 or 아파트 정규화) ────
+    const baseAddr = analysis.address || info.address;
+    const candidates = [baseAddr];
+    if (region?.sido) {
+      candidates.push(`${region.sido} ${region.sigungu} ${region.dong} ${baseAddr}`);
+      candidates.push(`${region.sido} ${region.sigungu} ${baseAddr}`);
+      candidates.push(`${region.sido} ${baseAddr}`);
+    }
+
+    for (const c of candidates) {
+      const result = await kakaoGeocode(c);
+      if (result) {
+        lat = result.lat;
+        lng = result.lng;
+        resolvedAddress = result.roadAddress || result.jibunAddress || c;
+        break;
+      }
+    }
+
+    // 주소 검색 실패 → 상호명으로 재시도 (예: 번지+건물명 케이스)
+    if (!lat) {
+      const fallback = await kakaoKeywordSearch(baseAddr, region?.lat, region?.lng);
+      if (fallback) {
+        lat = fallback.lat;
+        lng = fallback.lng;
+        resolvedAddress = fallback.roadAddress || fallback.jibunAddress || baseAddr;
+      } else {
+        showToast('⚠️ 주소를 찾지 못했습니다. 직접 확인해주세요');
+      }
+    }
+  }
+
   const item = {
-    id: uid(), customerName: info.customerName, address: info.address,
-    phone: info.phone || '-', lat, lng, status: 'pending', addedAt: Date.now()
+    id: uid(),
+    customerName: info.customerName,
+    address: resolvedAddress || info.address || info.customerName,
+    originalAddress: info.address, // 원본 OCR 주소 보존
+    phone: info.phone || '-',
+    lat, lng,
+    status: 'pending',
+    addedAt: Date.now()
   };
   loadDeliveries();
   deliveries.push(item);
   saveDeliveries();
-  saveToFirebase(item); // OMS에도 실시간 반영
+  saveToFirebase(item);
   renderHome();
   goTab('home');
   showToast(`✅ ${info.customerName} 추가 완료`);
@@ -754,11 +1368,14 @@ function optimizeRoute() {
   loadDeliveries();
   goTab('mapview');
 
-  const pending = deliveries.filter(d => d.lat && d.lng && d.status !== 'done');
-  if (!pending.length) {
+  const allPending = deliveries.filter(d => d.status !== 'done');
+  if (!allPending.length) {
     document.getElementById('route-list').innerHTML = '<div style="color:#999;text-align:center;padding:20px">배송 예정 건이 없습니다</div>';
     return;
   }
+
+  const withCoords  = allPending.filter(d => d.lat && d.lng);
+  const noCoords    = allPending.filter(d => !d.lat || !d.lng);
 
   // Haversine 거리
   function dist(a, b) {
@@ -767,30 +1384,35 @@ function optimizeRoute() {
     return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
   }
 
-  // 최근점 탐욕 정렬 (출발지: 경기도 남양주시 화도읍 중심)
-  const start = getMartLocation();
-  let remain = [...pending], ordered = [];
-  let cur = start;
-  while (remain.length) {
-    remain.sort((a, b) => dist(cur, a) - dist(cur, b));
-    cur = remain.shift();
-    ordered.push(cur);
+  // 좌표 있는 것만 최근점 탐욕 정렬
+  let ordered = [];
+  if (withCoords.length) {
+    const start = getMartLocation();
+    let remain = [...withCoords], cur = start;
+    while (remain.length) {
+      remain.sort((a, b) => dist(cur, a) - dist(cur, b));
+      cur = remain.shift();
+      ordered.push(cur);
+    }
   }
-  routeOrder = ordered;
+  // 좌표 없는 것은 뒤에 추가
+  routeOrder = [...ordered, ...noCoords];
 
   // 경로 순서 렌더링 (드래그 가능)
   const list = document.getElementById('route-list');
-  list.innerHTML = ordered.map((d, i) => `
-    <div class="route-item" data-id="${d.id}">
+  list.innerHTML = routeOrder.map((d, i) => {
+    const hasCoord = d.lat && d.lng;
+    return `
+    <div class="route-item" data-id="${d.id}" style="${!hasCoord ? 'opacity:.7;border-left:3px solid #ccc' : ''}">
       <div class="drag-handle">☰</div>
-      <div class="route-num">${i+1}</div>
+      <div class="route-num" style="${!hasCoord ? 'background:#aaa' : ''}">${i+1}</div>
       <div class="route-info" style="flex:1">
-        <div class="route-name">${d.customerName}</div>
+        <div class="route-name">${d.customerName}${!hasCoord ? ' <span style="font-size:10px;color:#aaa">좌표없음</span>' : ''}</div>
         <div class="route-addr">${d.address}</div>
       </div>
       <button class="btn btn-blue" style="width:auto;padding:8px 12px;font-size:12px" onclick="launchNavSingle('${d.id}')">길찾기</button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   // Sortable 초기화
   if (window._routeSortable) window._routeSortable.destroy();
@@ -798,12 +1420,10 @@ function optimizeRoute() {
     handle: '.drag-handle',
     animation: 150,
     onEnd() {
-      // 순서 변경 후 routeOrder 업데이트
       const newOrder = Array.from(list.querySelectorAll('.route-item'))
         .map(el => routeOrder.find(d => d.id === el.dataset.id))
         .filter(Boolean);
       routeOrder = newOrder;
-      // 번호 갱신
       list.querySelectorAll('.route-num').forEach((el, i) => el.textContent = i + 1);
       showToast('순서가 변경됐습니다');
     }
@@ -847,6 +1467,19 @@ function launchNav(app) {
   const d = deliveries.find(x => x.id === currentNavId);
   if (!d) return;
   closeNavModal();
+
+  // 길찾기 시작 → 자동으로 배달중 상태 변경
+  if (d.status === 'pending') {
+    d.status = 'delivering';
+    saveDeliveries();
+    renderHome();
+    if (_fbDb) {
+      _fbDb.ref('orders/' + d.id).update({ status: 'delivering', updatedAt: Date.now() })
+        .catch(e => console.warn('상태 업데이트 실패:', e));
+    }
+    showToast('🚗 배달 시작 — OMS에 배달중 반영');
+  }
+
   tryOpenApp(app, d.address, d.lat, d.lng);
 }
 
@@ -860,11 +1493,20 @@ function tryOpenApp(app, address, lat, lng) {
       : `https://map.kakao.com/link/search/${encodeURIComponent(address)}`;
     window.location.href = url;
     setTimeout(() => window.open(web, '_blank'), 1500);
-  } else {
+  } else if (app === 'naver') {
     const url = lat && lng
       ? `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${encodeURIComponent(address)}&appname=hatdelivery`
       : `nmap://search?query=${encodeURIComponent(address)}&appname=hatdelivery`;
     const web = `https://map.naver.com/v5/search/${encodeURIComponent(address)}`;
+    window.location.href = url;
+    setTimeout(() => window.open(web, '_blank'), 1500);
+  } else if (app === 'tmap') {
+    const url = lat && lng
+      ? `tmap://route?goalx=${lng}&goaly=${lat}&goalname=${encodeURIComponent(address)}`
+      : `tmap://search?name=${encodeURIComponent(address)}`;
+    const web = lat && lng
+      ? `https://tmap.life/route?rGoName=${encodeURIComponent(address)}&rGoX=${lng}&rGoY=${lat}`
+      : `https://tmap.life/route?rGoName=${encodeURIComponent(address)}`;
     window.location.href = url;
     setTimeout(() => window.open(web, '_blank'), 1500);
   }
@@ -873,6 +1515,108 @@ function tryOpenApp(app, address, lat, lng) {
 // ══════════════════════════════════════════════════════
 // 전체 초기화
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// 결제 방식 선택 (영수증 추가 화면)
+// ══════════════════════════════════════════════════════
+function selectPay(btn) {
+  document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function getSelectedPay() {
+  const active = document.querySelector('.pay-btn.active');
+  return active ? active.dataset.pay : 'prepaid';
+}
+
+// ══════════════════════════════════════════════════════
+// 배송 완료 화면
+// ══════════════════════════════════════════════════════
+let _completePhotoData = null;
+
+function openCompleteScreen(id) {
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('complete-delivery-id').value = id;
+  document.getElementById('complete-addr').textContent = d.address;
+  document.getElementById('complete-name').textContent = d.customerName + ' · ' + d.phone;
+  // 초기화
+  document.querySelectorAll('input[name=receive]').forEach(r => r.checked = false);
+  document.querySelectorAll('input[name=payment]').forEach(r => r.checked = false);
+  document.getElementById('complete-memo').value = '';
+  document.getElementById('complete-photo-btn').textContent = '📷 사진 첨부하기';
+  document.getElementById('complete-photo-preview').style.display = 'none';
+  document.getElementById('complete-photo-preview').src = '';
+  _completePhotoData = null;
+  goTab('complete');
+}
+
+function captureCompletePhoto() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      _completePhotoData = await compressPhoto(ev.target.result);
+      const preview = document.getElementById('complete-photo-preview');
+      preview.src = _completePhotoData;
+      preview.style.display = 'block';
+      document.getElementById('complete-photo-btn').textContent = '📷 사진 변경하기';
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+async function submitComplete() {
+  const id = document.getElementById('complete-delivery-id').value;
+  const receive = document.querySelector('input[name=receive]:checked')?.value;
+  const payment = document.querySelector('input[name=payment]:checked')?.value;
+  const memo = document.getElementById('complete-memo').value.trim();
+
+  if (!receive) { showToast('수령방법을 선택해주세요'); return; }
+  if (!payment) { showToast('결제여부를 선택해주세요'); return; }
+  if (!_completePhotoData) { showToast('사진을 첨부해주세요'); return; }
+
+  // 사진 로컬 저장
+  await savePhoto(id, _completePhotoData);
+
+  // 배송 완료 처리
+  loadDeliveries();
+  const d = deliveries.find(x => x.id === id);
+  if (d) {
+    d.status = 'done';
+    d.photoId = id;
+    d.receiveMethod = receive;
+    d.paymentStatus = payment;
+    d.memo = memo;
+    d.completedAt = Date.now();
+    saveDeliveries();
+  }
+
+  // 1. Firebase 상태 즉시 업데이트 (사진 업로드 기다리지 않음)
+  if (_fbDb) {
+    _fbDb.ref('orders/' + id).update({
+      status: 'done', photoId: id,
+      receiveMethod: receive, paymentStatus: payment,
+      memo, completedAt: Date.now()
+    }).catch(()=>{});
+  }
+
+  showToast('✅ 배송 완료!');
+  goTab('home');
+  renderHome();
+
+  // 2. 사진 Storage 업로드 (백그라운드, 별도)
+  if (_completePhotoData) {
+    uploadPhotoToStorage(id, _completePhotoData).then(photoUrl => {
+      if (photoUrl && _fbDb) {
+        _fbDb.ref('orders/' + id).update({ photoUrl }).catch(()=>{});
+      }
+    });
+  }
+}
+
 // ══════════════════════════════════════════════════════
 // 배송 수정 / 삭제
 // ══════════════════════════════════════════════════════
@@ -950,14 +1694,26 @@ async function saveMartLocation() {
   el.textContent = '좌표 검색 중...';
 
   try {
-    const q = encodeURIComponent(addr);
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1&accept-language=ko`);
-    const data = await res.json();
-    if (!data.length) throw new Error('주소를 찾을 수 없습니다');
-
-    const lat = parseFloat(data[0].lat);
-    const lng = parseFloat(data[0].lon);
-    localStorage.setItem('mart_location', JSON.stringify({ address: addr, lat, lng }));
+    // 카카오 주소 검색 API로 정확한 좌표 획득
+    const geocoded = await new Promise((resolve, reject) => {
+      kakao.maps.load(() => {
+        const geocoder = new kakao.maps.services.Geocoder();
+        geocoder.addressSearch(addr, (result, status) => {
+          if (status === kakao.maps.services.Status.OK && result.length > 0) {
+            resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+          } else {
+            reject(new Error('카카오에서 주소를 찾을 수 없습니다'));
+          }
+        });
+      });
+    });
+    const { lat, lng } = geocoded;
+    const martData = { address: addr, lat, lng, updatedAt: Date.now() };
+    localStorage.setItem('mart_location', JSON.stringify(martData));
+    // Firebase에도 저장 (OMS 공유)
+    if (_fbDb) {
+      _fbDb.ref('settings/martLocation').set(martData).catch(() => {});
+    }
     showToast('✅ 마트 위치 저장 완료!');
     closeMartSettings();
   } catch(e) {
@@ -967,7 +1723,30 @@ async function saveMartLocation() {
 
 function getMartLocation() {
   const saved = JSON.parse(localStorage.getItem('mart_location') || 'null');
-  return saved ? { lat: saved.lat, lng: saved.lng } : { lat: 37.641, lng: 127.322 }; // 기본값: 남양주 화도읍
+  return saved ? { lat: saved.lat, lng: saved.lng } : null;
+}
+
+// Firebase에서 마트 위치 동기화 - 페이지 로드 시 즉시 읽어옴
+function loadMartLocationFromFirebase() {
+  return new Promise(resolve => {
+    if (!_fbDb) { resolve(getMartLocation()); return; }
+    _fbDb.ref('settings/martLocation').once('value', snap => {
+      const data = snap.val();
+      if (data && data.lat && data.lng) {
+        localStorage.setItem('mart_location', JSON.stringify(data));
+      }
+      resolve(getMartLocation());
+    });
+  });
+}
+
+if (_fbDb) {
+  _fbDb.ref('settings/martLocation').on('value', snap => {
+    const data = snap.val();
+    if (data && data.lat && data.lng) {
+      localStorage.setItem('mart_location', JSON.stringify(data));
+    }
+  });
 }
 
 function resetAll() {
@@ -1031,12 +1810,14 @@ async function startOCR(file) {
     });
     setStep('step-load', 'done');
 
-    // 2단계: Cloud Function 호출
+    // 2단계: Cloud Function 호출 (마트 위치 Firebase에서 최신값 읽어서 전달)
     setStep('step-init', 'active');
+    const mart = await loadMartLocationFromFirebase();
+    if (!mart) { throw new Error('마트 위치가 설정되지 않았습니다. 설정 메뉴에서 마트 주소를 먼저 입력해주세요.'); }
     const response = await fetch(CLOUD_FN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64: base64 })
+      body: JSON.stringify({ imageBase64: base64, martLat: mart.lat, martLng: mart.lng })
     });
     setStep('step-init', 'done');
 
@@ -1050,17 +1831,32 @@ async function startOCR(file) {
     // 4단계: 정보 추출
     setStep('step-parse', 'active');
     const { customer, location } = result.data;
-    const addr = [location?.road_address, location?.detail_address].filter(Boolean).join(' ');
+    const roadAddr   = location?.road_address   || '';
+    const detailAddr = location?.detail_address || '';
+    // 화면엔 전체 주소 표시 (확인용), 저장은 분리
     document.getElementById('res-name').value  = customer?.name  || '';
     document.getElementById('res-phone').value = customer?.phone || '';
-    document.getElementById('res-addr').value  = addr;
-    // 좌표를 객체로 한번에 저장
+    document.getElementById('res-addr').value  = roadAddr;
+    // 상세주소(동/호, 층 등) 별도 뱃지 표시
+    const detailWrap = document.getElementById('res-detail-wrap');
+    const detailBadge = document.getElementById('res-detail-badge');
+    if (detailAddr && detailWrap && detailBadge) {
+      detailBadge.textContent = detailAddr;
+      detailWrap.style.display = 'block';
+    } else if (detailWrap) {
+      detailWrap.style.display = 'none';
+    }
+    // 동/호 별도 보관 (네비게이션은 road_address만, 카드엔 detail도 표시)
     window._pendingOCR = {
       lat: location?.lat || null,
-      lng: location?.lng || null
+      lng: location?.lng || null,
+      detailAddress: detailAddr,
+      // 학습용: 원본 OCR 결과 보관 (수정 여부 판단에 사용)
+      ocrName:    customer?.name || '',
+      ocrAddress: roadAddr
     };
     const warn = document.getElementById('ocr-warn');
-    if (warn) warn.style.display = (!customer?.name || !addr) ? 'block' : 'none';
+    if (warn) warn.style.display = (!customer?.name || !roadAddr) ? 'block' : 'none';
     setStep('step-parse', 'done');
 
     // 5단계: 완료 → 결과 화면으로
@@ -1146,24 +1942,65 @@ function setEditMode(on) {
   });
 }
 
-function confirmAdd() {
+async function confirmAdd() {
   const name  = document.getElementById('res-name').value.trim();
   const addr  = document.getElementById('res-addr').value.trim();
   const phone = document.getElementById('res-phone').value.trim();
   if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
 
-  const lat = window._pendingOCR?.lat || null;
-  const lng = window._pendingOCR?.lng || null;
+  const ocrData    = window._pendingOCR || {};
+  let   lat        = ocrData.lat || null;
+  let   lng        = ocrData.lng || null;
+  const detailAddr = ocrData.detailAddress || '';
+  const ocrName    = ocrData.ocrName || '';
+  const ocrAddress = ocrData.ocrAddress || '';
   window._pendingOCR = null;
 
+  // 주소가 OCR 결과와 다르게 수정됐으면 → 좌표 재획득 + Firebase 학습 저장
+  const addrChanged = addr && ocrAddress && addr !== ocrAddress;
+  if (addrChanged) {
+    try {
+      // 수정된 주소로 좌표 재획득 (geocodeAddress Cloud Function 사용)
+      const geo = await fetch('https://asia-northeast3-wellbingmart-d5ee1.cloudfunctions.net/geocodeAddress', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: addr })
+      });
+      if (geo.ok) {
+        const geoData = await geo.json();
+        if (geoData.status === 'success') {
+          lat = geoData.data.lat;
+          lng = geoData.data.lng;
+        }
+      }
+    } catch(e) { console.warn('재좌표 실패:', e); }
+
+    // Firebase에 학습 저장 (성명을 키로 사용)
+    if (_fbDb && ocrName) {
+      const learnKey = ocrName; // 성명을 키로 (다음에 같은 성명 오면 자동 적용)
+      const learnData = {
+        road_address:   addr,
+        detail_address: detailAddr,
+        lat, lng,
+        updatedAt: Date.now(),
+        note: `${ocrAddress} → ${addr}`
+      };
+      _fbDb.ref('settings/learnedLocations/' + learnKey).set(learnData)
+        .then(() => showToast(`📚 "${ocrName}" 주소 학습 완료! 다음부터 자동 적용됩니다`))
+        .catch(e => console.warn('학습 저장 실패:', e));
+    }
+  }
+
   const item = {
-    id: uid(), customerName: name, address: addr,
-    phone: phone || '-', lat, lng, status: 'pending', addedAt: Date.now()
+    id: uid(), customerName: name,
+    address: addr,
+    detailAddress: detailAddr,
+    phone: phone || '-', lat, lng, status: 'pending',
+    paymentMethod: getSelectedPay(), addedAt: Date.now()
   };
   loadDeliveries();
   deliveries.push(item);
   saveDeliveries();
-  saveToFirebase(item); // OMS에도 실시간 반영
+  saveToFirebase(item);
   renderHome();
   goTab('home');
   showToast(`✅ ${name} 추가 완료`);
@@ -1238,9 +2075,16 @@ function capturePhoto(deliveryId) {
       await savePhoto(deliveryId, compressed);
       const d = deliveries.find(x => x.id === deliveryId);
       if (d) { d.photoId = deliveryId; saveDeliveries(); }
-      // OMS에서도 사진 확인 가능하도록 Firebase 업데이트
-      if (_fbDb) _fbDb.ref('orders/' + deliveryId).update({ photoId: deliveryId, status: 'done' }).catch(()=>{});
       renderHome();
+      showToast('📸 사진 저장 중...');
+      // Storage 업로드 후 URL을 Firebase RTDB에 저장
+      const photoUrl = await uploadPhotoToStorage(deliveryId, compressed);
+      if (_fbDb) {
+        _fbDb.ref('orders/' + deliveryId).update({
+          photoId: deliveryId, status: 'done',
+          ...(photoUrl ? { photoUrl } : {})
+        }).catch(()=>{});
+      }
       showToast('📸 사진 저장 완료');
     };
     reader.readAsDataURL(file);
@@ -1275,6 +2119,11 @@ function closePhotoViewer() {
   document.getElementById('photo-viewer').classList.remove('open');
   document.getElementById('photo-viewer-img').src = '';
 }
+
+// ESC 키로 사진 뷰어 닫기
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePhotoViewer();
+});
 
 async function deletePhotoConfirm() {
   if (!confirm('사진을 삭제하시겠습니까?')) return;
@@ -1410,6 +2259,7 @@ const mapZone = (() => {
   let deliveryMarkers = [];
   let routePolyline = null;
   let routeMarkers  = [];
+  let infoWindow    = null;
   let zones = [];
   let drawing = false;
   let drawPoints = [];
@@ -1420,33 +2270,58 @@ const mapZone = (() => {
 
   const ZONE_COLORS = ['#2196F3','#9C27B0','#F44336','#009688','#FF9800','#795548'];
 
-  // 배달 마커 아이콘
-  function makeMarkerIcon(color, label, size = 32) {
-    return L.divIcon({
-      html: `<div style="
-        background:${color};color:#fff;border-radius:50%;
-        width:${size}px;height:${size}px;
-        display:flex;align-items:center;justify-content:center;
-        font-size:${Math.round(size*0.38)}px;font-weight:800;
-        border:2.5px solid #fff;
-        box-shadow:0 3px 10px rgba(0,0,0,.3);
-        font-family:-apple-system,sans-serif;
-      ">${label}</div>`,
-      className: '', iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2-4]
+  // ── 카카오맵 CustomOverlay 마커 생성 ──
+  function makeMarkerOverlay(lat, lng, color, label, size, popupHtml) {
+    size = size || 32;
+    const fs = Math.round(size * 0.38);
+    const content = document.createElement('div');
+    content.style.cssText = `background:${color};color:#fff;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:800;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;font-family:-apple-system,sans-serif`;
+    content.textContent = String(label);
+    if (popupHtml) {
+      content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (infoWindow) { infoWindow.close(); infoWindow = null; }
+        const iw = new kakao.maps.InfoWindow({
+          content: `<div class="kakao-info-window">${popupHtml}</div>`,
+          removable: true
+        });
+        iw.open(map, overlay);
+        infoWindow = iw;
+      });
+    }
+    const overlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(lat, lng),
+      content,
+      anchor: 'center',
+      zIndex: 5
     });
+    return overlay;
   }
 
-  // 출발점 아이콘 (마트)
-  function makeStoreIcon() {
-    return L.divIcon({
-      html: `<div style="
-        background:#1a1a2e;color:#fff;border-radius:10px;
-        width:40px;height:40px;
-        display:flex;align-items:center;justify-content:center;
-        font-size:20px;border:2.5px solid #fff;
-        box-shadow:0 3px 10px rgba(0,0,0,.3);
-      ">🏪</div>`,
-      className: '', iconSize: [40, 40], iconAnchor: [20, 20]
+  // ── 마트 아이콘 ──
+  function makeStoreOverlay(lat, lng) {
+    const content = document.createElement('div');
+    content.style.cssText = 'background:#1a1a2e;color:#fff;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer';
+    content.textContent = '🏪';
+    const overlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(lat, lng),
+      content,
+      anchor: 'center',
+      zIndex: 9
+    });
+    return overlay;
+  }
+
+  // ── 구역 중앙 라벨 ──
+  function makeZoneLabel(lat, lng, text) {
+    const content = document.createElement('div');
+    content.className = 'zone-label';
+    content.textContent = text;
+    return new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(lat, lng),
+      content,
+      anchor: 'center',
+      zIndex: 3
     });
   }
 
@@ -1455,78 +2330,97 @@ const mapZone = (() => {
   }
 
   function clearMap() {
-    deliveryMarkers.forEach(m => m.remove());
-    routeMarkers.forEach(m => m.remove());
-    if (routePolyline) { routePolyline.remove(); routePolyline = null; }
+    deliveryMarkers.forEach(m => m.setMap(null));
+    routeMarkers.forEach(m => m.setMap(null));
+    if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
+    if (infoWindow) { infoWindow.close(); infoWindow = null; }
     deliveryMarkers = [];
     routeMarkers = [];
   }
 
+  // ── 좌표 배열 → LatLngBounds ──
+  function makeBounds(points) {
+    const b = new kakao.maps.LatLngBounds();
+    points.forEach(p => b.extend(new kakao.maps.LatLng(p[0], p[1])));
+    return b;
+  }
+
+  // ── 폴리곤 중심 계산 ──
+  function polygonCenter(points) {
+    const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+    const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
+    return { lat, lng };
+  }
+
   // 지도 초기화
-  async function init() {
+  function init() {
     const container = document.getElementById('map-container');
     if (!container) return;
 
-    // Leaflet 로드 대기 (최대 5초)
-    if (typeof L === 'undefined') {
-      container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;gap:12px"><div style="font-size:40px">🗺️</div><div style="font-weight:700">지도 로딩 중…</div></div>';
-      for (let i = 0; i < 50; i++) {
-        await new Promise(r => setTimeout(r, 100));
-        if (typeof L !== 'undefined') { container.innerHTML = ''; break; }
-      }
-      if (typeof L === 'undefined') {
-        container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#e53935;gap:10px;padding:24px;text-align:center"><div style="font-size:44px">⚠️</div><div style="font-weight:800;font-size:16px">지도 라이브러리 로드 실패</div><div style="font-size:13px;color:#999;line-height:1.6">인터넷 연결을 확인하고<br>새로고침(F5) 해주세요</div></div>';
-        return;
-      }
+    // 카카오맵 SDK 로드 확인
+    if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined') {
+      container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#e53935;gap:10px;padding:24px;text-align:center"><div style="font-size:44px">⚠️</div><div style="font-weight:800;font-size:16px">지도 로드 실패</div><div style="font-size:13px;color:#999;line-height:1.6">새로고침(F5) 해주세요</div></div>';
+      return;
     }
 
     const data = loadData();
-
-    if (map) {
-      map.remove(); map = null;
-    }
+    if (map) { map = null; container.innerHTML = ''; }
 
     // 중심 계산
     const withCoords = data.filter(d => d.lat && d.lng);
-    let cLat = 37.641, cLng = 127.322, zoom = 13;
+    const mart = getMartLocation();
+    let cLat = mart.lat || 37.641, cLng = mart.lng || 127.322;
     if (withCoords.length) {
       cLat = withCoords.reduce((s, d) => s + d.lat, 0) / withCoords.length;
       cLng = withCoords.reduce((s, d) => s + d.lng, 0) / withCoords.length;
     }
 
-    map = L.map('map-container', { zoomControl: true, doubleClickZoom: false })
-            .setView([cLat, cLng], zoom);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19
-    }).addTo(map);
+    map = new kakao.maps.Map(container, {
+      center: new kakao.maps.LatLng(cLat, cLng),
+      level: 5
+    });
+    map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
 
     // 클릭 이벤트 (구역 그리기용)
-    map.on('click', e => {
+    kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
       if (!drawing) return;
       const now = Date.now();
       if (now - lastClick < 350) return;
       lastClick = now;
-      const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
+      const latlng = mouseEvent.latLng;
+      const pt = { lat: latlng.getLat(), lng: latlng.getLng() };
       drawPoints.push(pt);
-      const dot = L.circleMarker([pt.lat, pt.lng], {
-        radius: 6, color: '#e53935', fillColor: '#e53935', fillOpacity: 1, weight: 2
-      }).addTo(map);
+
+      // 점 표시
+      const dot = new kakao.maps.CustomOverlay({
+        position: latlng,
+        content: '<div style="width:12px;height:12px;background:#e53935;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+        anchor: 'center', zIndex: 10
+      });
+      dot.setMap(map);
       drawDots.push(dot);
+
       if (drawPoints.length >= 2) {
-        if (drawLine) drawLine.remove();
-        drawLine = L.polyline(drawPoints.map(p => [p.lat, p.lng]),
-          { color: '#e53935', dashArray: '6,5', weight: 2.5 }).addTo(map);
+        if (drawLine) drawLine.setMap(null);
+        drawLine = new kakao.maps.Polyline({
+          path: drawPoints.map(p => new kakao.maps.LatLng(p.lat, p.lng)),
+          strokeColor: '#e53935', strokeWeight: 2.5, strokeOpacity: 0.9,
+          strokeStyle: 'shortdash'
+        });
+        drawLine.setMap(map);
       }
     });
-    map.on('dblclick', e => {
+
+    kakao.maps.event.addListener(map, 'dblclick', function() {
       if (!drawing || drawPoints.length < 3) return;
       finishDraw();
     });
 
     // 기존 구역 복원
-    zones.forEach(z => { if (z.polygon) z.polygon.addTo(map); });
+    zones.forEach(z => {
+      if (z.polygon) z.polygon.setMap(map);
+      if (z.label) z.label.setMap(map);
+    });
 
     showMode(currentMode);
   }
@@ -1534,7 +2428,7 @@ const mapZone = (() => {
   // ── 모드 전환 ──────────────────────────────────────
   function showMode(mode) {
     currentMode = mode;
-    if (!map) { init(); return; }
+    if (!map) { kakao.maps.load(() => init()); return; }
 
     // 모드 버튼 활성화
     ['route','all','zone'].forEach(m => {
@@ -1547,6 +2441,7 @@ const mapZone = (() => {
     document.getElementById('btn-mode-route').style.display    = isZone ? 'none' : 'flex';
     document.getElementById('btn-mode-zone').style.display     = isZone ? 'none' : 'flex';
     document.getElementById('btn-draw-zone').style.display     = isZone ? 'flex' : 'none';
+    document.getElementById('btn-finish-draw').style.display   = 'none'; // 그리기 시작 전엔 숨김
     document.getElementById('btn-clear-zones').style.display   = isZone ? 'flex' : 'none';
     document.getElementById('btn-check-pip').style.display     = isZone ? 'flex' : 'none';
     document.getElementById('btn-auto-cluster').style.display  = isZone ? 'flex' : 'none';
@@ -1577,16 +2472,15 @@ const mapZone = (() => {
 
     if (!pending.length) {
       if (legend) legend.innerHTML = `<div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>`;
-      done.forEach((d, i) => {
-        const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓') })
-          .bindPopup(`<b>${d.customerName}</b><br>${d.address}`)
-          .addTo(map);
+      done.forEach(d => {
+        const m = makeMarkerOverlay(d.lat, d.lng, '#4CAF50', '✓', 28, `<b>✅ ${d.customerName}</b><br>${d.address}`);
+        m.setMap(map);
         deliveryMarkers.push(m);
       });
       return;
     }
 
-    // Nearest Neighbor 최적ՙ�
+    // Nearest Neighbor 최적화
     function dist(a, b) {
       const dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
       const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
@@ -1602,54 +2496,47 @@ const mapZone = (() => {
     }
 
     // 출발점 마커 (마트)
-    const storeM = L.marker([start.lat, start.lng], { icon: makeStoreIcon() })
-      .bindPopup('<b>🏪 출발점 (마트)</b>')
-      .addTo(map);
+    const storeM = makeStoreOverlay(start.lat, start.lng);
+    storeM.setMap(map);
     routeMarkers.push(storeM);
 
     // 배달지 마커 (번호 순서)
-    const latlngs = [[start.lat, start.lng]];
+    const pathPoints = [new kakao.maps.LatLng(start.lat, start.lng)];
     ordered.forEach((d, i) => {
-      const color = '#FF6B00';
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1, 34) })
-        .bindPopup(`
-          <b>${i+1}번째 · ${d.customerName}</b><br>
-          <span style="color:#666">${d.address}</span><br>
-          <span style="color:#888;font-size:11px">📞 ${d.phone}</span>
-        `)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, '#FF6B00', i+1, 34,
+        `<b>${i+1}번째 · ${d.customerName}</b><br><span style="color:#666">${d.address}</span><br><span style="color:#888;font-size:11px">📞 ${d.phone}</span>`);
+      m.setMap(map);
       routeMarkers.push(m);
-      latlngs.push([d.lat, d.lng]);
+      pathPoints.push(new kakao.maps.LatLng(d.lat, d.lng));
     });
 
-    // 완료 배달지 표시
+    // 완료 배달지
     done.forEach(d => {
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon('#4CAF50', '✓', 28) })
-        .bindPopup(`<b>✅ ${d.customerName}</b><br>${d.address}`)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, '#4CAF50', '✓', 28, `<b>✅ ${d.customerName}</b><br>${d.address}`);
+      m.setMap(map);
       deliveryMarkers.push(m);
     });
 
-    // 경로 연결선 (화살표 효과)
-    routePolyline = L.polyline(latlngs, {
-      color: '#FF6B00', weight: 3.5, opacity: .85,
-      dashArray: null
-    }).addTo(map);
+    // 경로 연결선
+    routePolyline = new kakao.maps.Polyline({
+      path: pathPoints,
+      strokeColor: '#FF6B00', strokeWeight: 3.5, strokeOpacity: 0.85, strokeStyle: 'solid'
+    });
+    routePolyline.setMap(map);
 
-    // 방향 화살표 (중간 지점마다)
-    for (let i = 0; i < latlngs.length - 1; i++) {
-      const a = latlngs[i], b = latlngs[i+1];
-      const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
-      const angle = Math.atan2(b[1]-a[1], b[0]-a[0]) * 180/Math.PI;
-      const arrow = L.divIcon({
-        html: `<div style="transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1">➤</div>`,
-        className: '', iconSize: [20,20], iconAnchor: [10,10]
-      });
-      const am = L.marker(mid, { icon: arrow, interactive: false }).addTo(map);
+    // 방향 화살표
+    for (let i = 0; i < pathPoints.length - 1; i++) {
+      const a = pathPoints[i], b = pathPoints[i+1];
+      const midLat = (a.getLat()+b.getLat())/2, midLng = (a.getLng()+b.getLng())/2;
+      const angle = Math.atan2(b.getLng()-a.getLng(), b.getLat()-a.getLat()) * 180/Math.PI;
+      const arrowEl = document.createElement('div');
+      arrowEl.style.cssText = `transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1;pointer-events:none`;
+      arrowEl.textContent = '➤';
+      const am = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(midLat, midLng), content: arrowEl, anchor: 'center', zIndex: 2 });
+      am.setMap(map);
       routeMarkers.push(am);
     }
 
-    // 범례
     if (legend) legend.innerHTML = `
       <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 순서</div>
@@ -1657,58 +2544,73 @@ const mapZone = (() => {
       <div class="leg-row"><div class="leg-line" style="background:#FF6B00"></div> 최적 경로</div>
     `;
 
-    // 전체 경로 맞춤
-    if (latlngs.length > 1) map.fitBounds(latlngs, { padding: [40, 40] });
+    if (pathPoints.length > 1) {
+      const bounds = makeBounds(pathPoints.map(p => [p.getLat(), p.getLng()]));
+      map.setBounds(bounds, 40, 40, 40, 40);
+    }
   }
 
   // 📍 전체 보기 모드
   function showAllMode(data, legend) {
     const all = data.filter(d => d.lat && d.lng);
+    // 마트 핀
+    const mart = getMartLocation();
+    const storeM = makeStoreOverlay(mart.lat, mart.lng);
+    storeM.setMap(map);
+    deliveryMarkers.push(storeM);
+
     if (!all.length) return;
     all.forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
       const label = d.status === 'done' ? '✓' : (i+1);
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, label) })
-        .bindPopup(`<b>${d.customerName}</b><br>${d.address}<br><small>${d.phone}</small>`)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, color, label, 32, `<b>${d.customerName}</b><br>${d.address}<br><small>${d.phone}</small>`);
+      m.setMap(map);
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
+      <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
     `;
-    const bounds = all.map(d => [d.lat, d.lng]);
-    if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+    const bounds = makeBounds([[mart.lat, mart.lng], ...all.map(d => [d.lat, d.lng])]);
+    map.setBounds(bounds, 40, 40, 40, 40);
   }
 
   // 🗾 구역 설정 모드
   function showZoneMode(data, legend) {
+    // 마트 핀
+    const mart = getMartLocation();
+    const storeM = makeStoreOverlay(mart.lat, mart.lng);
+    storeM.setMap(map);
+    deliveryMarkers.push(storeM);
+
     data.filter(d => d.lat && d.lng).forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
-      const m = L.marker([d.lat, d.lng], { icon: makeMarkerIcon(color, i+1) })
-        .bindPopup(`<b>${d.customerName}</b><br>${d.address}`)
-        .addTo(map);
+      const m = makeMarkerOverlay(d.lat, d.lng, color, i+1, 32, `<b>${d.customerName}</b><br>${d.address}`);
+      m.setMap(map);
       deliveryMarkers.push(m);
     });
     if (legend) legend.innerHTML = `
+      <div class="leg-row"><div class="leg-dot" style="background:#1a1a2e;border-radius:4px"></div> 출발점 (마트)</div>
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
       <div class="leg-row"><div class="leg-line" style="background:#2196F3;height:4px;border-radius:2px;opacity:.6"></div> 배송 구역</div>
     `;
   }
 
-  // ── 구역 그리기 ─────────────────────────────────────
+  // ── 구역 그리기 ──
   function startDraw() {
     if (!map) return;
     drawing = !drawing;
-    const btn = document.getElementById('btn-draw-zone');
-    const hint = document.getElementById('map-hint');
+    const btn       = document.getElementById('btn-draw-zone');
+    const btnFinish = document.getElementById('btn-finish-draw');
+    const hint      = document.getElementById('map-hint');
     if (drawing) {
       drawPoints = []; drawDots = [];
-      if (drawLine) { drawLine.remove(); drawLine = null; }
-      if (btn) { btn.textContent = '⏹ 취소'; btn.classList.add('red'); btn.classList.remove('green'); }
-      if (hint) hint.style.display = 'block';
-      map.getContainer().style.cursor = 'crosshair';
+      if (drawLine) { drawLine.setMap(null); drawLine = null; }
+      if (btn)       { btn.textContent = '⏹ 취소'; btn.classList.add('red'); btn.classList.remove('green'); }
+      if (btnFinish) btnFinish.style.display = 'flex';
+      if (hint)      hint.style.display = 'block';
     } else {
       cancelDraw();
     }
@@ -1716,13 +2618,14 @@ const mapZone = (() => {
 
   function cancelDraw() {
     drawing = false; drawPoints = [];
-    drawDots.forEach(d => d.remove()); drawDots = [];
-    if (drawLine) { drawLine.remove(); drawLine = null; }
-    const btn = document.getElementById('btn-draw-zone');
-    const hint = document.getElementById('map-hint');
-    if (btn) { btn.textContent = '✏️ 구역 그리기'; btn.classList.remove('red'); btn.classList.add('green'); }
-    if (hint) hint.style.display = 'none';
-    if (map) map.getContainer().style.cursor = '';
+    drawDots.forEach(d => d.setMap(null)); drawDots = [];
+    if (drawLine) { drawLine.setMap(null); drawLine = null; }
+    const btn       = document.getElementById('btn-draw-zone');
+    const btnFinish = document.getElementById('btn-finish-draw');
+    const hint      = document.getElementById('map-hint');
+    if (btn)       { btn.textContent = '✏️ 구역 그리기'; btn.classList.remove('red'); btn.classList.add('green'); }
+    if (btnFinish) btnFinish.style.display = 'none';
+    if (hint)      hint.style.display = 'none';
   }
 
   function finishDraw() {
@@ -1730,18 +2633,25 @@ const mapZone = (() => {
     const colorIdx = zones.length % ZONE_COLORS.length;
     const color = ZONE_COLORS[colorIdx];
     const num = zones.length + 1;
-    const poly = L.polygon(drawPoints.map(p => [p.lat, p.lng]), {
-      color, fillColor: color, fillOpacity: 0.15, weight: 2.5
-    }).bindTooltip(`구역 ${num}`, {
-      permanent: true, direction: 'center', className: 'zone-label-tooltip'
-    }).addTo(map);
-    zones.push({ id: num, points: [...drawPoints], polygon: poly, color });
+    const path = drawPoints.map(p => new kakao.maps.LatLng(p.lat, p.lng));
+    const poly = new kakao.maps.Polygon({
+      path, strokeColor: color, strokeWeight: 2.5, strokeOpacity: 1,
+      fillColor: color, fillOpacity: 0.15
+    });
+    poly.setMap(map);
+    const center = polygonCenter(drawPoints);
+    const label = makeZoneLabel(center.lat, center.lng, `구역 ${num}`);
+    label.setMap(map);
+    zones.push({ id: num, points: [...drawPoints], polygon: poly, label, color });
     cancelDraw();
     showToast(`✅%구역 ${num} 생성 완료`);
   }
 
   function clearZones() {
-    zones.forEach(z => { if (z.polygon) z.polygon.remove(); });
+    zones.forEach(z => {
+      if (z.polygon) z.polygon.setMap(null);
+      if (z.label) z.label.setMap(null);
+    });
     zones = [];
     const panel = document.getElementById('map-result');
     if (panel) panel.style.display = 'none';
@@ -1849,22 +2759,17 @@ const mapZone = (() => {
       const hull     = convexHull(group);
       const expanded = hull.length >= 3 ? expandHull(hull, 0.004) : hull;
 
-      const poly = L.polygon(expanded.map(p => [p.lat, p.lng]), {
-        color, fillColor: color, fillOpacity: 0.18, weight: 2.5,
-        dashArray: '6,4'
-      }).bindTooltip(
-        `${emoji} ${name} (${group.length}건)`,
-        { permanent: true, direction: 'center', className: 'zone-label-tooltip' }
-      ).addTo(map);
-
-      zones.push({ id: `auto_${c}`, points: expanded, polygon: poly, color, auto: true });
-
-      // 마커 색 업데이트 (클러스터 색 동기화)
-      deliveryMarkers.forEach(({ marker, delivery }) => {
-        if (group.find(g => g.id === delivery.id)) {
-          marker.setIcon(makeMarkerIcon(color, data.indexOf(delivery) + 1));
-        }
+      const path = expanded.map(p => new kakao.maps.LatLng(p.lat, p.lng));
+      const poly = new kakao.maps.Polygon({
+        path, strokeColor: color, strokeWeight: 2.5, strokeOpacity: 1,
+        strokeStyle: 'shortdash', fillColor: color, fillOpacity: 0.18
       });
+      poly.setMap(map);
+      const center = polygonCenter(expanded);
+      const lbl = makeZoneLabel(center.lat, center.lng, `${emoji} ${name} (${group.length}건)`);
+      lbl.setMap(map);
+
+      zones.push({ id: `auto_${c}`, points: expanded, polygon: poly, label: lbl, color, auto: true });
 
       // 결과 패널 행
       resultHtml += `
@@ -1882,7 +2787,7 @@ const mapZone = (() => {
 
     // 지도 범위 맞춤
     const allCoords = data.map(d => [d.lat, d.lng]);
-    if (allCoords.length > 1) map.fitBounds(allCoords, { padding: [50, 50] });
+    if (allCoords.length > 1) { const b = makeBounds(allCoords); map.setBounds(b, 50, 50, 50, 50); }
 
     showToast(`✅ ${actualK}명 기사 구역 자동 배분 완료`);
   }
@@ -1898,6 +2803,17 @@ const mapZone = (() => {
   loadDeliveries();
   renderHome();
 })();
+</script>
+
+<script>
+// ── PWA 서비스워커 등록 ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/hat-delivery/sw.js')
+      .then(() => console.log('SW 등록 완료'))
+      .catch(e => console.warn('SW 등록 실패:', e));
+  });
+}
 </script>
 </body>
 </html>
