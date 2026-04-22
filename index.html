@@ -975,7 +975,10 @@ let currentNavId = null;
 let currentPhotoId = null;
 let routeOrder = [];
 
-const STORAGE_KEY = 'deliveries_v2';
+// 드라이버별 분리 저장 (같은 기기에서 다른 드라이버 로그인 시 데이터 혼용 방지)
+function getStorageKey() {
+  return 'deliveries_v2_' + (currentDriver ? currentDriver.id : 'guest');
+}
 
 function uid() {
   return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
@@ -1001,12 +1004,12 @@ function showToast(msg, duration = 2000) {
 // 저장/로드
 // ══════════════════════════════════════════════════════
 function saveDeliveries() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(deliveries));
+  localStorage.setItem(getStorageKey(), JSON.stringify(deliveries));
 }
 
 function loadDeliveries() {
   try {
-    deliveries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    deliveries = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
   } catch(e) { deliveries = []; }
 }
 
@@ -2331,7 +2334,7 @@ const mapZone = (() => {
   }
 
   function loadData() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+    try { return JSON.parse(localStorage.getItem(getStorageKey()) || '[]'); } catch(e) { return []; }
   }
 
   function clearMap() {
