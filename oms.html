@@ -627,10 +627,10 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="filter-chip" data-filter="confirmed" onclick="setFilter('confirmed',this)">🟢 확인</div>
       <div class="filter-chip" data-filter="delivering" onclick="setFilter('delivering',this)">🔵 배달중</div>
       <div class="filter-chip" data-filter="done" onclick="setFilter('done',this)">✅ 완료</div>
+      <div class="filter-chip" data-filter="cancelled" onclick="setFilter('cancelled',this)" style="color:#f44336;border-color:#f44336">❌ 취소</div>
       <div class="filter-chip" data-filter="kakao" onclick="setFilter('kakao',this)">💬 카카오</div>
       <div class="filter-chip" data-filter="sms" onclick="setFilter('sms',this)">📱 문자</div>
       <div class="filter-chip" data-filter="call" onclick="setFilter('call',this)">📞 전화</div>
-      <div class="filter-chip" data-filter="cancelled" onclick="setFilter('cancelled',this)" style="color:#f44336;border-color:#f44336">❌ 취소</div>
     </div>
   </div>
 
@@ -1664,7 +1664,10 @@ function orderActions(o) {
     <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">취소</button>`;
   if (o.status === 'delivering') return `
     <span style="font-size:11px;font-weight:700;color:#1565C0">🚗 배달중</span>
-    <button class="btn btn-green btn-sm" style="flex:1;margin-top:4px" onclick="updateStatus('${o.id}','done')">✅ 완료 처리</button>`;
+    <div style="display:flex;gap:4px;margin-top:4px">
+      <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','done')">✅ 완료 처리</button>
+      <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">🚫 취소</button>
+    </div>`;
   if (o.status === 'done') return `
     <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','confirmed')">↩ 완료취소</button>`;
   if (o.status === 'cancelled') return `
