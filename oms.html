@@ -2364,18 +2364,23 @@ function renderStats() {
       <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
     </div>`).join('');
 
-  // 결제별
+  // 결제별 건수 + 금액
   const payData = {};
-  tOrders.forEach(o => { payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1; });
+  const payAmt = {};
+  tOrders.forEach(o => {
+    payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1;
+    payAmt[o.paymentMethod]  = (payAmt[o.paymentMethod]||0) + (Number(o.totalAmount)||0);
+  });
   const maxPay = Math.max(...Object.values(payData), 1);
-  const payColors = { card:'#2196F3', cash:'#4CAF50', prepaid:'#9C27B0', transfer:'#FF9800' };
+  const payColors = { onsite:'#2196F3', prepaid:'#4CAF50', unpaid:'#FF9800', card:'#9C27B0', cash:'#4CAF50', transfer:'#FF9800' };
   document.getElementById('pay-stats').innerHTML = Object.entries(payData).map(([k,v]) => `
-    <div class="ch-stat-row">
-      <div style="width:80px;font-size:13px;font-weight:600">${PAY_LABELS[k]||k}</div>
+    <div class="ch-stat-row" style="align-items:center">
+      <div style="width:80px;font-size:12px;font-weight:600">${PAY_LABELS[k]||k}</div>
       <div class="ch-stat-bar-wrap">
         <div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors[k]||'#999'}"></div>
       </div>
-      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+      <div style="text-align:right;font-size:12px;font-weight:700;color:#333;min-width:30px">${v}건</div>
+      ${payAmt[k] ? `<div style="text-align:right;font-size:11px;color:#e65100;font-weight:700;min-width:70px;margin-left:4px">₩${payAmt[k].toLocaleString()}</div>` : '<div style="min-width:70px"></div>'}
     </div>`).join('') || '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">데이터 없음</div>';
 }
 
@@ -2430,15 +2435,20 @@ function renderStatsModal() {
     </div>`).join('');
 
   const payData = {};
-  tOrders.forEach(o => { payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1; });
+  const payAmt2 = {};
+  tOrders.forEach(o => {
+    payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1;
+    payAmt2[o.paymentMethod] = (payAmt2[o.paymentMethod]||0) + (Number(o.totalAmount)||0);
+  });
   const maxPay = Math.max(...Object.values(payData), 1);
-  const payColors = { card:'#2196F3', cash:'#4CAF50', prepaid:'#9C27B0', transfer:'#FF9800' };
+  const payColors2 = { onsite:'#2196F3', prepaid:'#4CAF50', unpaid:'#FF9800', card:'#9C27B0', cash:'#4CAF50', transfer:'#FF9800' };
   const payEl = document.getElementById('pay-stats-m');
   if (payEl) payEl.innerHTML = Object.entries(payData).map(([k,v]) => `
-    <div class="ch-stat-row">
-      <div style="width:80px;font-size:13px;font-weight:600">${PAY_LABELS[k]||k}</div>
-      <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors[k]||'#999'}"></div></div>
-      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+    <div class="ch-stat-row" style="align-items:center">
+      <div style="width:80px;font-size:12px;font-weight:600">${PAY_LABELS[k]||k}</div>
+      <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors2[k]||'#999'}"></div></div>
+      <div style="text-align:right;font-size:12px;font-weight:700;color:#333;min-width:30px">${v}건</div>
+      ${payAmt2[k] ? `<div style="text-align:right;font-size:11px;color:#e65100;font-weight:700;min-width:70px;margin-left:4px">₩${payAmt2[k].toLocaleString()}</div>` : '<div style="min-width:70px"></div>'}
     </div>`).join('') || '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">주문 없음</div>';
 }
 
