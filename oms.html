@@ -1654,7 +1654,7 @@ function renderOrderList() {
 
   container.innerHTML = filtered.map((o, i) => {
     const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
-    const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+    const totalAmt = o.totalAmount || (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
     const time = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
 
     const actions = orderActions(o);
