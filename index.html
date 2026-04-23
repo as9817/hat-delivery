@@ -504,6 +504,10 @@
       </div>
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
+      <div id="res-amount-wrap" style="display:none;margin:10px 0 4px">
+        <label class="form-label">합계금액</label>
+        <input class="form-input" id="res-amount" type="text" placeholder="금액 (예: 45000)" style="font-weight:700;color:#e65100">
+      </div>
       <label class="form-label" style="margin-top:10px">💳 결제 방식</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="pay-btns">
         <button class="pay-btn active" data-pay="prepaid" onclick="selectPay(this)">✅ 완납</button>
@@ -949,6 +953,7 @@ function saveToFirebase(item) {
     status: 'pending',
     channel: 'tms',
     paymentMethod: item.paymentMethod || '',
+    totalAmount: item.totalAmount ? Number(item.totalAmount) : 0,
     createdAt: item.addedAt || Date.now(),
     // 기사 앱에서 등록한 주문 → 해당 기사 자동 배정
     assignedDriverId:   currentDriver?.id   || '',
@@ -1836,7 +1841,7 @@ async function startOCR(file) {
 
     // 4단계: 정보 추출
     setStep('step-parse', 'active');
-    const { customer, location } = result.data;
+    const { customer, location, totalAmount } = result.data;
     const roadAddr   = location?.road_address   || '';
     const detailAddr = location?.detail_address || '';
     // 화면엔 전체 주소 표시 (확인용), 저장은 분리
@@ -1852,11 +1857,22 @@ async function startOCR(file) {
     } else if (detailWrap) {
       detailWrap.style.display = 'none';
     }
+    // 합계금액 표시
+    const amountWrap = document.getElementById('res-amount-wrap');
+    const amountInput = document.getElementById('res-amount');
+    if (totalAmount && amountWrap && amountInput) {
+      amountInput.value = totalAmount;
+      amountWrap.style.display = 'block';
+    } else if (amountWrap) {
+      amountWrap.style.display = 'none';
+    }
+
     // 동/호 별도 보관 (네비게이션은 road_address만, 카드엔 detail도 표시)
     window._pendingOCR = {
       lat: location?.lat || null,
       lng: location?.lng || null,
       detailAddress: detailAddr,
+      totalAmount: totalAmount || '',
       // 학습용: 원본 OCR 결과 보관 (수정 여부 판단에 사용)
       ocrName:    customer?.name || '',
       ocrAddress: roadAddr
@@ -1960,6 +1976,7 @@ async function confirmAdd() {
   const detailAddr = ocrData.detailAddress || '';
   const ocrName    = ocrData.ocrName || '';
   const ocrAddress = ocrData.ocrAddress || '';
+  const totalAmount = (document.getElementById('res-amount')?.value || ocrData.totalAmount || '').trim();
   window._pendingOCR = null;
 
   // 주소가 OCR 결과와 다르게 수정됐으면 → 좌표 재획득 + Firebase 학습 저장
@@ -2001,7 +2018,9 @@ async function confirmAdd() {
     address: addr,
     detailAddress: detailAddr,
     phone: phone || '-', lat, lng, status: 'pending',
-    paymentMethod: getSelectedPay(), addedAt: Date.now()
+    paymentMethod: getSelectedPay(),
+    totalAmount: totalAmount || '',
+    addedAt: Date.now()
   };
   loadDeliveries();
   deliveries.push(item);
