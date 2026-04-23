@@ -160,13 +160,42 @@
 
     /* ── OCR 스캐너 ── */
     #scan-btn {
-      width: 100%; background: #fff; border: 2px dashed #FF6B00;
-      border-radius: 20px; padding: 36px 20px; text-align: center;
-      cursor: pointer; margin-bottom: 16px;
+      width: 100%; background: #1a1a2e;
+      border: none; border-radius: 20px; padding: 20px 20px 16px;
+      text-align: center; cursor: pointer; margin-bottom: 16px;
+      position: relative; overflow: hidden;
     }
-    #scan-btn .scan-icon { font-size: 48px; margin-bottom: 8px; }
-    #scan-btn .scan-title { font-size: 16px; font-weight: 700; color: #333; }
-    #scan-btn .scan-sub { font-size: 12px; color: #999; margin-top: 4px; }
+    #scan-btn .scan-title { font-size: 14px; font-weight: 700; color: #fff; margin-top: 12px; }
+    #scan-btn .scan-sub { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 5px; line-height: 1.5; }
+
+    /* 영수증 가이드 박스 */
+    .receipt-guide-box {
+      position: relative;
+      width: 170px; height: 230px;
+      margin: 0 auto;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .receipt-guide-box::before {
+      content: '';
+      position: absolute; inset: 0;
+      border: 2px dashed rgba(255,107,0,.45);
+      border-radius: 6px;
+    }
+    .guide-corner {
+      position: absolute;
+      width: 24px; height: 24px;
+      border-color: #FF6B00; border-style: solid;
+    }
+    .guide-corner.tl { top: -1px; left: -1px; border-width: 3px 0 0 3px; border-radius: 3px 0 0 0; }
+    .guide-corner.tr { top: -1px; right: -1px; border-width: 3px 3px 0 0; border-radius: 0 3px 0 0; }
+    .guide-corner.bl { bottom: -1px; left: -1px; border-width: 0 0 3px 3px; border-radius: 0 0 0 3px; }
+    .guide-corner.br { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; border-radius: 0 0 3px 0; }
+    .guide-inner { text-align: center; }
+    .guide-inner .scan-icon { font-size: 38px; }
+    .guide-inner .guide-label {
+      font-size: 11px; color: rgba(255,255,255,.7);
+      margin-top: 8px; line-height: 1.5;
+    }
     #file-input { display: none; }
 
     /* ── OCR 진행 ── */
@@ -392,11 +421,20 @@
   <div id="scan" class="screen">
     <div style="font-size:18px;font-weight:800;margin-bottom:16px">📷 영수증 추가</div>
 
-    <!-- 카메라 버튼 -->
+    <!-- 카메라 버튼 (가이드 오버레이 포함) -->
     <div id="scan-btn" onclick="document.getElementById('file-input').click()">
-      <div class="scan-icon">📷</div>
+      <div class="receipt-guide-box">
+        <div class="guide-corner tl"></div>
+        <div class="guide-corner tr"></div>
+        <div class="guide-corner bl"></div>
+        <div class="guide-corner br"></div>
+        <div class="guide-inner">
+          <div class="scan-icon">📷</div>
+          <div class="guide-label">영수증을 이 안에<br>맞춰서 촬영하세요</div>
+        </div>
+      </div>
       <div class="scan-title">탭하여 카메라로 영수증 찍기</div>
-      <div class="scan-sub">영수증 촬영</div>
+      <div class="scan-sub">가이드 안에 영수증 전체가 들어오게 촬영하면<br>OCR 인식 정확도가 높아집니다</div>
     </div>
     <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(event)">
 
