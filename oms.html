@@ -2346,7 +2346,7 @@ function renderStats() {
   document.getElementById('st-done').textContent = tOrders.filter(o=>o.status==='done').length;
   document.getElementById('st-pending').textContent = tOrders.filter(o=>['pending','confirmed'].includes(o.status)).length;
 
-  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(o.totalAmount||0),0);
+  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(Number(o.totalAmount)||0),0);
   document.getElementById('st-revenue').textContent = '₩' + rev.toLocaleString();
 
   // 채널별
@@ -2413,7 +2413,7 @@ function renderStatsModal() {
   setM('st-total-m', tOrders.length);
   setM('st-done-m', tOrders.filter(o=>o.status==='done').length);
   setM('st-pending-m', tOrders.filter(o=>['pending','confirmed'].includes(o.status)).length);
-  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(o.totalAmount||0),0);
+  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(Number(o.totalAmount)||0),0);
   setM('st-revenue-m', '₩' + rev.toLocaleString());
 
   const chData = { kakao:0, sms:0, call:0 };
