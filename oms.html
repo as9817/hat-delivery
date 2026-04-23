@@ -196,6 +196,8 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   .header-title{font-size:20px}
   .header-pc-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
   .header-pc-btn:hover{background:rgba(255,255,255,.28)}
+  .settings-item{padding:12px 18px;font-size:14px;font-weight:600;color:#1a237e;cursor:pointer;transition:.15s}
+  .settings-item:hover{background:#f0f4ff}
   .tabs{display:none!important}
 
   /* 전체 래퍼 */
@@ -446,9 +448,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .tms-legend-row{display:flex;align-items:center;gap:5px;white-space:nowrap}
 .tms-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
 #tms-table-wrap{display:none;flex:1;overflow-y:auto;min-height:0;background:#fff}
-.tms-table{width:100%;border-collapse:collapse;font-size:12px}
-.tms-table thead th{background:#E8EAF6;color:#1a237e;font-size:11px;font-weight:700;padding:9px 8px;white-space:nowrap;position:sticky;top:0;z-index:5;border-bottom:2px solid #c5cae9;text-align:left}
-.tms-table tbody td{padding:8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.tms-table{width:100%;border-collapse:collapse;font-size:14px}
+.tms-table thead th{background:#E8EAF6;color:#1a237e;font-size:13px;font-weight:700;padding:11px 10px;white-space:nowrap;position:sticky;top:0;z-index:5;border-bottom:2px solid #c5cae9;text-align:left}
+.tms-table tbody td{padding:12px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
 .tms-table tbody tr:hover td{background:#f5f7ff;cursor:pointer}
 .tms-tr-delivering td:first-child{border-left:3px solid var(--blue)}
 .tms-tr-highlight td{background:#E8EAF6!important;transition:background .3s}
@@ -544,14 +546,20 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0">
       <div class="header-badge" id="today-count">오늘 0건</div>
       <button class="header-pc-btn" onclick="showStatsModal()">📊 통계</button>
-      <button class="header-pc-btn" onclick="showCustDBModal()">👥 고객DB</button>
-      <button class="header-pc-btn" onclick="showImportModal()">📥 가져오기</button>
-      <button class="header-pc-btn" onclick="showDriversModal()">🚗 기사관리</button>
-      <button class="header-pc-btn" onclick="openOmsMartSettings()">🏪 마트위치</button>
-      <button class="header-pc-btn" onclick="openLearnedModal()">📚 학습주소</button>
-      <span id="oms-user-badge">👤 <span id="oms-user-name">-</span></span>
-      <button id="btn-accounts" class="header-pc-btn" onclick="showAccountsModal()" style="display:none">🔐 계정관리</button>
-      <button class="header-pc-btn" onclick="omsLogout()" style="background:rgba(244,67,54,.25);border:1.5px solid rgba(244,67,54,.4)">로그아웃</button>
+      <span id="oms-user-badge" style="font-size:13px;opacity:.8">👤 <span id="oms-user-name">-</span></span>
+      <!-- ⚙️ 설정 드롭다운 -->
+      <div style="position:relative">
+        <button class="header-pc-btn" onclick="toggleSettingsMenu()" id="settings-btn">⚙️ 설정 ▾</button>
+        <div id="settings-menu" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.18);min-width:160px;z-index:999;overflow:hidden">
+          <div class="settings-item" onclick="showCustDBModal();toggleSettingsMenu()">👥 고객DB</div>
+          <div class="settings-item" onclick="showImportModal();toggleSettingsMenu()">📥 가져오기</div>
+          <div class="settings-item" onclick="showDriversModal();toggleSettingsMenu()">🚗 기사관리</div>
+          <div class="settings-item" onclick="openOmsMartSettings();toggleSettingsMenu()">🏪 마트위치</div>
+          <div class="settings-item" onclick="openLearnedModal();toggleSettingsMenu()">📚 학습주소</div>
+          <div class="settings-item" id="menu-accounts" style="display:none" onclick="showAccountsModal();toggleSettingsMenu()">🔐 계정관리</div>
+          <div class="settings-item" style="color:#e53935;border-top:1px solid #f5f5f5" onclick="omsLogout()">🚪 로그아웃</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -630,9 +638,6 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="filter-chip" data-filter="delivering" onclick="setFilter('delivering',this)">🔵 배달중</div>
       <div class="filter-chip" data-filter="done" onclick="setFilter('done',this)">✅ 완료</div>
       <div class="filter-chip" data-filter="cancelled" onclick="setFilter('cancelled',this)" style="color:#f44336;border-color:#f44336">❌ 취소</div>
-      <div class="filter-chip" data-filter="kakao" onclick="setFilter('kakao',this)">💬 카카오</div>
-      <div class="filter-chip" data-filter="sms" onclick="setFilter('sms',this)">📱 문자</div>
-      <div class="filter-chip" data-filter="call" onclick="setFilter('call',this)">📞 전화</div>
     </div>
   </div>
 
@@ -1301,10 +1306,30 @@ function showOmsApp() {
     nameEl.textContent = omsCurrentUser.name;
     badge.classList.add('show');
   }
-  // 어드민이면 계정관리 버튼 표시
+  // 어드민이면 계정관리 메뉴 표시
   const acctBtn = document.getElementById('btn-accounts');
-  if (acctBtn && omsCurrentUser?.role === 'admin') {
-    acctBtn.style.display = 'inline-flex';
+  if (acctBtn) acctBtn.style.display = 'none'; // 구 버튼 숨김
+  const menuAccounts = document.getElementById('menu-accounts');
+  if (menuAccounts && omsCurrentUser?.role === 'admin') {
+    menuAccounts.style.display = 'block';
+  }
+}
+
+function toggleSettingsMenu() {
+  const menu = document.getElementById('settings-menu');
+  if (!menu) return;
+  const isOpen = menu.style.display !== 'none';
+  menu.style.display = isOpen ? 'none' : 'block';
+  // 바깥 클릭 시 닫기
+  if (!isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', function closeMenu(e) {
+        if (!document.getElementById('settings-btn')?.contains(e.target)) {
+          menu.style.display = 'none';
+          document.removeEventListener('click', closeMenu);
+        }
+      });
+    }, 10);
   }
 }
 
