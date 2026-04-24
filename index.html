@@ -1920,11 +1920,13 @@ async function startOCR(file) {
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        // 빨간 손글씨 제거: R채널이 G/B보다 현저히 높은 픽셀 → 흰색으로
+        // 빨간/주황 손글씨 제거: R - max(G,B) > 40 이면 흰색으로
+        // R > G*1.8 조건보다 넓게 잡아 어두운 빨강·주황빛 잉크까지 제거
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const d = imgData.data;
         for (let i = 0; i < d.length; i += 4) {
-          if (d[i] > 150 && d[i] > d[i+1] * 1.8 && d[i] > d[i+2] * 1.8) {
+          const r = d[i], g = d[i+1], b = d[i+2];
+          if (r > 100 && (r - Math.max(g, b)) > 40) {
             d[i] = d[i+1] = d[i+2] = 255;
           }
         }
