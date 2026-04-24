@@ -1756,7 +1756,7 @@ function openOrderDetail(id) {
         <div><div style="font-size:11px;color:#aaa">주문시간</div><div style="font-size:13px;font-weight:600">${orderTime}</div></div>
         ${completedTime?`<div><div style="font-size:11px;color:#aaa">완료시간</div><div style="font-size:13px;font-weight:600;color:#2e7d32">✅ ${completedTime}</div></div>`:''}
         ${o.assignedDriverName?`<div><div style="font-size:11px;color:#aaa">담당기사</div><div style="font-size:13px;font-weight:600">🚗 ${o.assignedDriverName}</div></div>`:''}
-        ${o.paymentStatus?`<div><div style="font-size:11px;color:#aaa">결제상태</div><div style="font-size:13px;font-weight:600">${o.paymentStatus==='paid'?'✅ 완료':'⏳ 미완료'}</div></div>`:''}
+        ${o.paymentStatus && o.paymentStatus !== 'prepaid'?`<div><div style="font-size:11px;color:#aaa">결제상태</div><div style="font-size:13px;font-weight:600">${o.paymentStatus==='unpaid'?'⏳ 미완료':o.paymentStatus==='onsite'?'💳 현장결제':'✅ 완료'}</div></div>`:''}
       </div>
     </div>
 
