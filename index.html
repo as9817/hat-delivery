@@ -1981,7 +1981,9 @@ async function startOCR(file) {
       totalAmount: totalAmount || '',
       // 학습용: 원본 OCR 결과 보관 (수정 여부 판단에 사용)
       ocrName:    customer?.name || '',
-      ocrAddress: roadAddr
+      ocrAddress: roadAddr,
+      // 영수증 사진 (OMS에서 볼 수 있도록 Storage 업로드용)
+      receiptDataUrl: 'data:image/jpeg;base64,' + base64
     };
     const warn = document.getElementById('ocr-warn');
     if (warn) warn.style.display = (!customer?.name || !roadAddr) ? 'block' : 'none';
@@ -2083,6 +2085,7 @@ async function confirmAdd() {
   const ocrName    = ocrData.ocrName || '';
   const ocrAddress = ocrData.ocrAddress || '';
   const totalAmount = (document.getElementById('res-amount')?.value || ocrData.totalAmount || '').trim();
+  const receiptDataUrl = ocrData.receiptDataUrl || null;
   window._pendingOCR = null;
 
   // 주소가 OCR 결과와 다르게 수정됐으면 → 좌표 재획득 + Firebase 학습 저장
@@ -2135,6 +2138,15 @@ async function confirmAdd() {
   renderHome();
   goTab('home');
   showToast(`✅ ${name} 추가 완료`);
+
+  // 영수증 사진 Storage 업로드 (백그라운드)
+  if (receiptDataUrl && _fbStorage && _fbDb) {
+    uploadPhotoToStorage(item.id + '_receipt', receiptDataUrl).then(photoUrl => {
+      if (photoUrl) {
+        _fbDb.ref('orders/' + item.id + '/receiptPhotoUrl').set(photoUrl);
+      }
+    }).catch(e => console.warn('영수증 사진 업로드 실패:', e));
+  }
 }
 
 // ══════════════════════════════════════════════════════

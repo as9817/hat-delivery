@@ -1760,6 +1760,13 @@ function openOrderDetail(id) {
       </div>
     </div>
 
+    <!-- 영수증 사진 -->
+    ${o.receiptPhotoUrl?`<div style="background:#fff8e1;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">🧾 영수증 사진</div>
+      <img src="${o.receiptPhotoUrl}" onclick="window.open('${o.receiptPhotoUrl}','_blank')" style="width:100%;max-height:320px;object-fit:contain;border-radius:10px;cursor:zoom-in;display:block;background:#f5f5f5" alt="영수증 사진">
+      <div style="font-size:11px;color:#aaa;margin-top:6px;text-align:center">탭하면 크게 보기</div>
+    </div>`:''}
+
     <!-- 배송 사진 -->
     ${o.photoUrl?`<div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:16px">
       <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📸 배송 완료 사진</div>
