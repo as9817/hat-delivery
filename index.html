@@ -818,6 +818,7 @@ function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
   const el = document.getElementById('header-driver-name');
   if (el && currentDriver) el.textContent = currentDriver.name + ' 기사님';
+  renderHome();              // 저장된 주문 즉시 표시
   startGpsTracking();        // 로그인 시 GPS 자동 시작
   startFirebaseOrderSync();  // 로그인 시 배정 주문 수신 시작
 }
