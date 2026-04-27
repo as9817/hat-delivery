@@ -2012,12 +2012,24 @@ async function startOCR(file) {
       receiptDataUrl: 'data:image/jpeg;base64,' + base64
     };
     const warn = document.getElementById('ocr-warn');
-    if (warn) warn.style.display = (!customer?.name || !roadAddr) ? 'block' : 'none';
+    if (warn) warn.style.display = 'none';
     setStep('step-parse', 'done');
 
     // 5단계: 완료 → 결과 화면으로
     setStep('step-done', 'active');
-    setTimeout(() => goTab('result'), 500);
+
+    // 필수 필드 검증 → 문제 있으면 재촬영 팝업
+    const missingFields = [];
+    if (!customer?.name) missingFields.push('성명');
+    if (!roadAddr) missingFields.push('배송 주소');
+    if (!customer?.phone || customer.phone.replace(/\D/g,'').length < 9) missingFields.push('연락처');
+    if (!totalAmount || Number(totalAmount) === 0) missingFields.push('합계금액');
+
+    if (missingFields.length > 0) {
+      setTimeout(() => showRetakePrompt(missingFields), 500);
+    } else {
+      setTimeout(() => goTab('result'), 500);
+    }
 
   } catch(e) {
     console.error('OCR 오류:', e);
@@ -2175,6 +2187,28 @@ async function confirmAdd() {
       }
     }).catch(e => console.warn('영수증 사진 업로드 실패:', e));
   }
+}
+
+function showRetakePrompt(missingFields) {
+  const overlay = document.createElement('div');
+  overlay.id = 'retake-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const fieldList = missingFields.map(f => `<span style="display:inline-block;background:#fff3e0;color:#e65100;border-radius:6px;padding:2px 10px;margin:3px;font-size:13px;font-weight:700">${f}</span>`).join('');
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18)">
+      <div style="font-size:36px;margin-bottom:10px">📋</div>
+      <div style="font-size:17px;font-weight:800;color:#222;margin-bottom:8px">인식이 불완전해요</div>
+      <div style="font-size:13px;color:#666;margin-bottom:14px">아래 항목을 읽지 못했습니다</div>
+      <div style="margin-bottom:20px;line-height:2">${fieldList}</div>
+      <div style="font-size:12px;color:#999;margin-bottom:20px">영수증을 다시 촬영하거나<br>직접 입력하여 진행할 수 있어요</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('retake-overlay').remove();goTab('scan')"
+          style="flex:1;padding:14px 0;border:none;border-radius:12px;background:#F2F2F7;color:#444;font-size:15px;font-weight:700;cursor:pointer">📷 재촬영</button>
+        <button onclick="document.getElementById('retake-overlay').remove();goTab('result')"
+          style="flex:1;padding:14px 0;border:none;border-radius:12px;background:#FF6B00;color:#fff;font-size:15px;font-weight:700;cursor:pointer">✏️ 직접 입력</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 function showNextReceiptPrompt() {
