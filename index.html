@@ -1120,12 +1120,8 @@ function loadDeliveries() {
   try {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const all = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
-    // 오늘 이전 날짜이면서 완료/취소 안 된 주문은 자동 제거 (지난 날 미완료 주문 잔류 방지)
-    deliveries = all.filter(d => {
-      const isToday = (d.createdAt || 0) >= todayStart.getTime();
-      const isDone = d.status === 'done' || d.status === 'cancelled';
-      return isToday || isDone;
-    });
+    // 오늘 날짜 주문만 유지 (이전 날짜는 완료/미완료 관계없이 모두 제거)
+    deliveries = all.filter(d => (d.createdAt || 0) >= todayStart.getTime());
     // 필터로 줄었으면 저장도 업데이트
     if (deliveries.length !== all.length) saveDeliveries();
   } catch(e) { deliveries = []; }
