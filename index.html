@@ -2022,6 +2022,8 @@ async function startOCR(file) {
     const criticalMissing = [];
     if (!customer?.name) criticalMissing.push('성명');
     if (!roadAddr) criticalMissing.push('배송 주소');
+    const phoneDigits = (customer?.phone || '').replace(/\D/g, '');
+    if (!phoneDigits) criticalMissing.push('연락처');
 
     if (criticalMissing.length > 0) {
       setTimeout(() => showRetakePrompt(criticalMissing), 500);
