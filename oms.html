@@ -3649,8 +3649,25 @@ function updateDriverStatusBar(drivers) {
     const dCount = Object.values(tmsDeliveryData)
       .filter(dl => dl.driverId === d.id || dl.driverName === d.name)
       .filter(dl => dl.status !== 'done').length;
-    return `<div class="tms-driver-chip online">🟢 ${d.name || d.id}${dCount ? ` (${dCount}건)` : ''}</div>`;
+    return `<div class="tms-driver-chip online" onclick="focusDriver('${d.id}')" style="cursor:pointer" title="${d.name || d.id} 위치로 이동">🟢 ${d.name || d.id}${dCount ? ` (${dCount}건)` : ''}</div>`;
   }).join('');
+}
+
+// ── 기사 위치로 지도 이동 ──
+function focusDriver(driverId) {
+  const marker = tmsDriverMarkers[driverId];
+  if (!marker || !tmsMap) return;
+  const pos = marker.getPosition();
+  tmsMap.setCenter(pos);
+  tmsMap.setLevel(3);
+  // 마커 위 인포윈도우 잠깐 표시
+  const driver = tmsDriverData[driverId];
+  const name = driver?.name || driverId;
+  const infoWindow = new kakao.maps.InfoWindow({
+    content: `<div style="padding:6px 12px;font-size:13px;font-weight:700;white-space:nowrap">📍 ${name} 기사님</div>`
+  });
+  infoWindow.open(tmsMap, marker);
+  setTimeout(() => infoWindow.close(), 2000);
 }
 
 // ── TMS 주문 테이블 렌더링 ──
