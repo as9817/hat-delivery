@@ -3206,10 +3206,10 @@ function saveCustMemo(encodedKey) {
 
 // ── 엑셀 다운로드: 주문현황 ──
 function exportOrdersExcel() {
-  const { start, end } = getDateFilterRange();
+  const { from, to } = getDateFilterRange();
   const filtered = orders.filter(o => {
     if (!o.createdAt) return false;
-    return o.createdAt >= start && o.createdAt <= end;
+    return o.createdAt >= from && o.createdAt <= to;
   });
 
   if (!filtered.length) { showToast('다운로드할 주문이 없습니다'); return; }
