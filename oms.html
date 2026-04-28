@@ -4198,18 +4198,27 @@ function updateOmsMapMarkers() {
 function updateMapLegend() {
   const el = document.getElementById('tms-legend-drivers');
   if (!el) return;
-  // _driverColorMap에 있는 기사만 표시 (오늘 주문 배정된 기사)
   const entries = Object.entries(_driverColorMap);
   if (!entries.length) { el.innerHTML = ''; return; }
+  const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   el.innerHTML = entries.map(([driverId, color]) => {
     const name = tmsDriverData[driverId]?.name || driverId;
     const initial = name.charAt(0);
-    const cnt = orders.filter(o => o.assignedDriverId === driverId).length;
+    // 오늘 + 진행중 주문만 카운트
+    const active = orders.filter(o =>
+      o.assignedDriverId === driverId &&
+      o.createdAt >= todayStart &&
+      o.status !== 'done' && o.status !== 'cancelled'
+    ).length;
+    const total = orders.filter(o =>
+      o.assignedDriverId === driverId && o.createdAt >= todayStart
+    ).length;
+    const label = active > 0 ? `${active}건 진행` : total > 0 ? `${total}건 완료` : '0건';
     return `<div class="tms-legend-row">
       <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
         border-radius:50%;background:${color};color:#fff;font-size:9px;font-weight:800;border:2px solid #fff;
         box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0">${initial}</span>
-      ${name} (${cnt}건)
+      ${name} (${label})
     </div>`;
   }).join('');
 }
@@ -4403,9 +4412,13 @@ function updateDriverStatusBar(drivers) {
     bar.innerHTML = '<span style="font-size:11px;color:#aaa">📡 연결된 기사 없음 — Firebase realtime 대기중</span>';
     return;
   }
+  const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   bar.innerHTML = drivers.map(d => {
+    // 오늘 + 진행 중인 주문만 카운트
     const dCount = orders.filter(o =>
-      o.assignedDriverId === d.id && o.status !== 'done' && o.status !== 'cancelled'
+      o.assignedDriverId === d.id &&
+      o.createdAt >= todayStart &&
+      o.status !== 'done' && o.status !== 'cancelled'
     ).length;
     const color = getDriverColor(d.id);
     const initial = (d.name || d.id).charAt(0);
