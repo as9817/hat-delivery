@@ -632,6 +632,10 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
       <input type="date" id="dfilter-custom" onchange="setDateFilter('custom',this)"
         style="border:1.5px solid #e0e0e0;border-radius:8px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;cursor:pointer">
+      <button onclick="exportOrdersExcel()"
+        style="padding:5px 10px;border:1.5px solid #2E7D32;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#E8F5E9;color:#2E7D32;white-space:nowrap">
+        📥 엑셀
+      </button>
     </div>
   </div>
 
@@ -964,8 +968,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 
 <!-- ══════════════ 고객 DB (모바일 탭 화면) ══════════════ -->
 <div class="screen" id="custdb">
-  <div class="cdb-search-wrap">
-    <input class="cdb-search" id="cdb-search-input" type="search" placeholder="🔍 이름 또는 전화번호 검색" oninput="searchCustDB(this.value,'cdb-list')">
+  <div class="cdb-search-wrap" style="display:flex;gap:8px;align-items:center">
+    <input class="cdb-search" id="cdb-search-input" type="search" placeholder="🔍 이름 또는 전화번호 검색" oninput="searchCustDB(this.value,'cdb-list')" style="flex:1">
+    <button onclick="exportCustomersExcel()" style="flex-shrink:0;padding:8px 12px;border:1.5px solid #2E7D32;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#E8F5E9;color:#2E7D32">📥 엑셀</button>
   </div>
   <div class="cdb-summary" id="cdb-summary-mobile">총 0명</div>
   <div style="padding:8px 12px 60px" id="cdb-list">
@@ -1175,6 +1180,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   <div class="stats-modal-box" style="padding:0;overflow:hidden;max-height:90vh;width:min(760px,94vw);display:flex;flex-direction:column">
     <div class="stats-modal-hdr" style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
       <div class="stats-modal-title">👥 고객 DB</div>
+      <button onclick="exportCustomersExcel()" style="padding:5px 12px;border:1.5px solid #2E7D32;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#E8F5E9;color:#2E7D32;margin-right:8px">📥 엑셀</button>
       <button class="stats-modal-close" onclick="hideCustDBModal()">✕</button>
     </div>
     <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
@@ -3196,6 +3202,91 @@ function saveCustMemo(encodedKey) {
   db.ref('customerMemos/' + key).set(memo || null).then(() => {
     showToast('✅ 메모가 저장되었습니다');
   }).catch(() => showToast('저장 실패'));
+}
+
+// ── 엑셀 다운로드: 주문현황 ──
+function exportOrdersExcel() {
+  const { start, end } = getDateFilterRange();
+  const filtered = orders.filter(o => {
+    if (!o.createdAt) return false;
+    return o.createdAt >= start && o.createdAt <= end;
+  });
+
+  if (!filtered.length) { showToast('다운로드할 주문이 없습니다'); return; }
+
+  const periodLabel = _dateFilter === 'today' ? '오늘'
+    : _dateFilter === 'yesterday' ? '어제'
+    : _dateFilter === 'week' ? '이번주'
+    : (_dateFilterCustom ? `${_dateFilterCustom.getFullYear()}-${_dateFilterCustom.getMonth()+1}-${_dateFilterCustom.getDate()}` : '');
+
+  const rows = filtered.map(o => {
+    const d = new Date(o.createdAt);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const itemStr = (o.items || []).map(it => `${it.name} ${it.qty}개`).join(', ') || '';
+    return {
+      '주문번호': o.id || '',
+      '접수일시': dateStr,
+      '고객명': o.customerName || '',
+      '연락처': o.phone || '',
+      '배송주소': o.address || '',
+      '채널': CH_LABELS[o.channel] || o.channel || '',
+      '상태': STATUS_LABELS[o.status] || o.status || '',
+      '결제방식': PAY_LABELS[o.paymentMethod] || o.paymentMethod || '',
+      '합계금액': o.totalAmount || 0,
+      '주문품목': itemStr,
+      '메모': o.note || '',
+      '담당기사': o.assignedDriverId || ''
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  // 열 너비 설정
+  ws['!cols'] = [
+    {wch:16},{wch:18},{wch:10},{wch:14},{wch:30},{wch:8},{wch:8},
+    {wch:8},{wch:10},{wch:30},{wch:20},{wch:10}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '주문현황');
+
+  const today = new Date();
+  const fileName = `주문현황_${periodLabel}_${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  showToast(`📥 ${filtered.length}건 엑셀 다운로드 완료`);
+}
+
+// ── 엑셀 다운로드: 고객 DB ──
+function exportCustomersExcel() {
+  const customers = buildCustomerDB();
+  if (!customers.length) { showToast('다운로드할 고객 데이터가 없습니다'); return; }
+
+  const rows = customers.map(c => {
+    const lastD = new Date(c.lastOrderDate);
+    const firstOrder = [...c.orders].sort((a,b) => a.createdAt - b.createdAt)[0];
+    const firstD = firstOrder ? new Date(firstOrder.createdAt) : null;
+    const topItems = getTopItems(c.orders);
+    const avgAmt = c.orderCount ? Math.round(c.totalSpent / c.orderCount) : 0;
+    return {
+      '고객명': c.name || '',
+      '연락처': c.phone || '',
+      '배송주소': c.address || '',
+      '총 주문수': c.orderCount,
+      '누적금액': c.totalSpent,
+      '평균주문금액': avgAmt,
+      '첫 주문일': firstD ? `${firstD.getFullYear()}-${String(firstD.getMonth()+1).padStart(2,'0')}-${String(firstD.getDate()).padStart(2,'0')}` : '',
+      '최근 주문일': `${lastD.getFullYear()}-${String(lastD.getMonth()+1).padStart(2,'0')}-${String(lastD.getDate()).padStart(2,'0')}`,
+      '자주 주문': topItems
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:10},{wch:14},{wch:30},{wch:10},{wch:12},{wch:14},{wch:12},{wch:12},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '고객DB');
+
+  const today = new Date();
+  const fileName = `고객DB_${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  showToast(`📥 ${customers.length}명 고객 데이터 엑셀 다운로드 완료`);
 }
 
 function hideCustDetail() {
