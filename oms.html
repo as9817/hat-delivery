@@ -1247,6 +1247,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <div style="position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;padding:16px 20px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;z-index:1">
       <button onclick="closeOrderDetail()" style="background:#f5f5f5;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#555">← 닫기</button>
       <div id="order-detail-title" style="font-size:16px;font-weight:800;color:#1a237e;flex:1"></div>
+      <button id="order-edit-btn" onclick="toggleOrderEdit()" style="background:#E8EAF6;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;color:#1a237e">✏️ 수정</button>
     </div>
     <div id="order-detail-content" style="padding:16px 20px"></div>
   </div>
@@ -1983,6 +1984,11 @@ function openOrderDetail(id) {
   const o = orders.find(x => x.id === id);
   if (!o) return;
 
+  _editingOrderId = id;
+  // 수정 버튼 상태 초기화
+  const editBtn = document.getElementById('order-edit-btn');
+  if (editBtn) { editBtn.textContent = '✏️ 수정'; editBtn.style.background = '#E8EAF6'; editBtn.style.color = '#1a237e'; }
+
   const modal = document.getElementById('order-detail-modal');
   const title = document.getElementById('order-detail-title');
   const content = document.getElementById('order-detail-content');
@@ -2061,6 +2067,160 @@ function openOrderDetail(id) {
 function closeOrderDetail() {
   document.getElementById('order-detail-modal').style.display = 'none';
   document.body.style.overflow = '';
+  _editingOrderId = null;
+}
+
+let _editingOrderId = null;
+
+function toggleOrderEdit() {
+  const o = orders.find(x => x.id === _editingOrderId);
+  if (!o) return;
+  const btn = document.getElementById('order-edit-btn');
+  const content = document.getElementById('order-detail-content');
+
+  // 이미 편집 중이면 저장
+  if (btn.textContent.includes('저장')) {
+    saveOrderEdit(o.id);
+    return;
+  }
+
+  // 편집 모드 전환
+  btn.textContent = '💾 저장';
+  btn.style.background = '#1a237e';
+  btn.style.color = '#fff';
+
+  const payOptions = Object.entries(PAY_LABELS).map(([v, l]) =>
+    `<option value="${v}" ${o.paymentMethod===v?'selected':''}>${l}</option>`
+  ).join('');
+
+  const itemsHtml = (o.items||[]).map((it, i) => `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px" id="edit-item-${i}">
+      <input value="${it.name||''}" placeholder="품목명" id="ei-name-${i}"
+        style="flex:1;border:1.5px solid #c5cae9;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none">
+      <input value="${it.qty||1}" type="number" min="1" id="ei-qty-${i}"
+        style="width:52px;border:1.5px solid #c5cae9;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none;text-align:center">
+      <input value="${it.price||''}" type="number" min="0" placeholder="단가" id="ei-price-${i}"
+        style="width:80px;border:1.5px solid #c5cae9;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none">
+      <button onclick="removeEditItem(${i})" style="background:#ffebee;border:none;border-radius:6px;padding:6px 8px;cursor:pointer;color:#c62828;font-size:13px;font-weight:700">✕</button>
+    </div>`).join('');
+
+  content.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;padding-bottom:8px">
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">고객명</div>
+        <input id="oe-name" value="${o.customerName||''}"
+          style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">연락처</div>
+        <input id="oe-phone" value="${o.phone||''}" type="tel"
+          style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">배송주소</div>
+        <input id="oe-addr" value="${o.address||''}"
+          style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">합계금액 (원)</div>
+        <input id="oe-amount" value="${o.totalAmount||''}" type="number" min="0"
+          style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">결제방식</div>
+        <select id="oe-pay"
+          style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
+          ${payOptions}
+        </select>
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">메모</div>
+        <input id="oe-note" value="${o.note||''}" placeholder="배달 메모"
+          style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:6px">주문 품목</div>
+        <div id="oe-items-wrap">${itemsHtml}</div>
+        <button onclick="addEditItem()" style="width:100%;margin-top:4px;background:#f5f5f5;border:1.5px dashed #bbb;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer;color:#555">+ 품목 추가</button>
+      </div>
+
+    </div>
+  `;
+}
+
+function addEditItem() {
+  const wrap = document.getElementById('oe-items-wrap');
+  if (!wrap) return;
+  const i = wrap.children.length;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
+  div.id = `edit-item-${i}`;
+  div.innerHTML = `
+    <input placeholder="품목명" id="ei-name-${i}" style="flex:1;border:1.5px solid #c5cae9;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none">
+    <input value="1" type="number" min="1" id="ei-qty-${i}" style="width:52px;border:1.5px solid #c5cae9;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none;text-align:center">
+    <input type="number" min="0" placeholder="단가" id="ei-price-${i}" style="width:80px;border:1.5px solid #c5cae9;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;outline:none">
+    <button onclick="removeEditItem(${i})" style="background:#ffebee;border:none;border-radius:6px;padding:6px 8px;cursor:pointer;color:#c62828;font-size:13px;font-weight:700">✕</button>`;
+  wrap.appendChild(div);
+}
+
+function removeEditItem(i) {
+  const el = document.getElementById(`edit-item-${i}`);
+  if (el) el.remove();
+}
+
+async function saveOrderEdit(orderId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o) return;
+
+  const name    = document.getElementById('oe-name')?.value.trim();
+  const phone   = document.getElementById('oe-phone')?.value.trim();
+  const addr    = document.getElementById('oe-addr')?.value.trim();
+  const amount  = Number(document.getElementById('oe-amount')?.value) || 0;
+  const pay     = document.getElementById('oe-pay')?.value;
+  const note    = document.getElementById('oe-note')?.value.trim();
+
+  // 품목 수집
+  const wrap = document.getElementById('oe-items-wrap');
+  const items = [];
+  if (wrap) {
+    wrap.querySelectorAll('[id^="edit-item-"]').forEach((row, idx) => {
+      const n = document.getElementById(`ei-name-${idx}`)?.value.trim();
+      const q = parseInt(document.getElementById(`ei-qty-${idx}`)?.value) || 1;
+      const p = Number(document.getElementById(`ei-price-${idx}`)?.value) || 0;
+      if (n) items.push({ name: n, qty: q, price: p });
+    });
+  }
+
+  const update = {
+    customerName: name || o.customerName,
+    phone: phone || o.phone,
+    address: addr || o.address,
+    totalAmount: amount || o.totalAmount,
+    paymentMethod: pay || o.paymentMethod,
+    note: note,
+    items: items.length ? items : o.items,
+    updatedAt: Date.now()
+  };
+
+  if (firebaseActive) {
+    await db.ref('orders/' + orderId).update(update);
+  }
+  // 로컬 반영
+  Object.assign(o, update);
+
+  showToast('✅ 주문 정보가 수정되었습니다');
+
+  // 버튼 원복 후 뷰 모드로
+  const btn = document.getElementById('order-edit-btn');
+  if (btn) { btn.textContent = '✏️ 수정'; btn.style.background = '#E8EAF6'; btn.style.color = '#1a237e'; }
+  openOrderDetail(orderId);
 }
 
 // ══════════════════════════════════════════
