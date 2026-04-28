@@ -2175,23 +2175,24 @@ function removeEditItem(i) {
   if (el) el.remove();
 }
 
-async function saveOrderEdit(orderId) {
+function saveOrderEdit(orderId) {
   const o = orders.find(x => x.id === orderId);
   if (!o) return;
 
-  const name    = document.getElementById('oe-name')?.value.trim();
-  const phone   = document.getElementById('oe-phone')?.value.trim();
-  const addr    = document.getElementById('oe-addr')?.value.trim();
-  const amount  = Number(document.getElementById('oe-amount')?.value) || 0;
-  const pay     = document.getElementById('oe-pay')?.value;
-  const note    = document.getElementById('oe-note')?.value.trim();
+  const name   = (document.getElementById('oe-name')?.value || '').trim();
+  const phone  = (document.getElementById('oe-phone')?.value || '').trim();
+  const addr   = (document.getElementById('oe-addr')?.value || '').trim();
+  const amount = Number(document.getElementById('oe-amount')?.value) || 0;
+  const pay    = document.getElementById('oe-pay')?.value || o.paymentMethod;
+  const note   = (document.getElementById('oe-note')?.value || '').trim();
 
-  // 품목 수집
+  // 품목 수집 — row의 data-idx 속성으로 인덱스 매칭
   const wrap = document.getElementById('oe-items-wrap');
   const items = [];
   if (wrap) {
-    wrap.querySelectorAll('[id^="edit-item-"]').forEach((row, idx) => {
-      const n = document.getElementById(`ei-name-${idx}`)?.value.trim();
+    wrap.querySelectorAll('[id^="edit-item-"]').forEach(row => {
+      const idx = row.id.replace('edit-item-', '');
+      const n = (document.getElementById(`ei-name-${idx}`)?.value || '').trim();
       const q = parseInt(document.getElementById(`ei-qty-${idx}`)?.value) || 1;
       const p = Number(document.getElementById(`ei-price-${idx}`)?.value) || 0;
       if (n) items.push({ name: n, qty: q, price: p });
@@ -2199,25 +2200,29 @@ async function saveOrderEdit(orderId) {
   }
 
   const update = {
-    customerName: name || o.customerName,
-    phone: phone || o.phone,
-    address: addr || o.address,
-    totalAmount: amount || o.totalAmount,
-    paymentMethod: pay || o.paymentMethod,
-    note: note,
-    items: items.length ? items : o.items,
-    updatedAt: Date.now()
+    customerName:  name  || o.customerName,
+    phone:         phone || o.phone,
+    address:       addr  || o.address,
+    totalAmount:   amount > 0 ? amount : (o.totalAmount || 0),
+    paymentMethod: pay,
+    note:          note,
+    items:         items.length ? items : (o.items || []),
+    updatedAt:     Date.now()
   };
 
-  if (firebaseActive) {
-    await db.ref('orders/' + orderId).update(update);
-  }
-  // 로컬 반영
+  // 로컬 즉시 반영
   Object.assign(o, update);
 
-  showToast('✅ 주문 정보가 수정되었습니다');
+  // Firebase 저장
+  if (firebaseActive) {
+    db.ref('orders/' + orderId).update(update)
+      .then(() => showToast('✅ 주문 정보가 저장되었습니다'))
+      .catch(err => showToast('❌ 저장 실패: ' + err.message));
+  } else {
+    showToast('✅ 주문 정보가 수정되었습니다 (로컬)');
+  }
 
-  // 버튼 원복 후 뷰 모드로
+  // 버튼 원복 + 보기 모드로
   const btn = document.getElementById('order-edit-btn');
   if (btn) { btn.textContent = '✏️ 수정'; btn.style.background = '#E8EAF6'; btn.style.color = '#1a237e'; }
   openOrderDetail(orderId);
