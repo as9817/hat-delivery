@@ -621,6 +621,20 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
   <div class="screen-inner">
 
+  <!-- ── 날짜 필터 ── -->
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <button onclick="setDateFilter('today',this)" id="dfilter-today"
+      style="padding:6px 12px;border:1.5px solid #1a237e;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#1a237e;color:#fff;transition:.2s">오늘</button>
+    <button onclick="setDateFilter('yesterday',this)" id="dfilter-yesterday"
+      style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">어제</button>
+    <button onclick="setDateFilter('week',this)" id="dfilter-week"
+      style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">이번 주</button>
+    <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
+      <input type="date" id="dfilter-custom" onchange="setDateFilter('custom',this)"
+        style="border:1.5px solid #e0e0e0;border-radius:8px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;cursor:pointer">
+    </div>
+  </div>
+
   <!-- ── 검색창 ── -->
   <div style="position:relative;margin-bottom:10px">
     <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none">🔍</span>
@@ -1721,9 +1735,60 @@ function matchesSearch(o, q) {
       || (o.assignedDriverName||'').toLowerCase().includes(lower);
 }
 
+// 날짜 필터 상태
+let _dateFilter = 'today'; // 'today' | 'yesterday' | 'week' | 'custom'
+let _dateFilterCustom = null; // Date 객체
+
+function setDateFilter(type, el) {
+  _dateFilter = type;
+  // 버튼 스타일 리셋
+  ['today','yesterday','week'].forEach(t => {
+    const btn = document.getElementById('dfilter-' + t);
+    if (!btn) return;
+    const isActive = t === type;
+    btn.style.background = isActive ? '#1a237e' : '#fff';
+    btn.style.color = isActive ? '#fff' : '#555';
+    btn.style.borderColor = isActive ? '#1a237e' : '#e0e0e0';
+  });
+  if (type === 'custom' && el && el.value) {
+    _dateFilterCustom = new Date(el.value);
+    // 버튼 모두 비활성
+    ['today','yesterday','week'].forEach(t => {
+      const btn = document.getElementById('dfilter-' + t);
+      if (btn) { btn.style.background='#fff'; btn.style.color='#555'; btn.style.borderColor='#e0e0e0'; }
+    });
+  }
+  renderOrderList();
+  renderTmsTable();
+}
+
+function getDateFilterRange() {
+  const now = new Date();
+  if (_dateFilter === 'today') {
+    const s = new Date(now); s.setHours(0,0,0,0);
+    const e = new Date(now); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  } else if (_dateFilter === 'yesterday') {
+    const s = new Date(now); s.setDate(now.getDate()-1); s.setHours(0,0,0,0);
+    const e = new Date(now); e.setDate(now.getDate()-1); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  } else if (_dateFilter === 'week') {
+    const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
+    const e = new Date(now); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  } else if (_dateFilter === 'custom' && _dateFilterCustom) {
+    const s = new Date(_dateFilterCustom); s.setHours(0,0,0,0);
+    const e = new Date(_dateFilterCustom); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  }
+  // 기본: 오늘
+  const s = new Date(now); s.setHours(0,0,0,0);
+  return { from: s.getTime(), to: now.getTime() };
+}
+
 function filterOrders() {
-  const today = todayStart();
-  let filtered = orders.filter(o => o.createdAt >= today);
+  const { from, to } = getDateFilterRange();
+  let filtered = orders.filter(o => o.createdAt >= from && o.createdAt <= to);
   if (currentFilter !== 'all') {
     if (['pending','confirmed','delivering','done','cancelled'].includes(currentFilter))
       filtered = filtered.filter(o => o.status === currentFilter);
