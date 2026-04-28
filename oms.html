@@ -629,8 +629,12 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">어제</button>
     <button onclick="setDateFilter('week',this)" id="dfilter-week"
       style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">이번 주</button>
+    <button onclick="setDateFilter('month',this)" id="dfilter-month"
+      style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">이번 달</button>
     <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
       <input type="date" id="dfilter-custom" onchange="setDateFilter('custom',this)"
+        style="border:1.5px solid #e0e0e0;border-radius:8px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;cursor:pointer">
+      <input type="month" id="dfilter-month-input" onchange="setDateFilter('month-custom',this)"
         style="border:1.5px solid #e0e0e0;border-radius:8px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;cursor:pointer">
       <button onclick="exportOrdersExcel()"
         style="padding:5px 10px;border:1.5px solid #2E7D32;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#E8F5E9;color:#2E7D32;white-space:nowrap">
@@ -1791,13 +1795,15 @@ function matchesSearch(o, q) {
 }
 
 // 날짜 필터 상태
-let _dateFilter = 'today'; // 'today' | 'yesterday' | 'week' | 'custom'
-let _dateFilterCustom = null; // Date 객체
+let _dateFilter = 'today'; // 'today'|'yesterday'|'week'|'month'|'custom'|'month-custom'
+let _dateFilterCustom = null;     // Date 객체 (일별 선택)
+let _dateFilterMonth = null;      // { year, month } (월별 선택)
 
 function setDateFilter(type, el) {
   _dateFilter = type;
+  const BTN_IDS = ['today','yesterday','week','month'];
   // 버튼 스타일 리셋
-  ['today','yesterday','week'].forEach(t => {
+  BTN_IDS.forEach(t => {
     const btn = document.getElementById('dfilter-' + t);
     if (!btn) return;
     const isActive = t === type;
@@ -1807,8 +1813,15 @@ function setDateFilter(type, el) {
   });
   if (type === 'custom' && el && el.value) {
     _dateFilterCustom = new Date(el.value);
-    // 버튼 모두 비활성
-    ['today','yesterday','week'].forEach(t => {
+    BTN_IDS.forEach(t => {
+      const btn = document.getElementById('dfilter-' + t);
+      if (btn) { btn.style.background='#fff'; btn.style.color='#555'; btn.style.borderColor='#e0e0e0'; }
+    });
+  }
+  if (type === 'month-custom' && el && el.value) {
+    const [y, m] = el.value.split('-').map(Number);
+    _dateFilterMonth = { year: y, month: m };
+    BTN_IDS.forEach(t => {
       const btn = document.getElementById('dfilter-' + t);
       if (btn) { btn.style.background='#fff'; btn.style.color='#555'; btn.style.borderColor='#e0e0e0'; }
     });
@@ -1830,6 +1843,16 @@ function getDateFilterRange() {
   } else if (_dateFilter === 'week') {
     const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
     const e = new Date(now); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  } else if (_dateFilter === 'month') {
+    // 이번 달 1일 ~ 오늘
+    const s = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const e = new Date(now); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  } else if (_dateFilter === 'month-custom' && _dateFilterMonth) {
+    const { year, month } = _dateFilterMonth;
+    const s = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const e = new Date(year, month, 0, 23, 59, 59, 999); // 해당 월 마지막 날
     return { from: s.getTime(), to: e.getTime() };
   } else if (_dateFilter === 'custom' && _dateFilterCustom) {
     const s = new Date(_dateFilterCustom); s.setHours(0,0,0,0);
@@ -3217,6 +3240,8 @@ function exportOrdersExcel() {
   const periodLabel = _dateFilter === 'today' ? '오늘'
     : _dateFilter === 'yesterday' ? '어제'
     : _dateFilter === 'week' ? '이번주'
+    : _dateFilter === 'month' ? `${new Date().getFullYear()}년${new Date().getMonth()+1}월`
+    : _dateFilter === 'month-custom' && _dateFilterMonth ? `${_dateFilterMonth.year}년${_dateFilterMonth.month}월`
     : (_dateFilterCustom ? `${_dateFilterCustom.getFullYear()}-${_dateFilterCustom.getMonth()+1}-${_dateFilterCustom.getDate()}` : '');
 
   const rows = filtered.map(o => {
