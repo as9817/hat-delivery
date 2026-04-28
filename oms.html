@@ -593,9 +593,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <div id="tms-map"></div>
     <div id="tms-legend">
       <div class="tms-legend-row"><span class="tms-dot" style="background:#1a237e;border:2px solid #fff;width:12px;height:12px;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>기사 실시간 위치</div>
-      <div class="tms-legend-row"><span class="tms-dot" style="background:#FF9800"></span>배달 대기</div>
-      <div class="tms-legend-row"><span class="tms-dot" style="background:#2196F3"></span>배달 중</div>
-      <div class="tms-legend-row"><span class="tms-dot" style="background:#9E9E9E"></span>배달 완료</div>
+      <div class="tms-legend-row"><span class="tms-dot" style="background:#9E9E9E;border:2px dashed #bbb"></span>미배정</div>
+      <div class="tms-legend-row" style="opacity:.5"><span class="tms-dot" style="background:#aaa"></span>완료(반투명)</div>
+      <div id="tms-legend-drivers"></div>
     </div>
   </div>
   <div id="tms-driver-status"></div>
@@ -4190,6 +4190,28 @@ function updateOmsMapMarkers() {
     tmsMap.setCenter(new kakao.maps.LatLng(mart.lat, mart.lng));
     tmsMap.setLevel(5);
   }
+
+  // 범례 기사 목록 갱신
+  updateMapLegend();
+}
+
+function updateMapLegend() {
+  const el = document.getElementById('tms-legend-drivers');
+  if (!el) return;
+  // _driverColorMap에 있는 기사만 표시 (오늘 주문 배정된 기사)
+  const entries = Object.entries(_driverColorMap);
+  if (!entries.length) { el.innerHTML = ''; return; }
+  el.innerHTML = entries.map(([driverId, color]) => {
+    const name = tmsDriverData[driverId]?.name || driverId;
+    const initial = name.charAt(0);
+    const cnt = orders.filter(o => o.assignedDriverId === driverId).length;
+    return `<div class="tms-legend-row">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+        border-radius:50%;background:${color};color:#fff;font-size:9px;font-weight:800;border:2px solid #fff;
+        box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0">${initial}</span>
+      ${name} (${cnt}건)
+    </div>`;
+  }).join('');
 }
 
 // ── 주문 카드 클릭 시 지도 확대 ──
