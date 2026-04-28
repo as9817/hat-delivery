@@ -1033,28 +1033,76 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 </div>
 
 <div class="stats-modal" id="stats-modal" onclick="hideStatsModal(event)">
-  <div class="stats-modal-box">
+  <div class="stats-modal-box" style="max-width:620px;width:min(620px,94vw)">
     <div class="stats-modal-hdr">
-      <div class="stats-modal-title">📊 오늘 통계</div>
+      <div class="stats-modal-title">📊 통계</div>
       <button class="stats-modal-close" onclick="hideStatsModal()">✕</button>
     </div>
-    <!-- 통계 내용 재사용 -->
-    <div class="today-bar" style="margin-bottom:16px">
-      <span>📅</span><span id="stats-date-modal"></span> 현황
+
+    <!-- 기간 필터 -->
+    <div style="display:flex;gap:6px;background:#f0f2f8;border-radius:12px;padding:4px;margin-bottom:14px">
+      <button id="sfilter-today-m" onclick="setStatsPeriodModal('today')" style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:#1a237e;color:#fff;transition:.2s">오늘</button>
+      <button id="sfilter-week-m"  onclick="setStatsPeriodModal('week')"  style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#666;transition:.2s">이번 주</button>
+      <button id="sfilter-month-m" onclick="setStatsPeriodModal('month')" style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#666;transition:.2s">이번 달</button>
     </div>
+    <div style="text-align:center;font-size:12px;color:#999;margin-bottom:14px" id="stats-period-label-m"></div>
+
+    <!-- 요약 카드 -->
     <div class="stat-grid" style="margin-bottom:16px">
       <div class="stat-card"><div class="stat-num" id="st-total-m">0</div><div class="stat-label">전체 주문</div></div>
       <div class="stat-card"><div class="stat-num" id="st-done-m" style="color:var(--green)">0</div><div class="stat-label">배달 완료</div></div>
-      <div class="stat-card"><div class="stat-num" id="st-revenue-m" style="font-size:20px">₩0</div><div class="stat-label">실현 매출</div></div>
-      <div class="stat-card"><div class="stat-num" id="st-pending-m" style="color:var(--orange)">0</div><div class="stat-label">처리중 건수</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-revenue-m" style="font-size:18px">₩0</div><div class="stat-label">총 매출</div></div>
+      <div class="stat-card"><div class="stat-num" id="st-rate-m" style="color:#1a237e">0%</div><div class="stat-label">완료율</div></div>
     </div>
+
+    <!-- 날짜별 현황 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="section-title" style="margin-bottom:14px">채널별 주문</div>
-      <div id="ch-stats-m"></div>
+      <div class="section-title" style="margin-bottom:12px">📅 날짜별 현황</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#E8EAF6">
+              <th style="padding:8px 8px;text-align:left;color:#1a237e;font-weight:700">날짜</th>
+              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">전체</th>
+              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">완료</th>
+              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">취소</th>
+              <th style="padding:8px 8px;text-align:right;color:#1a237e;font-weight:700">매출</th>
+            </tr>
+          </thead>
+          <tbody id="daily-stats-body-m"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="card">
-      <div class="section-title" style="margin-bottom:14px">결제수단별</div>
-      <div id="pay-stats-m"></div>
+
+    <!-- 기사별 실적 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:12px">🚗 기사별 실적</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#E8EAF6">
+              <th style="padding:8px 8px;text-align:left;color:#1a237e;font-weight:700">기사</th>
+              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">담당</th>
+              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">완료</th>
+              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">완료율</th>
+              <th style="padding:8px 8px;text-align:right;color:#1a237e;font-weight:700">평균시간</th>
+            </tr>
+          </thead>
+          <tbody id="driver-stats-body-m"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 채널별 / 결제수단별 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:14px">채널별</div>
+        <div id="ch-stats-m"></div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:14px">결제수단별</div>
+        <div id="pay-stats-m"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2550,59 +2598,151 @@ function showToast(msg) {
 // ══════════════════════════════════════════
 // PC 통계 모달
 // ══════════════════════════════════════════
-function showStatsModal() {
+let _statsPeriodModal = 'today';
+
+function setStatsPeriodModal(period) {
+  _statsPeriodModal = period;
+  ['today','week','month'].forEach(p => {
+    const btn = document.getElementById('sfilter-' + p + '-m');
+    if (!btn) return;
+    btn.style.background = p === period ? '#1a237e' : 'transparent';
+    btn.style.color = p === period ? '#fff' : '#666';
+  });
   renderStatsModal();
+}
+
+function getStatsPeriodRangeModal() {
+  const now = new Date();
+  if (_statsPeriodModal === 'today') {
+    const s = new Date(now); s.setHours(0,0,0,0);
+    return { from: s.getTime(), to: now.getTime() };
+  } else if (_statsPeriodModal === 'week') {
+    const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
+    return { from: s.getTime(), to: now.getTime() };
+  } else {
+    const s = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { from: s.getTime(), to: now.getTime() };
+  }
+}
+
+function showStatsModal() {
+  _statsPeriodModal = 'today';
   document.getElementById('stats-modal').classList.add('show');
+  renderStatsModal();
 }
 function hideStatsModal(e) {
   if (e && e.target !== document.getElementById('stats-modal')) return;
   document.getElementById('stats-modal').classList.remove('show');
 }
 function renderStatsModal() {
-  const today = todayStart();
-  const tOrders = orders.filter(o => o.createdAt >= today);
-  const d = new Date();
-  const days = ['일','월','화','수','목','금','토'];
-  const dateStr = `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
-  const el = document.getElementById('stats-date-modal');
-  if (el) el.textContent = dateStr;
+  const { from, to } = getStatsPeriodRangeModal();
+  const filtered = orders.filter(o => o.createdAt >= from && o.createdAt <= to);
 
+  // 기간 레이블
+  const labelEl = document.getElementById('stats-period-label-m');
+  if (labelEl) {
+    const f = new Date(from), t = new Date(to);
+    const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+    const labelMap = { today:'오늘 하루', week:'이번 주', month:'이번 달' };
+    labelEl.textContent = _statsPeriodModal === 'today'
+      ? `${fmt(f)} 기준`
+      : `${fmt(f)} ~ ${fmt(t)} (${labelMap[_statsPeriodModal]})`;
+  }
+
+  // 요약 카드
+  const done = filtered.filter(o => o.status === 'done');
+  const rev  = done.reduce((s,o) => s + (Number(o.totalAmount)||0), 0);
+  const rate = filtered.length ? Math.round(done.length / filtered.length * 100) : 0;
   const setM = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
-  setM('st-total-m', tOrders.length);
-  setM('st-done-m', tOrders.filter(o=>o.status==='done').length);
-  setM('st-pending-m', tOrders.filter(o=>['pending','confirmed'].includes(o.status)).length);
-  const rev = tOrders.filter(o=>o.status==='done').reduce((s,o)=>s+(Number(o.totalAmount)||0),0);
+  setM('st-total-m',   filtered.length);
+  setM('st-done-m',    done.length);
   setM('st-revenue-m', '₩' + rev.toLocaleString());
+  setM('st-rate-m',    rate + '%');
 
+  // 날짜별 현황
+  const dayMap = {};
+  filtered.forEach(o => {
+    const d = new Date(o.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (!dayMap[key]) dayMap[key] = { total:0, done:0, cancel:0, rev:0 };
+    dayMap[key].total++;
+    if (o.status === 'done')      { dayMap[key].done++; dayMap[key].rev += Number(o.totalAmount)||0; }
+    if (o.status === 'cancelled') dayMap[key].cancel++;
+  });
+  const dailyBody = document.getElementById('daily-stats-body-m');
+  if (dailyBody) {
+    const rows = Object.entries(dayMap).sort((a,b) => b[0].localeCompare(a[0]));
+    dailyBody.innerHTML = rows.length ? rows.map(([key, d]) => {
+      const [,m,dd] = key.split('-');
+      const dow = ['일','월','화','수','목','금','토'][new Date(key).getDay()];
+      return `<tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:9px 8px;font-weight:700;color:#333">${m}/${dd}<span style="font-size:10px;color:#aaa;margin-left:3px">(${dow})</span></td>
+        <td style="padding:9px 8px;text-align:center;font-weight:600">${d.total}</td>
+        <td style="padding:9px 8px;text-align:center;font-weight:700;color:#2e7d32">${d.done}</td>
+        <td style="padding:9px 8px;text-align:center;font-weight:600;color:${d.cancel?'#f44336':'#bbb'}">${d.cancel||'-'}</td>
+        <td style="padding:9px 8px;text-align:right;font-weight:700;color:#e65100;font-size:11px">${d.rev ? '₩'+d.rev.toLocaleString() : '-'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">데이터 없음</td></tr>';
+  }
+
+  // 기사별 실적
+  const drvMap = {};
+  filtered.forEach(o => {
+    const name = o.assignedDriverName || '미배정';
+    if (!drvMap[name]) drvMap[name] = { total:0, done:0, times:[] };
+    drvMap[name].total++;
+    if (o.status === 'done') {
+      drvMap[name].done++;
+      if (o.completedAt && o.createdAt) drvMap[name].times.push(o.completedAt - o.createdAt);
+    }
+  });
+  const driverBody = document.getElementById('driver-stats-body-m');
+  if (driverBody) {
+    const rows = Object.entries(drvMap).sort((a,b) => b[1].done - a[1].done);
+    driverBody.innerHTML = rows.length ? rows.map(([name, d]) => {
+      const r = d.total ? Math.round(d.done/d.total*100) : 0;
+      const avgMs = d.times.length ? d.times.reduce((s,t)=>s+t,0)/d.times.length : 0;
+      const avgMin = avgMs ? Math.round(avgMs/60000) : null;
+      const rColor = r >= 90 ? '#2e7d32' : r >= 70 ? '#f57c00' : '#f44336';
+      return `<tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:9px 8px;font-weight:700;color:#1a237e">${name}</td>
+        <td style="padding:9px 8px;text-align:center">${d.total}</td>
+        <td style="padding:9px 8px;text-align:center;font-weight:700;color:#2e7d32">${d.done}</td>
+        <td style="padding:9px 8px;text-align:center;font-weight:700;color:${rColor}">${r}%</td>
+        <td style="padding:9px 8px;text-align:right;color:#555;font-size:12px">${avgMin ? avgMin+'분' : '-'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">데이터 없음</td></tr>';
+  }
+
+  // 채널별
   const chData = { kakao:0, sms:0, call:0 };
-  tOrders.forEach(o => { if(chData[o.channel]!==undefined) chData[o.channel]++; });
+  filtered.forEach(o => { if(chData[o.channel]!==undefined) chData[o.channel]++; });
   const maxCh = Math.max(...Object.values(chData), 1);
   const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3' };
   const chNames = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
   const chEl = document.getElementById('ch-stats-m');
   if (chEl) chEl.innerHTML = Object.entries(chData).map(([k,v]) => `
     <div class="ch-stat-row">
-      <div style="width:80px;font-size:13px;font-weight:600">${chNames[k]}</div>
+      <div style="width:60px;font-size:12px;font-weight:600">${chNames[k]}</div>
       <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxCh*100}%;background:${chColors[k]}"></div></div>
-      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:#333">${v}</div>
+      <div style="width:24px;text-align:right;font-size:12px;font-weight:700;color:#333">${v}</div>
     </div>`).join('');
 
-  const payData = {};
-  const payAmt2 = {};
-  tOrders.forEach(o => {
+  // 결제수단별
+  const payData = {}, payAmt = {};
+  filtered.forEach(o => {
     payData[o.paymentMethod] = (payData[o.paymentMethod]||0)+1;
-    payAmt2[o.paymentMethod] = (payAmt2[o.paymentMethod]||0) + (Number(o.totalAmount)||0);
+    payAmt[o.paymentMethod]  = (payAmt[o.paymentMethod]||0) + (Number(o.totalAmount)||0);
   });
   const maxPay = Math.max(...Object.values(payData), 1);
-  const payColors2 = { onsite:'#2196F3', prepaid:'#4CAF50', unpaid:'#FF9800', card:'#9C27B0', cash:'#4CAF50', transfer:'#FF9800' };
+  const payColors = { onsite:'#2196F3', prepaid:'#4CAF50', unpaid:'#FF9800', card:'#9C27B0', cash:'#4CAF50', transfer:'#FF9800' };
   const payEl = document.getElementById('pay-stats-m');
   if (payEl) payEl.innerHTML = Object.entries(payData).map(([k,v]) => `
-    <div class="ch-stat-row" style="align-items:center">
-      <div style="width:80px;font-size:12px;font-weight:600">${PAY_LABELS[k]||k}</div>
-      <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors2[k]||'#999'}"></div></div>
-      <div style="text-align:right;font-size:12px;font-weight:700;color:#333;min-width:30px">${v}건</div>
-      ${payAmt2[k] ? `<div style="text-align:right;font-size:11px;color:#e65100;font-weight:700;min-width:70px;margin-left:4px">₩${payAmt2[k].toLocaleString()}</div>` : '<div style="min-width:70px"></div>'}
-    </div>`).join('') || '<div style="color:#aaa;font-size:13px;text-align:center;padding:12px">주문 없음</div>';
+    <div class="ch-stat-row" style="align-items:center;flex-wrap:wrap">
+      <div style="width:60px;font-size:11px;font-weight:600">${PAY_LABELS[k]||k}</div>
+      <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors[k]||'#999'}"></div></div>
+      <div style="font-size:11px;font-weight:700;color:#333;min-width:20px">${v}</div>
+    </div>`).join('') || '<div style="color:#aaa;font-size:12px;text-align:center;padding:12px">없음</div>';
 }
 
 // PC 모드에서 오른쪽 패널 카운트 업데이트
