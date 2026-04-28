@@ -631,11 +631,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">이번 주</button>
     <button onclick="setDateFilter('month',this)" id="dfilter-month"
       style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">이번 달</button>
+    <button onclick="openDateRangePicker()" id="dfilter-range"
+      style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s" id="dfilter-range">📅 기간</button>
     <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
-      <input type="date" id="dfilter-custom" onchange="setDateFilter('custom',this)"
-        style="border:1.5px solid #e0e0e0;border-radius:8px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;cursor:pointer">
-      <input type="month" id="dfilter-month-input" onchange="setDateFilter('month-custom',this)"
-        style="border:1.5px solid #e0e0e0;border-radius:8px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;cursor:pointer">
       <button onclick="exportOrdersExcel()"
         style="padding:5px 10px;border:1.5px solid #2E7D32;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#E8F5E9;color:#2E7D32;white-space:nowrap">
         📥 엑셀
@@ -1192,6 +1190,43 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     </div>
     <div class="cdb-summary" id="cdb-summary-modal" style="flex-shrink:0">총 0명</div>
     <div style="overflow-y:auto;flex:1;padding:8px 16px 16px" id="cdb-list-modal"></div>
+  </div>
+</div>
+
+<!-- ── 기간 선택 달력 팝업 ── -->
+<div id="drp-overlay" onclick="if(event.target===this)closeDateRangePicker()"
+  style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,.4);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:20px;width:min(360px,94vw);box-shadow:0 8px 40px rgba(0,0,0,.25)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:15px;font-weight:800;color:#1a237e">📅 기간 선택</span>
+      <button onclick="closeDateRangePicker()" style="background:#f5f5f5;border:none;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:700;color:#555">✕</button>
+    </div>
+    <!-- 선택 상태 표시 -->
+    <div id="drp-selection" style="background:#E8EAF6;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;color:#1a237e;margin-bottom:14px;text-align:center">
+      시작일을 선택하세요
+    </div>
+    <!-- 월 이동 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button onclick="drpMoveMonth(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#1a237e;padding:4px 8px">‹</button>
+      <span id="drp-month-label" style="font-size:14px;font-weight:800;color:#333"></span>
+      <button onclick="drpMoveMonth(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:#1a237e;padding:4px 8px">›</button>
+    </div>
+    <!-- 달력 그리드 -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#e53935;padding:4px">일</div>
+      <div style="font-size:11px;font-weight:700;color:#555;padding:4px">월</div>
+      <div style="font-size:11px;font-weight:700;color:#555;padding:4px">화</div>
+      <div style="font-size:11px;font-weight:700;color:#555;padding:4px">수</div>
+      <div style="font-size:11px;font-weight:700;color:#555;padding:4px">목</div>
+      <div style="font-size:11px;font-weight:700;color:#555;padding:4px">금</div>
+      <div style="font-size:11px;font-weight:700;color:#6750A4;padding:4px">토</div>
+    </div>
+    <div id="drp-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center"></div>
+    <!-- 확인 버튼 -->
+    <button id="drp-apply-btn" onclick="applyDateRange()" disabled
+      style="width:100%;margin-top:14px;padding:12px;background:#c5cae9;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:not-allowed;transition:.2s">
+      적용
+    </button>
   </div>
 </div>
 
@@ -1795,9 +1830,11 @@ function matchesSearch(o, q) {
 }
 
 // 날짜 필터 상태
-let _dateFilter = 'today'; // 'today'|'yesterday'|'week'|'month'|'custom'|'month-custom'
-let _dateFilterCustom = null;     // Date 객체 (일별 선택)
-let _dateFilterMonth = null;      // { year, month } (월별 선택)
+let _dateFilter = 'today'; // 'today'|'yesterday'|'week'|'month'|'range'
+let _dateFilterCustom = null;
+let _dateFilterMonth = null;
+let _dateFilterRangeStart = null;
+let _dateFilterRangeEnd = null;
 
 function setDateFilter(type, el) {
   _dateFilter = type;
@@ -1849,10 +1886,9 @@ function getDateFilterRange() {
     const s = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const e = new Date(now); e.setHours(23,59,59,999);
     return { from: s.getTime(), to: e.getTime() };
-  } else if (_dateFilter === 'month-custom' && _dateFilterMonth) {
-    const { year, month } = _dateFilterMonth;
-    const s = new Date(year, month - 1, 1, 0, 0, 0, 0);
-    const e = new Date(year, month, 0, 23, 59, 59, 999); // 해당 월 마지막 날
+  } else if (_dateFilter === 'range' && _dateFilterRangeStart && _dateFilterRangeEnd) {
+    const s = new Date(_dateFilterRangeStart); s.setHours(0,0,0,0);
+    const e = new Date(_dateFilterRangeEnd);   e.setHours(23,59,59,999);
     return { from: s.getTime(), to: e.getTime() };
   } else if (_dateFilter === 'custom' && _dateFilterCustom) {
     const s = new Date(_dateFilterCustom); s.setHours(0,0,0,0);
@@ -3218,6 +3254,117 @@ function showCustDetail(encodedKey) {
   }
 }
 
+// ── 기간 선택 달력 팝업 ──
+let _drpYear, _drpMonth, _drpStart = null, _drpEnd = null;
+
+function openDateRangePicker() {
+  const now = new Date();
+  _drpYear = now.getFullYear();
+  _drpMonth = now.getMonth();
+  _drpStart = null; _drpEnd = null;
+  document.getElementById('drp-overlay').style.display = 'flex';
+  drpRender();
+}
+function closeDateRangePicker() {
+  document.getElementById('drp-overlay').style.display = 'none';
+}
+function drpMoveMonth(dir) {
+  _drpMonth += dir;
+  if (_drpMonth > 11) { _drpMonth = 0; _drpYear++; }
+  if (_drpMonth < 0)  { _drpMonth = 11; _drpYear--; }
+  drpRender();
+}
+function drpRender() {
+  const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('drp-month-label').textContent = `${_drpYear}년 ${MONTHS[_drpMonth]}`;
+
+  const firstDay = new Date(_drpYear, _drpMonth, 1).getDay();
+  const daysInMonth = new Date(_drpYear, _drpMonth + 1, 0).getDate();
+  const grid = document.getElementById('drp-grid');
+
+  let html = '';
+  // 앞쪽 빈칸
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const thisDate = new Date(_drpYear, _drpMonth, d);
+    const ts = thisDate.getTime();
+    const startTs = _drpStart ? _drpStart.getTime() : null;
+    const endTs   = _drpEnd   ? _drpEnd.getTime()   : null;
+
+    let bg = '#fff', color = '#333', border = '1.5px solid transparent', radius = '8px';
+    const isStart = startTs && ts === startTs;
+    const isEnd   = endTs   && ts === endTs;
+    const inRange = startTs && endTs && ts > startTs && ts < endTs;
+
+    if (isStart || isEnd) { bg = '#1a237e'; color = '#fff'; }
+    else if (inRange)     { bg = '#E8EAF6'; color = '#1a237e'; }
+
+    const dow = thisDate.getDay();
+    if (!isStart && !isEnd) {
+      if (dow === 0) color = '#e53935';
+      else if (dow === 6) color = '#6750A4';
+    }
+
+    html += `<div onclick="drpSelectDay(${d})"
+      style="padding:7px 2px;cursor:pointer;background:${bg};color:${color};
+      border-radius:${radius};font-size:13px;font-weight:600;transition:.1s;
+      border:${border}">${d}</div>`;
+  }
+  grid.innerHTML = html;
+
+  // 선택 상태 텍스트
+  const sel = document.getElementById('drp-selection');
+  const fmt = d => `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+  if (!_drpStart) sel.textContent = '시작일을 선택하세요';
+  else if (!_drpEnd) sel.textContent = `${fmt(_drpStart)} ~ 종료일을 선택하세요`;
+  else sel.textContent = `${fmt(_drpStart)} ~ ${fmt(_drpEnd)}`;
+
+  // 적용 버튼 활성화
+  const btn = document.getElementById('drp-apply-btn');
+  if (_drpStart && _drpEnd) {
+    btn.disabled = false;
+    btn.style.background = '#1a237e';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.disabled = true;
+    btn.style.background = '#c5cae9';
+    btn.style.cursor = 'not-allowed';
+  }
+}
+function drpSelectDay(d) {
+  const clicked = new Date(_drpYear, _drpMonth, d);
+  if (!_drpStart || (_drpStart && _drpEnd)) {
+    // 처음 클릭 또는 재선택
+    _drpStart = clicked; _drpEnd = null;
+  } else {
+    // 두 번째 클릭
+    if (clicked < _drpStart) { _drpEnd = _drpStart; _drpStart = clicked; }
+    else if (clicked.getTime() === _drpStart.getTime()) { _drpEnd = clicked; }
+    else { _drpEnd = clicked; }
+  }
+  drpRender();
+}
+function applyDateRange() {
+  if (!_drpStart || !_drpEnd) return;
+  _dateFilter = 'range';
+  _dateFilterRangeStart = _drpStart;
+  _dateFilterRangeEnd   = _drpEnd;
+  // 버튼 스타일 리셋
+  ['today','yesterday','week','month'].forEach(t => {
+    const btn = document.getElementById('dfilter-' + t);
+    if (btn) { btn.style.background='#fff'; btn.style.color='#555'; btn.style.borderColor='#e0e0e0'; }
+  });
+  // 기간 버튼 활성
+  const rb = document.getElementById('dfilter-range');
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  if (rb) { rb.style.background='#1a237e'; rb.style.color='#fff'; rb.style.borderColor='#1a237e';
+    rb.textContent = `📅 ${fmt(_drpStart)}~${fmt(_drpEnd)}`; }
+  closeDateRangePicker();
+  renderOrderList();
+  renderTmsTable();
+}
+
 function saveCustMemo(encodedKey) {
   const key = decodeURIComponent(encodedKey);
   const memo = (document.getElementById('cust-memo-textarea')?.value || '').trim();
@@ -3237,12 +3384,14 @@ function exportOrdersExcel() {
 
   if (!filtered.length) { showToast('다운로드할 주문이 없습니다'); return; }
 
+  const fmt = d => `${d.getMonth()+1}.${d.getDate()}`;
   const periodLabel = _dateFilter === 'today' ? '오늘'
     : _dateFilter === 'yesterday' ? '어제'
     : _dateFilter === 'week' ? '이번주'
     : _dateFilter === 'month' ? `${new Date().getFullYear()}년${new Date().getMonth()+1}월`
-    : _dateFilter === 'month-custom' && _dateFilterMonth ? `${_dateFilterMonth.year}년${_dateFilterMonth.month}월`
-    : (_dateFilterCustom ? `${_dateFilterCustom.getFullYear()}-${_dateFilterCustom.getMonth()+1}-${_dateFilterCustom.getDate()}` : '');
+    : (_dateFilter === 'range' && _dateFilterRangeStart && _dateFilterRangeEnd)
+      ? `${fmt(_dateFilterRangeStart)}-${fmt(_dateFilterRangeEnd)}`
+    : '기간선택';
 
   const rows = filtered.map(o => {
     const d = new Date(o.createdAt);
