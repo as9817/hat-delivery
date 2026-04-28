@@ -3967,11 +3967,35 @@ function makeMartMarker(lat, lng, name) {
   });
 }
 
+// ── 기사별 색상 팔레트 ──
+const DRIVER_PALETTE = [
+  '#E53935','#8E24AA','#1E88E5','#00897B',
+  '#F4511E','#6D4C41','#3949AB','#039BE5',
+  '#43A047','#FFB300'
+];
+let _driverColorMap = {}; // driverId → color
+
+function getDriverColor(driverId) {
+  if (!driverId) return '#9E9E9E'; // 미배정 = 회색
+  if (!_driverColorMap[driverId]) {
+    const idx = Object.keys(_driverColorMap).length % DRIVER_PALETTE.length;
+    _driverColorMap[driverId] = DRIVER_PALETTE[idx];
+  }
+  return _driverColorMap[driverId];
+}
+
 // ── 배달 위치 마커 ──
-function makeDeliveryMarker(lat, lng, num, status, orderId) {
-  const colors = { pending:'#FF9800', confirmed:'#4CAF50', delivering:'#2196F3', done:'#9E9E9E', cancelled:'#F44336' };
-  const bg = colors[status] || '#FF9800';
-  const content = `<div id="om-${orderId}" onclick="focusOrderOnMap('${orderId}')" data-color="${bg}" style="background:${bg};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;transition:transform .2s,box-shadow .2s">${num}</div>`;
+function makeDeliveryMarker(lat, lng, label, status, orderId, driverColor) {
+  const bg = driverColor || '#9E9E9E';
+  // 완료된 주문은 반투명 처리
+  const opacity = status === 'done' ? '0.45' : '1';
+  // 미배정은 점선 테두리
+  const border = driverColor ? '2px solid #fff' : '2px dashed #bbb';
+  const content = `<div id="om-${orderId}" onclick="focusOrderOnMap('${orderId}')" data-color="${bg}"
+    style="background:${bg};color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;
+    justify-content:center;font-size:10px;font-weight:800;border:${border};
+    box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;transition:transform .2s,box-shadow .2s;
+    opacity:${opacity};white-space:nowrap;line-height:1">${label}</div>`;
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
     content,
@@ -4123,8 +4147,31 @@ function updateOmsMapMarkers() {
   const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   const todayOrders = orders.filter(o => o.createdAt >= today && o.lat && o.lng && o.status !== 'cancelled');
 
-  todayOrders.forEach((o, i) => {
-    const marker = makeDeliveryMarker(o.lat, o.lng, i + 1, o.status, o.id);
+  // 기사별 색상 초기화 (순서 일관성 위해 매번 재계산)
+  _driverColorMap = {};
+
+  // 기사별 주문 순번 카운터
+  const driverSeq = {}; // driverId → seq
+
+  todayOrders.forEach(o => {
+    const driverId = o.assignedDriverId || null;
+    const color = getDriverColor(driverId);
+
+    // 기사 이니셜: 이름 첫 글자, 없으면 driverId 앞 2자
+    let initial = '미';
+    if (driverId && tmsDriverData[driverId]?.name) {
+      initial = tmsDriverData[driverId].name.charAt(0);
+    } else if (driverId) {
+      initial = driverId.slice(0, 2);
+    }
+
+    // 기사별 순번
+    if (!driverSeq[driverId || '__unassigned']) driverSeq[driverId || '__unassigned'] = 0;
+    driverSeq[driverId || '__unassigned']++;
+    const seq = driverSeq[driverId || '__unassigned'];
+
+    const label = `${initial}-${seq}`;
+    const marker = makeDeliveryMarker(o.lat, o.lng, label, o.status, o.id, driverId ? color : null);
     marker.setMap(tmsMap);
     _omsOrderMarkers[o.id] = marker;
   });
@@ -4335,10 +4382,15 @@ function updateDriverStatusBar(drivers) {
     return;
   }
   bar.innerHTML = drivers.map(d => {
-    const dCount = Object.values(tmsDeliveryData)
-      .filter(dl => dl.driverId === d.id || dl.driverName === d.name)
-      .filter(dl => dl.status !== 'done').length;
-    return `<div class="tms-driver-chip online" onclick="focusDriver('${d.id}')" style="cursor:pointer" title="${d.name || d.id} 위치로 이동">🟢 ${d.name || d.id}${dCount ? ` (${dCount}건)` : ''}</div>`;
+    const dCount = orders.filter(o =>
+      o.assignedDriverId === d.id && o.status !== 'done' && o.status !== 'cancelled'
+    ).length;
+    const color = getDriverColor(d.id);
+    const initial = (d.name || d.id).charAt(0);
+    return `<div class="tms-driver-chip online" onclick="focusDriver('${d.id}')" style="cursor:pointer;border-color:${color}" title="${d.name || d.id} 위치로 이동">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${color};color:#fff;font-size:10px;font-weight:800">${initial}</span>
+      ${d.name || d.id}${dCount ? ` <span style="background:${color};color:#fff;border-radius:10px;padding:1px 5px;font-size:10px">${dCount}건</span>` : ''}
+    </div>`;
   }).join('');
 }
 
