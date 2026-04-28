@@ -3393,13 +3393,20 @@ function exportOrdersExcel() {
       ? `${fmt(_dateFilterRangeStart)}-${fmt(_dateFilterRangeEnd)}`
     : '기간선택';
 
+  const fmtDt = ts => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  };
+
   const rows = filtered.map(o => {
-    const d = new Date(o.createdAt);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     const itemStr = (o.items || []).map(it => `${it.name} ${it.qty}개`).join(', ') || '';
+    const driverName = o.assignedDriverId && tmsDriverData[o.assignedDriverId]?.name
+      ? tmsDriverData[o.assignedDriverId].name : (o.assignedDriverId || '');
     return {
       '주문번호': o.id || '',
-      '접수일시': dateStr,
+      '접수일시': fmtDt(o.createdAt),
+      '완료일시': fmtDt(o.completedAt),
       '고객명': o.customerName || '',
       '연락처': o.phone || '',
       '배송주소': o.address || '',
@@ -3409,14 +3416,14 @@ function exportOrdersExcel() {
       '합계금액': o.totalAmount || 0,
       '주문품목': itemStr,
       '메모': o.note || '',
-      '담당기사': o.assignedDriverId || ''
+      '담당기사': driverName
     };
   });
 
   const ws = XLSX.utils.json_to_sheet(rows);
   // 열 너비 설정
   ws['!cols'] = [
-    {wch:16},{wch:18},{wch:10},{wch:14},{wch:30},{wch:8},{wch:8},
+    {wch:16},{wch:18},{wch:18},{wch:10},{wch:14},{wch:30},{wch:8},{wch:8},
     {wch:8},{wch:10},{wch:30},{wch:20},{wch:10}
   ];
   const wb = XLSX.utils.book_new();
