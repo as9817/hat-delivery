@@ -2018,15 +2018,13 @@ async function startOCR(file) {
     // 5단계: 완료 → 결과 화면으로
     setStep('step-done', 'active');
 
-    // 필수 필드 검증 → 문제 있으면 재촬영 팝업
-    const missingFields = [];
-    if (!customer?.name) missingFields.push('성명');
-    if (!roadAddr) missingFields.push('배송 주소');
-    if (!customer?.phone || customer.phone.replace(/\D/g,'').length < 9) missingFields.push('연락처');
-    if (!totalAmount || Number(totalAmount) === 0) missingFields.push('합계금액');
+    // 필수 필드 검증 → 성명/주소 없으면 재촬영 팝업, 나머지는 경고만
+    const criticalMissing = [];
+    if (!customer?.name) criticalMissing.push('성명');
+    if (!roadAddr) criticalMissing.push('배송 주소');
 
-    if (missingFields.length > 0) {
-      setTimeout(() => showRetakePrompt(missingFields), 500);
+    if (criticalMissing.length > 0) {
+      setTimeout(() => showRetakePrompt(criticalMissing), 500);
     } else {
       setTimeout(() => goTab('result'), 500);
     }
