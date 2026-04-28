@@ -316,7 +316,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 }
 
 /* 고객 상세 시트 */
-.cdb-detail-modal{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
+.cdb-detail-modal{display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center}
 .cdb-detail-modal.show{display:flex}
 @media (min-width:768px){.cdb-detail-modal{align-items:center}}
 .cdb-detail-box{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:88vh;overflow-y:auto}
@@ -1047,77 +1047,126 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 </div>
 
 <div class="stats-modal" id="stats-modal" onclick="hideStatsModal(event)">
-  <div class="stats-modal-box" style="max-width:620px;width:min(620px,94vw)">
-    <div class="stats-modal-hdr">
+  <div class="stats-modal-box" style="max-width:660px;width:min(660px,96vw);padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:90vh">
+
+    <!-- 헤더 -->
+    <div class="stats-modal-hdr" style="flex-shrink:0;padding:16px 20px">
       <div class="stats-modal-title">📊 통계</div>
       <button class="stats-modal-close" onclick="hideStatsModal()">✕</button>
     </div>
 
-    <!-- 기간 필터 -->
-    <div style="display:flex;gap:6px;background:#f0f2f8;border-radius:12px;padding:4px;margin-bottom:14px">
-      <button id="sfilter-today-m" onclick="setStatsPeriodModal('today')" style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:#1a237e;color:#fff;transition:.2s">오늘</button>
-      <button id="sfilter-week-m"  onclick="setStatsPeriodModal('week')"  style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#666;transition:.2s">이번 주</button>
-      <button id="sfilter-month-m" onclick="setStatsPeriodModal('month')" style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#666;transition:.2s">이번 달</button>
-    </div>
-    <div style="text-align:center;font-size:12px;color:#999;margin-bottom:14px" id="stats-period-label-m"></div>
-
-    <!-- 요약 카드 -->
-    <div class="stat-grid" style="margin-bottom:16px">
-      <div class="stat-card"><div class="stat-num" id="st-total-m">0</div><div class="stat-label">전체 주문</div></div>
-      <div class="stat-card"><div class="stat-num" id="st-done-m" style="color:var(--green)">0</div><div class="stat-label">배달 완료</div></div>
-      <div class="stat-card"><div class="stat-num" id="st-revenue-m" style="font-size:18px">₩0</div><div class="stat-label">총 매출</div></div>
-      <div class="stat-card"><div class="stat-num" id="st-rate-m" style="color:#1a237e">0%</div><div class="stat-label">완료율</div></div>
+    <!-- 탭 -->
+    <div style="display:flex;gap:0;border-bottom:2px solid #e8eaf6;flex-shrink:0">
+      <button id="stab-today" onclick="switchStatsTab('today')"
+        style="flex:1;padding:11px 0;border:none;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#1a237e;border-bottom:2px solid #1a237e;margin-bottom:-2px;transition:.2s">오늘</button>
+      <button id="stab-week" onclick="switchStatsTab('week')"
+        style="flex:1;padding:11px 0;border:none;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#aaa;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s">이번 주</button>
+      <button id="stab-cal" onclick="switchStatsTab('cal')"
+        style="flex:1;padding:11px 0;border:none;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#aaa;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s">📅 달력</button>
     </div>
 
-    <!-- 날짜별 현황 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="section-title" style="margin-bottom:12px">📅 날짜별 현황</div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead>
-            <tr style="background:#E8EAF6">
-              <th style="padding:8px 8px;text-align:left;color:#1a237e;font-weight:700">날짜</th>
-              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">전체</th>
-              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">완료</th>
-              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">취소</th>
-              <th style="padding:8px 8px;text-align:right;color:#1a237e;font-weight:700">매출</th>
-            </tr>
-          </thead>
-          <tbody id="daily-stats-body-m"></tbody>
-        </table>
-      </div>
-    </div>
+    <!-- 스크롤 영역 -->
+    <div style="overflow-y:auto;padding:16px 20px;flex:1">
 
-    <!-- 기사별 실적 -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="section-title" style="margin-bottom:12px">🚗 기사별 실적</div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead>
-            <tr style="background:#E8EAF6">
-              <th style="padding:8px 8px;text-align:left;color:#1a237e;font-weight:700">기사</th>
-              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">담당</th>
-              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">완료</th>
-              <th style="padding:8px 8px;text-align:center;color:#1a237e;font-weight:700">완료율</th>
-              <th style="padding:8px 8px;text-align:right;color:#1a237e;font-weight:700">평균시간</th>
-            </tr>
-          </thead>
-          <tbody id="driver-stats-body-m"></tbody>
-        </table>
-      </div>
-    </div>
+      <!-- ── 오늘 / 이번 주 뷰 ── -->
+      <div id="stats-summary-view">
+        <div style="text-align:center;font-size:12px;color:#999;margin-bottom:14px" id="stats-period-label-m"></div>
 
-    <!-- 채널별 / 결제수단별 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="card">
-        <div class="section-title" style="margin-bottom:14px">채널별</div>
-        <div id="ch-stats-m"></div>
+        <!-- 요약 카드 -->
+        <div class="stat-grid" style="margin-bottom:16px">
+          <div class="stat-card"><div class="stat-num" id="st-total-m">0</div><div class="stat-label">전체 주문</div></div>
+          <div class="stat-card"><div class="stat-num" id="st-done-m" style="color:var(--green)">0</div><div class="stat-label">배달 완료</div></div>
+          <div class="stat-card"><div class="stat-num" id="st-revenue-m" style="font-size:18px">₩0</div><div class="stat-label">총 매출</div></div>
+          <div class="stat-card"><div class="stat-num" id="st-rate-m" style="color:#1a237e">0%</div><div class="stat-label">완료율</div></div>
+        </div>
+
+        <!-- 기사별 실적 -->
+        <div class="card" style="margin-bottom:12px">
+          <div class="section-title" style="margin-bottom:12px">🚗 기사별 실적</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:#E8EAF6">
+              <th style="padding:8px;text-align:left;color:#1a237e;font-weight:700">기사</th>
+              <th style="padding:8px;text-align:center;color:#1a237e;font-weight:700">담당</th>
+              <th style="padding:8px;text-align:center;color:#1a237e;font-weight:700">완료</th>
+              <th style="padding:8px;text-align:center;color:#1a237e;font-weight:700">완료율</th>
+              <th style="padding:8px;text-align:right;color:#1a237e;font-weight:700">평균시간</th>
+            </tr></thead>
+            <tbody id="driver-stats-body-m"></tbody>
+          </table>
+        </div>
+
+        <!-- 채널별 / 결제수단별 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="card">
+            <div class="section-title" style="margin-bottom:12px">채널별</div>
+            <div id="ch-stats-m"></div>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom:12px">결제수단별</div>
+            <div id="pay-stats-m"></div>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <div class="section-title" style="margin-bottom:14px">결제수단별</div>
-        <div id="pay-stats-m"></div>
+
+      <!-- ── 달력 뷰 ── -->
+      <div id="stats-cal-view" style="display:none">
+        <!-- 월 네비게이션 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <button onclick="moveCalMonth(-1)" style="border:none;background:#f0f2f8;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">‹</button>
+          <div id="cal-month-title" style="font-size:16px;font-weight:800;color:#1a237e"></div>
+          <button onclick="moveCalMonth(1)" style="border:none;background:#f0f2f8;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">›</button>
+        </div>
+
+        <!-- 월 요약 -->
+        <div class="stat-grid" style="margin-bottom:14px">
+          <div class="stat-card"><div class="stat-num" id="cal-total">0</div><div class="stat-label">총 주문</div></div>
+          <div class="stat-card"><div class="stat-num" id="cal-done" style="color:var(--green)">0</div><div class="stat-label">완료</div></div>
+          <div class="stat-card"><div class="stat-num" id="cal-revenue" style="font-size:16px">₩0</div><div class="stat-label">월 매출</div></div>
+          <div class="stat-card"><div class="stat-num" id="cal-rate" style="color:#1a237e">0%</div><div class="stat-label">완료율</div></div>
+        </div>
+
+        <!-- 달력 그리드 -->
+        <div style="background:#fff;border-radius:14px;border:1px solid #e8eaf6;overflow:hidden;margin-bottom:14px">
+          <!-- 요일 헤더 -->
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);background:#E8EAF6">
+            <div style="padding:8px 0;text-align:center;font-size:11px;font-weight:700;color:#f44336">일</div>
+            <div style="padding:8px 0;text-align:center;font-size:11px;font-weight:700;color:#555">월</div>
+            <div style="padding:8px 0;text-align:center;font-size:11px;font-weight:700;color:#555">화</div>
+            <div style="padding:8px 0;text-align:center;font-size:11px;font-weight:700;color:#555">수</div>
+            <div style="padding:8px 0;text-align:center;font-size:11px;font-weight:700;color:#555">목</div>
+            <div style="padding:8px 0;text-align:center;font-size:11px;font-weight:700;color:#555">금</div>
+            <div style="padding:8px 0;text-align:center;font-size:11px;font-weight:700;color:#2196F3">토</div>
+          </div>
+          <!-- 날짜 셀 -->
+          <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr)"></div>
+        </div>
+
+        <!-- 선택한 날 상세 -->
+        <div id="cal-day-detail" style="display:none">
+          <div style="font-size:14px;font-weight:800;color:#1a237e;margin-bottom:10px" id="cal-day-detail-title"></div>
+          <div class="stat-grid" style="margin-bottom:12px">
+            <div class="stat-card"><div class="stat-num" id="cal-d-total">0</div><div class="stat-label">전체</div></div>
+            <div class="stat-card"><div class="stat-num" id="cal-d-done" style="color:var(--green)">0</div><div class="stat-label">완료</div></div>
+            <div class="stat-card"><div class="stat-num" id="cal-d-revenue" style="font-size:15px">₩0</div><div class="stat-label">매출</div></div>
+            <div class="stat-card"><div class="stat-num" id="cal-d-rate" style="color:#1a237e">0%</div><div class="stat-label">완료율</div></div>
+          </div>
+          <!-- 기사별 실적 (선택일) -->
+          <div class="card">
+            <div class="section-title" style="margin-bottom:10px">🚗 기사별 실적</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:#E8EAF6">
+                <th style="padding:7px 8px;text-align:left;color:#1a237e;font-weight:700">기사</th>
+                <th style="padding:7px 8px;text-align:center;color:#1a237e;font-weight:700">담당</th>
+                <th style="padding:7px 8px;text-align:center;color:#1a237e;font-weight:700">완료</th>
+                <th style="padding:7px 8px;text-align:center;color:#1a237e;font-weight:700">완료율</th>
+              </tr></thead>
+              <tbody id="cal-day-driver-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-    </div>
+
+    </div><!-- /scroll -->
   </div>
 </div>
 
@@ -2663,58 +2712,71 @@ function showToast(msg) {
 // ══════════════════════════════════════════
 // PC 통계 모달
 // ══════════════════════════════════════════
-let _statsPeriodModal = 'today';
-
-function setStatsPeriodModal(period) {
-  _statsPeriodModal = period;
-  ['today','week','month'].forEach(p => {
-    const btn = document.getElementById('sfilter-' + p + '-m');
-    if (!btn) return;
-    btn.style.background = p === period ? '#1a237e' : 'transparent';
-    btn.style.color = p === period ? '#fff' : '#666';
-  });
-  renderStatsModal();
-}
-
-function getStatsPeriodRangeModal() {
-  const now = new Date();
-  if (_statsPeriodModal === 'today') {
-    const s = new Date(now); s.setHours(0,0,0,0);
-    return { from: s.getTime(), to: now.getTime() };
-  } else if (_statsPeriodModal === 'week') {
-    const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
-    return { from: s.getTime(), to: now.getTime() };
-  } else {
-    const s = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { from: s.getTime(), to: now.getTime() };
-  }
-}
+// ── PC 통계 모달 ──
+let _statsTab = 'today';
+let _calYear, _calMonth, _calSelectedDate = null;
 
 function showStatsModal() {
-  _statsPeriodModal = 'today';
+  _statsTab = 'today';
+  const now = new Date();
+  _calYear = now.getFullYear();
+  _calMonth = now.getMonth();
   document.getElementById('stats-modal').classList.add('show');
-  renderStatsModal();
+  switchStatsTab('today');
 }
 function hideStatsModal(e) {
   if (e && e.target !== document.getElementById('stats-modal')) return;
   document.getElementById('stats-modal').classList.remove('show');
 }
+
+function switchStatsTab(tab) {
+  _statsTab = tab;
+  // 탭 스타일
+  ['today','week','cal'].forEach(t => {
+    const btn = document.getElementById('stab-' + t);
+    if (!btn) return;
+    const active = t === tab;
+    btn.style.color = active ? '#1a237e' : '#aaa';
+    btn.style.borderBottomColor = active ? '#1a237e' : 'transparent';
+  });
+  // 뷰 전환
+  document.getElementById('stats-summary-view').style.display = tab !== 'cal' ? 'block' : 'none';
+  document.getElementById('stats-cal-view').style.display    = tab === 'cal' ? 'block' : 'none';
+
+  if (tab === 'cal') {
+    renderCalendarView();
+  } else {
+    renderStatsModal();
+  }
+}
+
+function getStatsPeriodRangeModal() {
+  const now = new Date();
+  if (_statsTab === 'today') {
+    const s = new Date(now); s.setHours(0,0,0,0);
+    const e = new Date(now); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  } else {
+    const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
+    const e = new Date(now); e.setHours(23,59,59,999);
+    return { from: s.getTime(), to: e.getTime() };
+  }
+}
+
 function renderStatsModal() {
   const { from, to } = getStatsPeriodRangeModal();
   const filtered = orders.filter(o => o.createdAt >= from && o.createdAt <= to);
 
-  // 기간 레이블
   const labelEl = document.getElementById('stats-period-label-m');
   if (labelEl) {
-    const f = new Date(from), t = new Date(to);
+    const f = new Date(from);
+    const t = new Date(to);
     const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
-    const labelMap = { today:'오늘 하루', week:'이번 주', month:'이번 달' };
-    labelEl.textContent = _statsPeriodModal === 'today'
+    labelEl.textContent = _statsTab === 'today'
       ? `${fmt(f)} 기준`
-      : `${fmt(f)} ~ ${fmt(t)} (${labelMap[_statsPeriodModal]})`;
+      : `${fmt(f)} ~ ${fmt(t)} (이번 주)`;
   }
 
-  // 요약 카드
   const done = filtered.filter(o => o.status === 'done');
   const rev  = done.reduce((s,o) => s + (Number(o.totalAmount)||0), 0);
   const rate = filtered.length ? Math.round(done.length / filtered.length * 100) : 0;
@@ -2724,67 +2786,15 @@ function renderStatsModal() {
   setM('st-revenue-m', '₩' + rev.toLocaleString());
   setM('st-rate-m',    rate + '%');
 
-  // 날짜별 현황
-  const dayMap = {};
-  filtered.forEach(o => {
-    const d = new Date(o.createdAt);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    if (!dayMap[key]) dayMap[key] = { total:0, done:0, cancel:0, rev:0 };
-    dayMap[key].total++;
-    if (o.status === 'done')      { dayMap[key].done++; dayMap[key].rev += Number(o.totalAmount)||0; }
-    if (o.status === 'cancelled') dayMap[key].cancel++;
-  });
-  const dailyBody = document.getElementById('daily-stats-body-m');
-  if (dailyBody) {
-    const rows = Object.entries(dayMap).sort((a,b) => b[0].localeCompare(a[0]));
-    dailyBody.innerHTML = rows.length ? rows.map(([key, d]) => {
-      const [,m,dd] = key.split('-');
-      const dow = ['일','월','화','수','목','금','토'][new Date(key).getDay()];
-      return `<tr style="border-bottom:1px solid #f0f0f0">
-        <td style="padding:9px 8px;font-weight:700;color:#333">${m}/${dd}<span style="font-size:10px;color:#aaa;margin-left:3px">(${dow})</span></td>
-        <td style="padding:9px 8px;text-align:center;font-weight:600">${d.total}</td>
-        <td style="padding:9px 8px;text-align:center;font-weight:700;color:#2e7d32">${d.done}</td>
-        <td style="padding:9px 8px;text-align:center;font-weight:600;color:${d.cancel?'#f44336':'#bbb'}">${d.cancel||'-'}</td>
-        <td style="padding:9px 8px;text-align:right;font-weight:700;color:#e65100;font-size:11px">${d.rev ? '₩'+d.rev.toLocaleString() : '-'}</td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">데이터 없음</td></tr>';
-  }
-
   // 기사별 실적
-  const drvMap = {};
-  filtered.forEach(o => {
-    const name = o.assignedDriverName || '미배정';
-    if (!drvMap[name]) drvMap[name] = { total:0, done:0, times:[] };
-    drvMap[name].total++;
-    if (o.status === 'done') {
-      drvMap[name].done++;
-      if (o.completedAt && o.createdAt) drvMap[name].times.push(o.completedAt - o.createdAt);
-    }
-  });
-  const driverBody = document.getElementById('driver-stats-body-m');
-  if (driverBody) {
-    const rows = Object.entries(drvMap).sort((a,b) => b[1].done - a[1].done);
-    driverBody.innerHTML = rows.length ? rows.map(([name, d]) => {
-      const r = d.total ? Math.round(d.done/d.total*100) : 0;
-      const avgMs = d.times.length ? d.times.reduce((s,t)=>s+t,0)/d.times.length : 0;
-      const avgMin = avgMs ? Math.round(avgMs/60000) : null;
-      const rColor = r >= 90 ? '#2e7d32' : r >= 70 ? '#f57c00' : '#f44336';
-      return `<tr style="border-bottom:1px solid #f0f0f0">
-        <td style="padding:9px 8px;font-weight:700;color:#1a237e">${name}</td>
-        <td style="padding:9px 8px;text-align:center">${d.total}</td>
-        <td style="padding:9px 8px;text-align:center;font-weight:700;color:#2e7d32">${d.done}</td>
-        <td style="padding:9px 8px;text-align:center;font-weight:700;color:${rColor}">${r}%</td>
-        <td style="padding:9px 8px;text-align:right;color:#555;font-size:12px">${avgMin ? avgMin+'분' : '-'}</td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">데이터 없음</td></tr>';
-  }
+  renderDriverStatsTable(filtered, 'driver-stats-body-m', true);
 
   // 채널별
   const chData = { kakao:0, sms:0, call:0 };
   filtered.forEach(o => { if(chData[o.channel]!==undefined) chData[o.channel]++; });
   const maxCh = Math.max(...Object.values(chData), 1);
   const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3' };
-  const chNames = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
+  const chNames  = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
   const chEl = document.getElementById('ch-stats-m');
   if (chEl) chEl.innerHTML = Object.entries(chData).map(([k,v]) => `
     <div class="ch-stat-row">
@@ -2803,11 +2813,155 @@ function renderStatsModal() {
   const payColors = { onsite:'#2196F3', prepaid:'#4CAF50', unpaid:'#FF9800', card:'#9C27B0', cash:'#4CAF50', transfer:'#FF9800' };
   const payEl = document.getElementById('pay-stats-m');
   if (payEl) payEl.innerHTML = Object.entries(payData).map(([k,v]) => `
-    <div class="ch-stat-row" style="align-items:center;flex-wrap:wrap">
+    <div class="ch-stat-row" style="align-items:center">
       <div style="width:60px;font-size:11px;font-weight:600">${PAY_LABELS[k]||k}</div>
       <div class="ch-stat-bar-wrap"><div class="ch-stat-bar" style="width:${v/maxPay*100}%;background:${payColors[k]||'#999'}"></div></div>
       <div style="font-size:11px;font-weight:700;color:#333;min-width:20px">${v}</div>
-    </div>`).join('') || '<div style="color:#aaa;font-size:12px;text-align:center;padding:12px">없음</div>';
+    </div>`).join('') || '<div style="color:#aaa;font-size:12px;text-align:center;padding:10px">없음</div>';
+}
+
+// ── 기사 실적 테이블 공통 렌더 ──
+function renderDriverStatsTable(filtered, tbodyId, showAvgTime) {
+  const drvMap = {};
+  filtered.forEach(o => {
+    const name = o.assignedDriverName || '미배정';
+    if (!drvMap[name]) drvMap[name] = { total:0, done:0, times:[] };
+    drvMap[name].total++;
+    if (o.status === 'done') {
+      drvMap[name].done++;
+      if (o.completedAt && o.createdAt) drvMap[name].times.push(o.completedAt - o.createdAt);
+    }
+  });
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  const rows = Object.entries(drvMap).sort((a,b) => b[1].done - a[1].done);
+  tbody.innerHTML = rows.length ? rows.map(([name, d]) => {
+    const r = d.total ? Math.round(d.done/d.total*100) : 0;
+    const avgMs = d.times.length ? d.times.reduce((s,t)=>s+t,0)/d.times.length : 0;
+    const avgMin = avgMs ? Math.round(avgMs/60000) : null;
+    const rColor = r >= 90 ? '#2e7d32' : r >= 70 ? '#f57c00' : '#f44336';
+    return `<tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:9px 8px;font-weight:700;color:#1a237e">${name}</td>
+      <td style="padding:9px 8px;text-align:center">${d.total}</td>
+      <td style="padding:9px 8px;text-align:center;font-weight:700;color:#2e7d32">${d.done}</td>
+      <td style="padding:9px 8px;text-align:center;font-weight:700;color:${rColor}">${r}%</td>
+      ${showAvgTime ? `<td style="padding:9px 8px;text-align:right;color:#555;font-size:12px">${avgMin ? avgMin+'분' : '-'}</td>` : ''}
+    </tr>`;
+  }).join('') : `<tr><td colspan="${showAvgTime?5:4}" style="text-align:center;padding:20px;color:#aaa">데이터 없음</td></tr>`;
+}
+
+// ── 달력 뷰 ──
+function moveCalMonth(dir) {
+  _calMonth += dir;
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  _calSelectedDate = null;
+  renderCalendarView();
+}
+
+function renderCalendarView() {
+  const year = _calYear, month = _calMonth;
+  const monthStart = new Date(year, month, 1).getTime();
+  const monthEnd   = new Date(year, month+1, 0, 23, 59, 59, 999).getTime();
+  const monthOrders = orders.filter(o => o.createdAt >= monthStart && o.createdAt <= monthEnd);
+
+  // 월 타이틀
+  document.getElementById('cal-month-title').textContent = `${year}년 ${month+1}월`;
+
+  // 월 요약
+  const mDone = monthOrders.filter(o => o.status === 'done');
+  const mRev  = mDone.reduce((s,o) => s+(Number(o.totalAmount)||0), 0);
+  const mRate = monthOrders.length ? Math.round(mDone.length/monthOrders.length*100) : 0;
+  const setC = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  setC('cal-total',   monthOrders.length);
+  setC('cal-done',    mDone.length);
+  setC('cal-revenue', '₩' + mRev.toLocaleString());
+  setC('cal-rate',    mRate + '%');
+
+  // dayMap
+  const dayMap = {};
+  monthOrders.forEach(o => {
+    const d = new Date(o.createdAt).getDate();
+    if (!dayMap[d]) dayMap[d] = { total:0, done:0, rev:0, cancel:0 };
+    dayMap[d].total++;
+    if (o.status === 'done')      { dayMap[d].done++; dayMap[d].rev += Number(o.totalAmount)||0; }
+    if (o.status === 'cancelled') dayMap[d].cancel++;
+  });
+
+  // 달력 그리드 렌더
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = new Date();
+  const isToday = (d) => today.getFullYear()===year && today.getMonth()===month && today.getDate()===d;
+
+  let cells = '';
+  // 빈 셀 (첫 주 앞쪽)
+  for (let i = 0; i < firstDay; i++) {
+    cells += `<div style="border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;min-height:72px"></div>`;
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const data = dayMap[d];
+    const col = (firstDay + d - 1) % 7;
+    const isSun = col === 0, isSat = col === 6;
+    const todayStyle = isToday(d) ? 'background:#EEF2FF;' : '';
+    const selectedStyle = _calSelectedDate === d ? 'outline:2px solid #1a237e;outline-offset:-2px;' : '';
+    const rate = data ? Math.round(data.done/data.total*100) : 0;
+    // 완료율에 따른 배경 강도
+    const intensity = data ? Math.min(rate, 100) : 0;
+    const bgColor = data
+      ? `rgba(76,175,80,${(intensity/100*0.25).toFixed(2)})`
+      : 'transparent';
+    const dateColor = isSun ? '#f44336' : isSat ? '#2196F3' : '#333';
+
+    cells += `<div onclick="selectCalDay(${d})"
+      style="border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;min-height:72px;padding:5px 6px;cursor:${data?'pointer':'default'};background:${bgColor};${todayStyle}${selectedStyle}position:relative;transition:.15s">
+      <div style="font-size:13px;font-weight:${isToday(d)?'900':'600'};color:${dateColor};margin-bottom:3px">${d}</div>
+      ${data ? `
+        <div style="font-size:10px;color:#555;line-height:1.5">
+          <span style="background:#1a237e;color:#fff;border-radius:3px;padding:1px 4px;font-weight:700">${data.total}건</span>
+          ${data.done ? `<span style="color:#2e7d32;font-weight:700;margin-left:2px">✓${data.done}</span>` : ''}
+        </div>
+        ${data.rev ? `<div style="font-size:9px;color:#e65100;font-weight:700;margin-top:2px">₩${data.rev>=10000?Math.round(data.rev/1000)+'k':data.rev.toLocaleString()}</div>` : ''}
+      ` : ''}
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = cells;
+
+  // 선택된 날 상세 유지
+  if (_calSelectedDate) selectCalDay(_calSelectedDate);
+  else document.getElementById('cal-day-detail').style.display = 'none';
+}
+
+function selectCalDay(d) {
+  const dayMap2 = {};
+  const year = _calYear, month = _calMonth;
+  const dayStart = new Date(year, month, d).getTime();
+  const dayEnd   = new Date(year, month, d, 23, 59, 59, 999).getTime();
+  const dayOrders = orders.filter(o => o.createdAt >= dayStart && o.createdAt <= dayEnd);
+
+  if (!dayOrders.length) return;
+
+  _calSelectedDate = d;
+  // 달력 재렌더 (선택 표시)
+  renderCalendarView();
+
+  const done = dayOrders.filter(o => o.status === 'done');
+  const rev  = done.reduce((s,o) => s+(Number(o.totalAmount)||0), 0);
+  const rate = dayOrders.length ? Math.round(done.length/dayOrders.length*100) : 0;
+  const dow  = ['일','월','화','수','목','금','토'][new Date(year,month,d).getDay()];
+
+  const setD = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  setD('cal-day-detail-title', `📅 ${month+1}월 ${d}일 (${dow}) 상세`);
+  setD('cal-d-total',   dayOrders.length);
+  setD('cal-d-done',    done.length);
+  setD('cal-d-revenue', '₩' + rev.toLocaleString());
+  setD('cal-d-rate',    rate + '%');
+
+  renderDriverStatsTable(dayOrders, 'cal-day-driver-body', false);
+
+  document.getElementById('cal-day-detail').style.display = 'block';
+  // 부드럽게 스크롤
+  setTimeout(() => document.getElementById('cal-day-detail').scrollIntoView({ behavior:'smooth', block:'nearest' }), 100);
 }
 
 // PC 모드에서 오른쪽 패널 카운트 업데이트
@@ -2934,9 +3088,19 @@ function showCustDetail(encodedKey) {
   const sortedOrders = [...c.orders].sort((a, b) => b.createdAt - a.createdAt);
   const latestOrder = sortedOrders[0];
 
+  // 채널별 통계
+  const chStats = {};
+  sortedOrders.forEach(o => { chStats[o.channel] = (chStats[o.channel]||0)+1; });
+  const chHtml = Object.entries(chStats).map(([ch, cnt]) =>
+    `<span class="badge badge-${ch}" style="font-size:12px">${CH_LABELS[ch]||ch} ${cnt}건</span>`
+  ).join(' ');
+
+  // 자주 주문한 상품 TOP3
+  const topItems = getTopItems(c.orders);
+
   const histHtml = sortedOrders.map(o => {
     const d = new Date(o.createdAt);
-    const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const dateStr = `${d.getFullYear().toString().slice(2)}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
     const itemStr = (o.items || []).map(it => `${it.name} ${it.qty}개`).join(', ') || '품목 미상';
     const amt = o.totalAmount ? `₩${o.totalAmount.toLocaleString()}` : '';
     return `<div class="cdb-hist-item">
@@ -2955,41 +3119,83 @@ function showCustDetail(encodedKey) {
   }).join('');
 
   const avgAmt = c.orderCount ? Math.round(c.totalSpent / c.orderCount) : 0;
+  const firstOrderDate = sortedOrders.length ? new Date(sortedOrders[sortedOrders.length-1].createdAt) : null;
+  const firstStr = firstOrderDate ? `${firstOrderDate.getFullYear()}.${firstOrderDate.getMonth()+1}.${firstOrderDate.getDate()}` : '-';
+
   const content = document.getElementById('cdb-detail-content');
   content.innerHTML = `
-    <div style="background:#E8EAF6;border-radius:14px;padding:16px;margin-bottom:14px">
+    <!-- 고객 기본 정보 -->
+    <div style="background:#E8EAF6;border-radius:14px;padding:16px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
         <div class="cdb-avatar" style="width:54px;height:54px;font-size:24px">${(c.name || '?')[0]}</div>
         <div style="flex:1">
           <div style="font-size:18px;font-weight:800;color:#1a237e">${c.name}</div>
           <div style="font-size:13px;color:#555;margin-top:3px">📞 ${c.phone || '-'}</div>
-          <div style="font-size:13px;color:#555">📍 ${c.address || '-'}</div>
+          <div style="font-size:13px;color:#555;margin-top:2px">📍 ${c.address || '-'}</div>
+          <div style="font-size:11px;color:#999;margin-top:4px">첫 주문: ${firstStr}</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <!-- 주문 통계 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
         <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
           <div style="font-size:24px;font-weight:800;color:#1a237e">${c.orderCount}</div>
           <div style="font-size:11px;color:#888;margin-top:2px">총 주문</div>
         </div>
         <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
-          <div style="font-size:15px;font-weight:800;color:var(--green)">${c.totalSpent ? '₩' + c.totalSpent.toLocaleString() : '-'}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--green)">${c.totalSpent ? '₩' + c.totalSpent.toLocaleString() : '-'}</div>
           <div style="font-size:11px;color:#888;margin-top:2px">누적 금액</div>
         </div>
         <div style="background:#fff;border-radius:10px;padding:10px;text-align:center">
-          <div style="font-size:15px;font-weight:800;color:var(--orange)">${avgAmt ? '₩' + avgAmt.toLocaleString() : '-'}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--orange)">${avgAmt ? '₩' + avgAmt.toLocaleString() : '-'}</div>
           <div style="font-size:11px;color:#888;margin-top:2px">평균 주문</div>
         </div>
       </div>
+      ${chHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${chHtml}</div>` : ''}
+      ${topItems ? `<div style="font-size:12px;color:#666;background:#fff;border-radius:8px;padding:8px 10px">🛍️ 자주 주문: <strong>${topItems}</strong></div>` : ''}
     </div>
+
+    <!-- 마트 메모 -->
+    <div style="background:#FFFDE7;border:1.5px solid #FFD54F;border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#795548;margin-bottom:8px">📝 마트 메모</div>
+      <textarea id="cust-memo-textarea" rows="3" placeholder="고객 특이사항, 요청사항 등 메모를 남겨보세요..."
+        style="width:100%;border:1.5px solid #FFE082;border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;background:#fff;box-sizing:border-box;color:#333"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button onclick="saveCustMemo('${encodeURIComponent(key)}')"
+          style="background:#FFA000;color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer">
+          저장
+        </button>
+      </div>
+    </div>
+
+    <!-- 새 주문 버튼 -->
     <button class="btn btn-primary btn-full" onclick="reorderFromCust(${JSON.stringify(JSON.stringify(latestOrder))})" style="margin-bottom:16px;padding:14px;font-size:15px">
-      🛒 이 고객으로 새 주문 입�%
+      🛒 이 고객으로 새 주문 입력
     </button>
-    <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px">📋 주문 이�% (${c.orderCount}건)</div>
+    <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px">📋 주문 이력 (${c.orderCount}건)</div>
     ${histHtml}
   `;
 
   document.getElementById('cdb-detail-title').textContent = c.name + ' 고객';
   document.getElementById('cdb-detail-modal').classList.add('show');
+
+  // Firebase에서 메모 불러오기
+  if (firebaseActive && c.phone) {
+    const memoKey = normalizePhone(c.phone);
+    db.ref('customerMemos/' + memoKey).once('value').then(snap => {
+      const memo = snap.val();
+      const ta = document.getElementById('cust-memo-textarea');
+      if (ta && memo) ta.value = memo;
+    });
+  }
+}
+
+function saveCustMemo(encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  const memo = (document.getElementById('cust-memo-textarea')?.value || '').trim();
+  if (!firebaseActive) { showToast('Firebase 연결 필요'); return; }
+  db.ref('customerMemos/' + key).set(memo || null).then(() => {
+    showToast('✅ 메모가 저장되었습니다');
+  }).catch(() => showToast('저장 실패'));
 }
 
 function hideCustDetail() {
@@ -3522,9 +3728,26 @@ function applyOcrResult() {
   const addr = document.getElementById('ocr-addr').value.trim();
   const itemsText = document.getElementById('ocr-items').value.trim();
 
-  if (name) document.getElementById('inp-cname').value = name;
-  if (phone) document.getElementById('inp-phone').value = phone;
-  if (addr) document.getElementById('inp-addr').value = addr;
+  let finalName = name;
+  let finalPhone = phone;
+  let finalAddr = addr;
+
+  // 고객 DB 자동 매칭: 연락처로 기존 고객 조회 후 정보 보완
+  if (phone) {
+    const phoneDigits = normalizePhone(phone);
+    const customers = buildCustomerDB();
+    const matched = customers.find(c => normalizePhone(c.phone) === phoneDigits);
+    if (matched) {
+      // OCR에서 못 읽은 항목만 DB로 보완
+      if (!finalName && matched.name) finalName = matched.name;
+      if (!finalAddr && matched.address) finalAddr = matched.address;
+      showToast(`👤 기존 고객 매칭: ${matched.name}`);
+    }
+  }
+
+  if (finalName) document.getElementById('inp-cname').value = finalName;
+  if (finalPhone) document.getElementById('inp-phone').value = finalPhone;
+  if (finalAddr) document.getElementById('inp-addr').value = finalAddr;
 
   // 상품 파싱 및 폼 적용
   if (ocrParsedResult.items && ocrParsedResult.items.length > 0) {
@@ -3534,10 +3757,10 @@ function applyOcrResult() {
   }
 
   closeOcrModal();
-  showToast('📷 영수증 정보가 주문 폼에 적용되었습니다!');
+  if (!phone || !showToast) showToast('📷 영수증 정보가 주문 폼에 적용되었습니다!');
   // 고객 이력 패널 트리거
-  if (phone) onPhoneInput(phone);
-  else if (name) onNameInput(name);
+  if (finalPhone) onPhoneInput(finalPhone);
+  else if (finalName) onNameInput(finalName);
 }
 
 // ── 원문 토글 ──
