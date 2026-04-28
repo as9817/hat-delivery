@@ -1740,6 +1740,7 @@ function openOrderDetail(id) {
       <div style="font-size:15px;font-weight:700;color:#1a237e;margin-bottom:4px">👤 ${o.customerName}</div>
       ${o.phone?`<div style="font-size:13px;color:#555;margin-bottom:4px">📞 ${o.phone}</div>`:''}
       <div style="font-size:13px;color:#555">📍 ${o.address}</div>
+      ${(o.totalAmount && Number(o.totalAmount) > 0) ? `<div style="font-size:15px;font-weight:800;color:#e65100;margin-top:8px">💰 ${Number(o.totalAmount).toLocaleString()}원</div>` : (totalAmt ? `<div style="font-size:15px;font-weight:800;color:#e65100;margin-top:8px">💰 ${totalAmt.toLocaleString()}원</div>` : '')}
       ${o.note?`<div style="font-size:12px;color:#888;margin-top:6px;padding-top:6px;border-top:1px dashed #ddd">📝 ${o.note}</div>`:''}
     </div>
 
