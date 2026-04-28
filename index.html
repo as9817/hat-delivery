@@ -429,26 +429,33 @@
         <div class="guide-corner bl"></div>
         <div class="guide-corner br"></div>
         <!-- 예시 영수증 (인라인) -->
-        <div style="width:100%;height:100%;border-radius:4px;opacity:0.9;background:#fff;overflow:hidden;display:flex;flex-direction:column;font-family:'Courier New',monospace;padding:8px 7px;box-sizing:border-box">
-          <div style="text-align:center;font-size:8px;font-weight:900;color:#222;letter-spacing:1px;margin-bottom:3px">햇배달마트</div>
-          <div style="text-align:center;font-size:6.5px;color:#555;margin-bottom:4px;border-bottom:1px dashed #bbb;padding-bottom:4px">배송 영수증</div>
-          <div style="font-size:6px;color:#333;line-height:1.85">
-            <div><span style="color:#888">성&nbsp;&nbsp;&nbsp;&nbsp;명</span> 홍길동</div>
-            <div><span style="color:#888">연 락 처</span> 010-1234-5678</div>
-            <div style="margin-top:1px"><span style="color:#888">주&nbsp;&nbsp;&nbsp;&nbsp;소</span> 서울 용산구</div>
-            <div style="padding-left:36px;font-size:5.8px">한강로3가 40-999</div>
-            <div style="padding-left:36px;font-size:5.8px">101동 1234호</div>
+        <div style="width:100%;height:100%;border-radius:4px;opacity:0.92;background:#fff;overflow:hidden;display:flex;flex-direction:column;font-family:'Courier New',monospace;padding:6px 6px;box-sizing:border-box;font-size:5.8px;color:#111;line-height:1.7">
+          <!-- 상품 목록 -->
+          <div style="display:flex;justify-content:space-between"><span>01 사과-1봉(중/900g)</span></div>
+          <div style="display:flex;justify-content:space-between;color:#555"><span style="padding-left:4px">200112</span><span>3,980&nbsp;1&nbsp;&nbsp;3,980</span></div>
+          <div style="display:flex;justify-content:space-between"><span>02 토마토-1봉</span></div>
+          <div style="display:flex;justify-content:space-between;color:#555"><span style="padding-left:4px">201045</span><span>4,500&nbsp;2&nbsp;&nbsp;9,000</span></div>
+          <!-- 구분선 -->
+          <div style="border-top:1px dashed #999;margin:3px 0 2px"></div>
+          <!-- 합계 -->
+          <div style="display:flex;justify-content:space-between;font-size:7.5px;font-weight:900">
+            <span>합계금액</span><span>29,280</span>
           </div>
-          <div style="border-top:1px dashed #bbb;margin:4px 0 3px"></div>
-          <div style="font-size:6px;color:#333;line-height:1.8">
-            <div style="display:flex;justify-content:space-between"><span>모자 A (소)</span><span>32,000</span></div>
-            <div style="display:flex;justify-content:space-between"><span>모자 B (중)</span><span>28,000</span></div>
-          </div>
-          <div style="border-top:1px dashed #bbb;margin:3px 0 2px"></div>
-          <div style="display:flex;justify-content:space-between;font-size:7px;font-weight:900;color:#e65100">
-            <span>합계금액</span><span>60,000원</span>
-          </div>
-          <div style="text-align:center;font-size:5.5px;color:#aaa;margin-top:4px">2025-04-28 &nbsp; 감사합니다</div>
+          <div style="border-top:1px dashed #999;margin:3px 0 2px"></div>
+          <!-- 발행정보 -->
+          <div style="color:#444;font-size:5.2px">발행일시: 2026-04-28 09:30:00 담당1</div>
+          <div style="color:#444;font-size:5.2px;margin-bottom:3px">거래번호: POS 01-0042</div>
+          <!-- 고객정보 -->
+          <div><span style="letter-spacing:-0.3px">성명: </span><span style="font-weight:700">홍길동</span></div>
+          <div>전화: 010-1234-5678</div>
+          <div>주소: 서울 용산구 한강로</div>
+          <div style="padding-left:22px">3가 40-999</div>
+          <!-- 봉지/박스 -->
+          <div style="margin-top:2px">봉지: 2&nbsp;&nbsp;&nbsp;박스:</div>
+          <div style="border-top:1px dashed #999;margin:3px 0 2px"></div>
+          <div style="text-align:center;font-size:5.5px;font-weight:700;letter-spacing:0.5px">배달 품목 내역</div>
+          <div style="border-top:1px dashed #999;margin:2px 0 3px"></div>
+          <div style="font-size:5.2px;color:#555">메모사항:</div>
         </div>
         <!-- 상단 안내 배지 -->
         <div style="position:absolute;top:8px;left:50%;transform:translateX(-50%);
