@@ -426,6 +426,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .ocr-progress{padding:28px 20px;text-align:center}
 .ocr-spinner{width:48px;height:48px;border:5px solid #E8EAF6;border-top-color:#1a237e;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes markerPulse{0%,100%{box-shadow:0 0 0 4px rgba(255,255,255,.8),0 4px 16px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 8px rgba(255,255,255,.4),0 4px 20px rgba(0,0,0,.6)}}
 .ocr-result-table{padding:14px 18px}
 .ocr-field{display:flex;padding:9px 0;border-bottom:1px solid #f0f0f0;gap:10px;align-items:flex-start}
 .ocr-field:last-child{border-bottom:none}
@@ -3306,7 +3307,7 @@ function makeMartMarker(lat, lng, name) {
 function makeDeliveryMarker(lat, lng, num, status, orderId) {
   const colors = { pending:'#FF9800', confirmed:'#4CAF50', delivering:'#2196F3', done:'#9E9E9E', cancelled:'#F44336' };
   const bg = colors[status] || '#FF9800';
-  const content = `<div onclick="focusOrderOnMap('${orderId}')" style="background:${bg};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer">${num}</div>`;
+  const content = `<div id="om-${orderId}" onclick="focusOrderOnMap('${orderId}')" data-color="${bg}" style="background:${bg};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer;transition:transform .2s,box-shadow .2s">${num}</div>`;
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
     content,
@@ -3486,8 +3487,32 @@ function focusOrderOnMap(orderId) {
   if (!o || !o.lat || !o.lng) return;
   if (!tmsMap) return;
 
+  // 지도 이동 + 확대
   tmsMap.setCenter(new kakao.maps.LatLng(o.lat, o.lng));
-  tmsMap.setLevel(3);
+  tmsMap.setLevel(2);
+
+  // 모든 마커 원래 크기로 리셋
+  document.querySelectorAll('[id^="om-"]').forEach(el => {
+    el.style.transform = '';
+    el.style.boxShadow = '0 2px 6px rgba(0,0,0,.35)';
+    el.style.zIndex = '';
+    el.style.animation = '';
+  });
+
+  // 선택된 마커 강조 (크게 + 펄스)
+  const markerEl = document.getElementById('om-' + orderId);
+  if (markerEl) {
+    markerEl.style.transform = 'scale(1.7)';
+    markerEl.style.boxShadow = '0 0 0 4px rgba(255,255,255,.8), 0 4px 16px rgba(0,0,0,.5)';
+    markerEl.style.zIndex = '999';
+    markerEl.style.animation = 'markerPulse 0.8s ease-in-out 3';
+    setTimeout(() => {
+      if (markerEl) {
+        markerEl.style.transform = 'scale(1.4)';
+        markerEl.style.animation = '';
+      }
+    }, 2500);
+  }
 
   // 주문 카드 하이라이트
   document.querySelectorAll('.order-card').forEach(el => { el.style.outline = ''; });
