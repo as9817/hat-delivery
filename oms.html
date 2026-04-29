@@ -4319,13 +4319,21 @@ function makeDriverMarker(lat, lng, name, updatedAt) {
 
 // ── 마트 마커 ──
 function makeMartMarker(lat, lng, name) {
-  const content = `<div style="background:#FF6B00;color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer" title="${name||'마트'}">🏪</div>`;
+  const content = `<div onclick="focusMart(${lat},${lng},'${(name||'마트').replace(/'/g,"\\'")}')" style="background:#FF6B00;color:#fff;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer" title="${name||'마트'}">🏪</div>`;
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
     content,
     anchor: 'center',
     zIndex: 9
   });
+}
+
+function focusMart(lat, lng, name) {
+  if (!tmsMap) return;
+  tmsMap.setCenter(new kakao.maps.LatLng(lat, lng));
+  tmsMap.setLevel(3);
+  tmsMap.relayout();
+  showToast(`🏪 ${name} 위치로 이동`);
 }
 
 // ── 기사별 색상 팔레트 ──
