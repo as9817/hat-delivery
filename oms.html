@@ -1912,7 +1912,7 @@ let _dateFilterRangeEnd = null;
 
 function setDateFilter(type, el) {
   _dateFilter = type;
-  const BTN_IDS = ['today','yesterday','week','month'];
+  const BTN_IDS = ['today','yesterday','week','month','range'];
   // 버튼 스타일 리셋
   BTN_IDS.forEach(t => {
     const btn = document.getElementById('dfilter-' + t);
@@ -1922,6 +1922,13 @@ function setDateFilter(type, el) {
     btn.style.color = isActive ? '#fff' : '#555';
     btn.style.borderColor = isActive ? '#1a237e' : '#e0e0e0';
   });
+  // range가 아닌 버튼 클릭 시 기간 버튼 텍스트 초기화
+  if (type !== 'range') {
+    const rangeBtn = document.getElementById('dfilter-range');
+    if (rangeBtn) rangeBtn.textContent = '📅 기간';
+    _dateFilterRangeStart = null;
+    _dateFilterRangeEnd = null;
+  }
   if (type === 'custom' && el && el.value) {
     _dateFilterCustom = new Date(el.value);
     BTN_IDS.forEach(t => {
