@@ -4715,7 +4715,7 @@ db.ref('drivers').on('value', snap => {
 
   const onlineDrivers = [];
 
-  const DRIVER_HIDE_AFTER_MS = 3 * 60 * 60 * 1000; // 3시간 이상 미업데이트 시 마커 숨김
+  const DRIVER_HIDE_AFTER_MS = 2 * 60 * 60 * 1000; // 2시간 이상 미업데이트 시 마커 숨김
 
   Object.entries(tmsDriverData).forEach(([driverId, driver]) => {
     const loc = driver.location;
