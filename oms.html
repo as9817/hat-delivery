@@ -4730,18 +4730,7 @@ db.ref('drivers').on('value', snap => {
   // 기사 현황 바 업데이트
   updateDriverStatusBar(onlineDrivers);
 
-  // 지도 뷰 조정 (기사 마커 기준)
-  if (tmsMap && Object.keys(tmsDriverMarkers).length > 0) {
-    try {
-      const pts = Object.entries(tmsDriverData)
-        .filter(([,d]) => d.location?.lat && d.location?.lng)
-        .map(([,d]) => new kakao.maps.LatLng(d.location.lat, d.location.lng));
-      if (pts.length > 0) {
-        const bounds = pts.reduce((b, p) => b.extend(p), new kakao.maps.LatLngBounds());
-        tmsMap.setBounds(bounds, 60);
-      }
-    } catch(e) {}
-  }
+  // 지도 뷰는 마트 중심 고정 (자동 조정 없음)
 
   renderTmsTable();
 });
