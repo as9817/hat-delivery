@@ -4249,7 +4249,8 @@ function initTmsMap() {
 
   const mart = getMartLocation();
   const center = new kakao.maps.LatLng(mart.lat, mart.lng);
-  tmsMap = new kakao.maps.Map(el, { center, level: 5 });
+  _mapCenteredOnMart = false; // 새 맵 생성 시 초기화
+  tmsMap = new kakao.maps.Map(el, { center, level: 7 }); // level 7 ≈ 마트 중심 3km 반경
   tmsMap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
 
   // 창 크기 변경 시 지도 크기 재조정
@@ -4322,6 +4323,7 @@ const DRIVER_PALETTE = [
   '#43A047','#FFB300'
 ];
 let _driverColorMap = {}; // driverId → color
+let _mapCenteredOnMart = false; // 마트 중심 초기화 여부
 
 function getDriverColor(driverId) {
   if (!driverId) return '#9E9E9E'; // 미배정 = 회색
@@ -4524,19 +4526,11 @@ function updateOmsMapMarkers() {
     _omsOrderMarkers[o.id] = marker;
   });
 
-  // bounds 조정
-  const allPoints = [
-    new kakao.maps.LatLng(mart.lat, mart.lng),
-    ...todayOrders.map(o => new kakao.maps.LatLng(o.lat, o.lng))
-  ];
-  if (allPoints.length > 1) {
-    try {
-      const bounds = allPoints.reduce((b, p) => b.extend(p), new kakao.maps.LatLngBounds());
-      tmsMap.setBounds(bounds, 60);
-    } catch(e) {}
-  } else {
+  // 마트 중심 3km 반경 뷰 유지 (첫 로드 시에만 적용)
+  if (!_mapCenteredOnMart) {
     tmsMap.setCenter(new kakao.maps.LatLng(mart.lat, mart.lng));
-    tmsMap.setLevel(5);
+    tmsMap.setLevel(7);
+    _mapCenteredOnMart = true;
   }
 
   // 범례 기사 목록 갱신
