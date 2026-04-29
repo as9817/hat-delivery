@@ -4282,7 +4282,9 @@ function makeDriverMarker(lat, lng, name, updatedAt) {
   const isStale = ageMs && ageMs > 5 * 60 * 1000; // 5분 이상 미업데이트
   const bg = isStale ? '#9e9e9e' : '#1a237e';
   const ageText = ageMs
-    ? (ageMs < 60000 ? '방금 전' : Math.floor(ageMs / 60000) + '분 전')
+    ? (ageMs < 60000 ? '방금 전'
+      : ageMs < 3600000 ? Math.floor(ageMs / 60000) + '분 전'
+      : Math.floor(ageMs / 3600000) + '시간 전')
     : '';
   const content = `
     <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
@@ -4713,12 +4715,18 @@ db.ref('drivers').on('value', snap => {
 
   const onlineDrivers = [];
 
+  const DRIVER_HIDE_AFTER_MS = 3 * 60 * 60 * 1000; // 3시간 이상 미업데이트 시 마커 숨김
+
   Object.entries(tmsDriverData).forEach(([driverId, driver]) => {
     const loc = driver.location;
-    const isOnline = driver.online || driver.status === 'online' || !!loc;
+    const ageMs = loc?.updatedAt ? Date.now() - loc.updatedAt : null;
+    const isTooOld = ageMs && ageMs > DRIVER_HIDE_AFTER_MS;
+
+    // 3시간 이내 위치 업데이트가 있는 경우만 온라인으로 간주
+    const isOnline = !isTooOld && (driver.online || driver.status === 'online' || !!loc);
     if (isOnline) onlineDrivers.push({ id: driverId, ...driver });
 
-    if (!tmsMap || !loc || !loc.lat || !loc.lng) return;
+    if (!tmsMap || !loc || !loc.lat || !loc.lng || isTooOld) return;
 
     const marker = makeDriverMarker(loc.lat, loc.lng, driver.name || driverId, loc.updatedAt);
     marker.setMap(tmsMap);
