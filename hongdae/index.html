@@ -761,7 +761,7 @@
 // ══════════════════════════════════════════════════════
 // 로그인 / 세션 관리
 // ══════════════════════════════════════════════════════
-const SESSION_KEY = 'driver_session_v1';
+const SESSION_KEY = 'driver_session_hongdae_v1';
 let currentDriver = null; // { id, name }
 
 function getSession() {
@@ -1793,7 +1793,7 @@ function deleteDelivery() {
 // 마트 위치 설정
 // ══════════════════════════════════════════════════════
 function openMartSettings() {
-  const saved = JSON.parse(localStorage.getItem('mart_location') || 'null');
+  const saved = JSON.parse(localStorage.getItem('mart_location_hongdae') || 'null');
   const el = document.getElementById('mart-addr-current');
   if (saved) {
     el.textContent = '현재: ' + saved.address;
@@ -1831,7 +1831,7 @@ async function saveMartLocation() {
     });
     const { lat, lng } = geocoded;
     const martData = { address: addr, lat, lng, updatedAt: Date.now() };
-    localStorage.setItem('mart_location', JSON.stringify(martData));
+    localStorage.setItem('mart_location_hongdae', JSON.stringify(martData));
     // Firebase에도 저장 (OMS 공유)
     if (_fbDb) {
       _fbDb.ref('settings/martLocation').set(martData).catch(() => {});
@@ -1844,7 +1844,7 @@ async function saveMartLocation() {
 }
 
 function getMartLocation() {
-  const saved = JSON.parse(localStorage.getItem('mart_location') || 'null');
+  const saved = JSON.parse(localStorage.getItem('mart_location_hongdae') || 'null');
   return saved ? { lat: saved.lat, lng: saved.lng } : null;
 }
 
@@ -1855,7 +1855,7 @@ function loadMartLocationFromFirebase() {
     _fbDb.ref('settings/martLocation').once('value', snap => {
       const data = snap.val();
       if (data && data.lat && data.lng) {
-        localStorage.setItem('mart_location', JSON.stringify(data));
+        localStorage.setItem('mart_location_hongdae', JSON.stringify(data));
       }
       resolve(getMartLocation());
     });
@@ -1866,7 +1866,7 @@ if (_fbDb) {
   _fbDb.ref('settings/martLocation').on('value', snap => {
     const data = snap.val();
     if (data && data.lat && data.lng) {
-      localStorage.setItem('mart_location', JSON.stringify(data));
+      localStorage.setItem('mart_location_hongdae', JSON.stringify(data));
     }
   });
 }

@@ -4722,7 +4722,7 @@ function makeDeliveryMarker(lat, lng, label, status, orderId, driverColor) {
 
 // ── 마트 위치 (Firebase 공유) ──
 // localStorage 캐시 우선, 없으면 서울 용산구 기본값
-const _cachedMart = JSON.parse(localStorage.getItem('mart_location') || 'null');
+const _cachedMart = JSON.parse(localStorage.getItem('mart_location_hongdae') || 'null');
 let _martLocation = _cachedMart || { lat: 37.5563, lng: 126.9227, name: '홍대마트' };
 let _mapInitialized = false;
 
@@ -4733,7 +4733,7 @@ db.ref('settings/martLocation').on('value', snap => {
   const data = snap.val();
   if (data && data.lat && data.lng) {
     _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '홍대마트', address: data.address || '' };
-    localStorage.setItem('mart_location', JSON.stringify(_martLocation));
+    localStorage.setItem('mart_location_hongdae', JSON.stringify(_martLocation));
     if (_mapInitialized) {
       updateOmsMapMarkers(); // 지도 이미 초기화됐으면 마커만 갱신
     } else {
