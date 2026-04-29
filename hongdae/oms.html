@@ -5094,8 +5094,17 @@ db.ref('drivers').on('value', snap => {
     tmsDriverMarkers[driverId] = marker;
   });
 
+  // 이름 중복 기사 제거
+  const _seenNames = new Set();
+  const uniqueDrivers = onlineDrivers.filter(d => {
+    const name = d.name || d.id;
+    if (_seenNames.has(name)) return false;
+    _seenNames.add(name);
+    return true;
+  });
+
   // 기사 현황 바 업데이트
-  updateDriverStatusBar(onlineDrivers);
+  updateDriverStatusBar(uniqueDrivers);
 
   // 지도 뷰는 마트 중심 고정 (자동 조정 없음)
 
