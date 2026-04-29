@@ -4250,8 +4250,20 @@ function initTmsMap() {
   const mart = getMartLocation();
   const center = new kakao.maps.LatLng(mart.lat, mart.lng);
   _mapCenteredOnMart = false; // 새 맵 생성 시 초기화
-  tmsMap = new kakao.maps.Map(el, { center, level: 6 }); // level 6 ≈ 마트 중심 2km 반경
+  tmsMap = new kakao.maps.Map(el, { center, level: 5 }); // level 5 ≈ 마트 중심 2km 반경
   tmsMap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+
+  // 지도 생성 후 마트 중심 + 레벨 강제 고정 (타이밍 이슈 방지)
+  const _initCenter = center;
+  [300, 800, 1500].forEach(delay => {
+    setTimeout(() => {
+      if (tmsMap && !_mapCenteredOnMart) {
+        tmsMap.setCenter(_initCenter);
+        tmsMap.setLevel(5);
+        tmsMap.relayout();
+      }
+    }, delay);
+  });
 
   // 창 크기 변경 시 지도 크기 재조정
   window.addEventListener('resize', () => {
@@ -4526,10 +4538,11 @@ function updateOmsMapMarkers() {
     _omsOrderMarkers[o.id] = marker;
   });
 
-  // 마트 중심 3km 반경 뷰 유지 (첫 로드 시에만 적용)
+  // 마트 중심 2km 반경 뷰 유지 (첫 로드 시에만 적용)
   if (!_mapCenteredOnMart) {
     tmsMap.setCenter(new kakao.maps.LatLng(mart.lat, mart.lng));
-    tmsMap.setLevel(6);
+    tmsMap.setLevel(5);
+    tmsMap.relayout();
     _mapCenteredOnMart = true;
   }
 
