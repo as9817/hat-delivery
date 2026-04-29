@@ -3430,13 +3430,25 @@ function showCustDetail(encodedKey) {
     <!-- 고객 기본 정보 -->
     <div style="background:#E8EAF6;border-radius:14px;padding:16px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
-        <div class="cdb-avatar" style="width:54px;height:54px;font-size:24px">${(c.name || '?')[0]}</div>
+        <div class="cdb-avatar" style="width:54px;height:54px;font-size:24px" id="cdb-avatar-char">${(c.name || '?')[0]}</div>
         <div style="flex:1">
-          <div style="font-size:18px;font-weight:800;color:#1a237e">${c.name}</div>
-          <div style="font-size:13px;color:#555;margin-top:3px">📞 ${c.phone || '-'}</div>
-          <div style="font-size:13px;color:#555;margin-top:2px">📍 ${c.address || '-'}</div>
-          <div style="font-size:11px;color:#999;margin-top:4px">첫 주문: ${firstStr}</div>
+          <div id="cdb-view-info">
+            <div style="font-size:18px;font-weight:800;color:#1a237e">${c.name}</div>
+            <div style="font-size:13px;color:#555;margin-top:3px">📞 ${c.phone || '-'}</div>
+            <div style="font-size:13px;color:#555;margin-top:2px">📍 ${c.address || '-'}</div>
+            <div style="font-size:11px;color:#999;margin-top:4px">첫 주문: ${firstStr}</div>
+          </div>
+          <div id="cdb-edit-info" style="display:none">
+            <input id="cdb-edit-name" type="text" value="${c.name || ''}" placeholder="이름"
+              style="width:100%;border:1.5px solid #9FA8DA;border-radius:8px;padding:7px 10px;font-size:14px;font-weight:700;margin-bottom:6px;box-sizing:border-box;outline:none">
+            <input id="cdb-edit-phone" type="tel" value="${c.phone || ''}" placeholder="전화번호"
+              style="width:100%;border:1.5px solid #9FA8DA;border-radius:8px;padding:7px 10px;font-size:13px;margin-bottom:6px;box-sizing:border-box;outline:none">
+            <input id="cdb-edit-address" type="text" value="${c.address || ''}" placeholder="주소"
+              style="width:100%;border:1.5px solid #9FA8DA;border-radius:8px;padding:7px 10px;font-size:13px;box-sizing:border-box;outline:none">
+          </div>
         </div>
+        <button id="cdb-edit-btn" onclick="toggleCustEdit('${encodeURIComponent(key)}')"
+          style="background:#E8EAF6;border:1.5px solid #9FA8DA;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#3949AB;cursor:pointer;white-space:nowrap">✏️ 수정</button>
       </div>
       <!-- 주문 통계 -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
@@ -3610,6 +3622,71 @@ function saveCustMemo(encodedKey) {
   db.ref('customerMemos/' + key).set(memo || null).then(() => {
     showToast('✅ 메모가 저장되었습니다');
   }).catch(() => showToast('저장 실패'));
+}
+
+// ── 고객 정보 수정 ──
+let _custEditMode = false;
+
+function toggleCustEdit(encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  _custEditMode = !_custEditMode;
+  const viewEl  = document.getElementById('cdb-view-info');
+  const editEl  = document.getElementById('cdb-edit-info');
+  const editBtn = document.getElementById('cdb-edit-btn');
+  if (!viewEl || !editEl) return;
+
+  if (_custEditMode) {
+    viewEl.style.display = 'none';
+    editEl.style.display = 'block';
+    editBtn.textContent = '💾 저장';
+    editBtn.style.background = '#3949AB';
+    editBtn.style.color = '#fff';
+    editBtn.onclick = () => saveCustInfo(encodedKey);
+  } else {
+    viewEl.style.display = 'block';
+    editEl.style.display = 'none';
+    editBtn.textContent = '✏️ 수정';
+    editBtn.style.background = '#E8EAF6';
+    editBtn.style.color = '#3949AB';
+    editBtn.onclick = () => toggleCustEdit(encodedKey);
+  }
+}
+
+function saveCustInfo(encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  const name    = (document.getElementById('cdb-edit-name')?.value    || '').trim();
+  const phone   = (document.getElementById('cdb-edit-phone')?.value   || '').trim();
+  const address = (document.getElementById('cdb-edit-address')?.value || '').trim();
+
+  if (!name && !phone) { showToast('❌ 이름 또는 전화번호를 입력해주세요'); return; }
+
+  const newKey = normalizePhone(phone) || name.replace(/\s+/g,'_');
+  const data = { name, phone, address, importedAt: Date.now() };
+
+  if (!firebaseActive) { showToast('Firebase 연결 필요'); return; }
+
+  const saves = [];
+  // 새 키로 저장
+  saves.push(db.ref('customers/' + newKey).set(data));
+  // 기존 키와 다르면 기존 키 삭제
+  if (newKey !== key) saves.push(db.ref('customers/' + key).remove());
+
+  Promise.all(saves).then(() => {
+    showToast('✅ 고객 정보가 저장되었습니다');
+    // 뷰 모드로 복귀하며 화면 갱신
+    _custEditMode = true; // toggleCustEdit 반전용
+    toggleCustEdit(encodeURIComponent(newKey));
+    // 카드 정보 즉시 갱신
+    const viewEl = document.getElementById('cdb-view-info');
+    if (viewEl) viewEl.innerHTML = `
+      <div style="font-size:18px;font-weight:800;color:#1a237e">${name}</div>
+      <div style="font-size:13px;color:#555;margin-top:3px">📞 ${phone || '-'}</div>
+      <div style="font-size:13px;color:#555;margin-top:2px">📍 ${address || '-'}</div>`;
+    const av = document.getElementById('cdb-avatar-char');
+    if (av) av.textContent = (name || '?')[0];
+    renderCustDB('cdb-list');
+    renderCustDB('cdb-list-modal');
+  }).catch(err => showToast('❌ 저장 실패: ' + err.message));
 }
 
 // ── 엑셀 다운로드: 주문현황 ──
