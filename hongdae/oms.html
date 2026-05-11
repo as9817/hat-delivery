@@ -4504,8 +4504,28 @@ function showOcrError(msg) {
   document.getElementById('ocr-error-sub').textContent = msg;
 }
 
+// ── 카카오 지오코더로 도로명 주소 변환 ──
+function omsGeocodeToRoad(addr) {
+  return new Promise(resolve => {
+    if (!addr) { resolve(addr); return; }
+    kakao.maps.load(() => {
+      const geocoder = new kakao.maps.services.Geocoder();
+      geocoder.addressSearch(addr, (result, status) => {
+        if (status === kakao.maps.services.Status.OK && result.length > 0) {
+          // 마지막(최신) 도로명 주소 사용
+          const r = result[result.length - 1];
+          const road = r.road_address?.address_name;
+          resolve(road || addr);
+        } else {
+          resolve(addr);
+        }
+      });
+    });
+  });
+}
+
 // ── OCR 결과를 주문 폼에 적용 ──
-function applyOcrResult() {
+async function applyOcrResult() {
   const name = document.getElementById('ocr-name').value.trim();
   const phone = document.getElementById('ocr-phone').value.trim();
   const addr = document.getElementById('ocr-addr').value.trim();
@@ -4526,6 +4546,16 @@ function applyOcrResult() {
       if (!finalAddr && matched.address) finalAddr = matched.address;
       showToast(`👤 기존 고객 매칭: ${matched.name}`);
     }
+  }
+
+  // 지번 주소 → 도로명 주소 자동 변환
+  if (finalAddr) {
+    showToast('🔄 주소 도로명 변환 중...');
+    const roadAddr = await omsGeocodeToRoad(finalAddr);
+    if (roadAddr !== finalAddr) {
+      showToast(`🗺 도로명 변환: ${roadAddr}`);
+    }
+    finalAddr = roadAddr;
   }
 
   if (finalName) document.getElementById('inp-cname').value = finalName;
