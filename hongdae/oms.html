@@ -4763,7 +4763,8 @@ async function saveOmsMartLocation() {
           clearTimeout(timeoutId);
           console.log('[saveOmsMartLocation] geocoder status:', status, 'results:', result?.length);
           if (status === kakao.maps.services.Status.OK && result.length > 0) {
-            const r = result[0];
+            // 도로명 주소가 여러 개일 때 가장 마지막(최신) 주소 사용
+            const r = result[result.length - 1];
             console.log('[saveOmsMartLocation] road_address:', r.road_address?.address_name, 'coords:', r.y, r.x);
             resolve({ lat: parseFloat(r.y), lng: parseFloat(r.x), roadAddr: r.road_address?.address_name || addr });
           } else {
