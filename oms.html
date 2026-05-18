@@ -3236,9 +3236,8 @@ function renderCalendarView() {
   }
   document.getElementById('cal-grid').innerHTML = cells;
 
-  // 선택된 날 상세 유지
-  if (_calSelectedDate) selectCalDay(_calSelectedDate);
-  else document.getElementById('cal-day-detail').style.display = 'none';
+  // 선택된 날 없으면 상세 숨김 (상세 내용은 selectCalDay에서 처리)
+  if (!_calSelectedDate) document.getElementById('cal-day-detail').style.display = 'none';
 }
 
 function selectCalDay(d) {
