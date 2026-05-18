@@ -1242,7 +1242,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 </div>
 
 <!-- 주문 상세 팝업 -->
-<div id="order-detail-modal" onclick="if(event.target===this)closeOrderDetail()" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center">
+<div id="order-detail-modal" onclick="if(event.target===this)tryCloseOrderDetail()" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center">
   <div id="order-detail-box" style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding-bottom:24px">
     <div style="position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;padding:16px 20px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;z-index:1">
       <button onclick="closeOrderDetail()" style="background:#f5f5f5;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#555">← 닫기</button>
@@ -2141,6 +2141,13 @@ function openOrderDetail(id) {
 
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+}
+
+function tryCloseOrderDetail() {
+  // 수정 모드 중이면 바깥 클릭으로 닫히지 않게
+  const editBtn = document.getElementById('order-edit-btn');
+  if (editBtn && editBtn.textContent.includes('저장')) return;
+  closeOrderDetail();
 }
 
 function closeOrderDetail() {
