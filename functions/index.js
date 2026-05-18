@@ -5,16 +5,13 @@
  * 파이프라인: Vision API → Gemini API → Kakao Local API
  */
 
-const { onRequest } = require('firebase-functions/v2/https');
+const functions = require('firebase-functions');
 const logger = require('firebase-functions/logger');
 
-exports.processReceipt = onRequest(
-  {
-    region: 'asia-northeast3',
-    timeoutSeconds: 60,
-    memory: '512MiB',
-  },
-  async (req, res) => {
+exports.processReceipt = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 60, memory: '512MB' })
+  .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
@@ -67,7 +64,7 @@ async function extractTextWithVision(base64Image, apiKey) {
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests: [{ image: { content: base64Image }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }] }),
+      body: JSON.stringify({ requests: [{ image: { content: base64Image }, features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }] }] }),
     }
   );
   if (!res.ok) { const e = await res.json(); throw new Error(`Vision: ${e.error?.message || res.status}`); }
