@@ -2285,10 +2285,13 @@ function saveOrderEdit(orderId) {
     });
   }
 
+  const newAddr = addr || o.address;
+  const addrChanged = newAddr !== o.address;
+
   const update = {
     customerName:  name  || o.customerName,
     phone:         phone || o.phone,
-    address:       addr  || o.address,
+    address:       newAddr,
     totalAmount:   amount > 0 ? amount : (o.totalAmount || 0),
     paymentMethod: pay,
     note:          note,
@@ -2296,22 +2299,41 @@ function saveOrderEdit(orderId) {
     updatedAt:     Date.now()
   };
 
-  // 로컬 즉시 반영
-  Object.assign(o, update);
-
-  // Firebase 저장
-  if (firebaseActive) {
-    db.ref('orders/' + orderId).update(update)
-      .then(() => showToast('✅ 주문 정보가 저장되었습니다'))
-      .catch(err => showToast('❌ 저장 실패: ' + err.message));
-  } else {
-    showToast('✅ 주문 정보가 수정되었습니다 (로컬)');
-  }
-
   // 버튼 원복 + 보기 모드로
   const btn = document.getElementById('order-edit-btn');
   if (btn) { btn.textContent = '✏️ 수정'; btn.style.background = '#E8EAF6'; btn.style.color = '#1a237e'; }
-  openOrderDetail(orderId);
+
+  // 주소가 바뀐 경우 Kakao로 좌표 재조회
+  const doSave = (extraFields = {}) => {
+    const finalUpdate = { ...update, ...extraFields };
+    Object.assign(o, finalUpdate);
+    if (firebaseActive) {
+      db.ref('orders/' + orderId).update(finalUpdate)
+        .then(() => showToast('✅ 주문 정보가 저장되었습니다'))
+        .catch(err => showToast('❌ 저장 실패: ' + err.message));
+    } else {
+      showToast('✅ 주문 정보가 수정되었습니다 (로컬)');
+    }
+    openOrderDetail(orderId);
+    setTimeout(updateOmsMapMarkers, 300);
+  };
+
+  if (addrChanged && newAddr) {
+    showToast('📍 주소 좌표 변환 중...');
+    const kakaoKey = '39fb0580f590466411a2e2239b082414';
+    const geo = new kakao.maps.services.Geocoder();
+    geo.addressSearch(newAddr, (result, status) => {
+      if (status === kakao.maps.services.Status.OK && result.length > 0) {
+        const r = result[result.length - 1];
+        doSave({ lat: parseFloat(r.y), lng: parseFloat(r.x) });
+      } else {
+        // 좌표 못 찾아도 나머지는 저장
+        doSave({});
+      }
+    });
+  } else {
+    doSave({});
+  }
 }
 
 // ══════════════════════════════════════════
