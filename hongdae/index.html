@@ -1782,14 +1782,29 @@ function saveEdit() {
 function deleteDelivery() {
   const id = document.getElementById('edit-id').value;
   if (!confirm('이 배송을 취소/삭제하시겠습니까?')) return;
-  loadDeliveries();
-  deliveries = deliveries.filter(x => x.id !== id);
-  saveDeliveries();
-  // Firebase도 삭제
-  if (_fbDb) _fbDb.ref('orders/' + id).remove().catch(()=>{});
-  closeEditModal();
-  renderHome();
-  showToast('🗑 배송이 삭제됐습니다');
+
+  const doDelete = () => {
+    deliveries = deliveries.filter(x => x.id !== id);
+    saveDeliveries();
+    closeEditModal();
+    renderHome();
+    showToast('🗑 배송이 삭제됐습니다');
+  };
+
+  if (_fbDb) {
+    // Firebase 먼저: 주문 상태를 pending으로 복원 (OMS에서 재배정 가능하도록)
+    _fbDb.ref('orders/' + id).update({
+      status: 'pending',
+      assignedDriver: null,
+      assignedDriverName: null,
+    }).then(() => {
+      doDelete();
+    }).catch(() => {
+      showToast('❌ 삭제 실패. 다시 시도해주세요.');
+    });
+  } else {
+    doDelete();
+  }
 }
 
 // ══════════════════════════════════════════════════════
