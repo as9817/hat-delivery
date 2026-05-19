@@ -632,7 +632,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <button onclick="setDateFilter('month',this)" id="dfilter-month"
       style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">이번 달</button>
     <button onclick="openDateRangePicker()" id="dfilter-range"
-      style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s" id="dfilter-range">📅 기간</button>
+      style="padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#555;transition:.2s">📅 기간</button>
     <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
       <button onclick="exportOrdersExcel()"
         style="padding:5px 10px;border:1.5px solid #2E7D32;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:#E8F5E9;color:#2E7D32;white-space:nowrap">
@@ -2414,6 +2414,16 @@ function sendToDelivery(orderId) {
     createdAt: Date.now()
   };
 
+  // 로컬 상태 업데이트 (Firebase 중복 호출 없이)
+  const doLocalUpdate = () => {
+    o.status = 'delivering';
+    o.updatedAt = Date.now();
+    saveOrders();
+    renderOrderList();
+    const modal = document.getElementById('order-detail-modal');
+    if (modal && modal.style.display === 'flex') openOrderDetail(orderId);
+  };
+
   if (firebaseActive) {
     db.ref('orders/' + orderId).update({
       status: 'delivering',
@@ -2421,11 +2431,11 @@ function sendToDelivery(orderId) {
       assignedDriverName: o.assignedDriverName || '',
       updatedAt: Date.now()
     }).then(() => {
-      updateStatus(orderId, 'delivering');
+      doLocalUpdate();
       showToast(`🚀 ${o.assignedDriverName} 기사에게 배달 전송 완료!`);
-    });
+    }).catch(() => showToast('❌ 전송 실패. 다시 시도해주세요.'));
   } else {
-    updateStatus(orderId, 'delivering');
+    doLocalUpdate();
     showToast('⚠️ 오프라인 — Firebase 연결 후 동기화됩니다');
   }
 }
@@ -2545,16 +2555,16 @@ function showBatchResult(parts) {
     </div>`;
   }).join('');
   preview.innerHTML = `<div class="batch-hdr">
-    <span>📋 ${parts.length}z�l 감지</span>
+    <span>📋 ${parts.length}건 감지</span>
     <span style="font-size:11px;color:#888">제외할 건은 '제외' 버튼을 누르세요</span>
   </div>
   ${cards}
   <div class="batch-bar">
-    <button class="btn btn-green btn-sm" style="flex:1" id="batch-submit-btn" onclick="submitBatchOrders()">✅ 전체 등록 (${parts.length}z�l)</button>
+    <button class="btn btn-green btn-sm" style="flex:1" id="batch-submit-btn" onclick="submitBatchOrders()">✅ 전체 등록 (${parts.length}건)</button>
     <button class="btn btn-gray btn-sm" onclick="closeBatchPreview()">취소</button>
   </div>`;
   preview.classList.add('show');
-  showToast(`📋 ${parts.length}z�l의 주문이 감지되었습니다`);
+  showToast(`📋 ${parts.length}건의 주문이 감지되었습니다`);
 }
 
 function toggleBatchSkip(i) {
@@ -2598,7 +2608,7 @@ function submitBatchOrders() {
       updatedAt: now + idx
     };
     orders.unshift(order);
-    if (firebaseActive) db.ref('orders/'+order.id).set(order);
+    if (firebaseActive) db.ref('orders/'+order.id).set(order).catch(e => console.error('batch order save fail:', e));
   });
   saveOrders();
   closeBatchPreview();
@@ -4251,7 +4261,7 @@ async function impStartImport() {
       note: String(mapped.note||'').trim(),
       date: dateStr,
       status: 'done',
-      createdAt: Date.now() + i,
+      createdAt: (dateStr ? (new Date(dateStr).getTime() || Date.now()) : Date.now()) + i,
     };
 
     try {
@@ -5101,11 +5111,12 @@ function registerDriver(src) {
   if (!/^[a-zA-Z0-9_]+$/.test(id)) { showToast('아이디는 영문/숫자/밑줄만 가능합니다'); return; }
 
   db.ref('driverAccounts/' + id).once('value').then(snap => {
-    if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return; }
+    if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return null; }
     return db.ref('driverAccounts/' + id).set({
       name, password: pw, active: true, createdAt: Date.now()
     });
-  }).then(() => {
+  }).then(result => {
+    if (result === null) return; // 중복 ID → 체인 중단
     showToast('✅ ' + name + ' 기사 등록 완료');
     document.getElementById(prefix + 'name').value = '';
     document.getElementById(prefix + 'id').value = '';
