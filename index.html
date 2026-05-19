@@ -1207,12 +1207,14 @@ function toggleDone(id) {
     renderHome();
     return;
   }
-  // 완료 처리 + 사진 촬영
-  d.status = 'done';
-  saveDeliveries();
-  capturePhoto(id);
-  renderHome();
-  showToast('✅ 배송 완료!');
+  // 사진 촬영 완료 후에만 done으로 변경
+  capturePhoto(id, () => {
+    d.status = 'done';
+    d.completedAt = Date.now();
+    saveDeliveries();
+    renderHome();
+    showToast('✅ 배송 완료!');
+  });
 }
 
 // ══════════════════════════════════════════════════════
@@ -2293,12 +2295,14 @@ async function compressPhoto(dataUrl, maxW = 800) {
   });
 }
 
-function capturePhoto(deliveryId) {
+function capturePhoto(deliveryId, onComplete) {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
   input.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // 사진이 선택된 경우에만 완료 처리 콜백 실행
+    if (onComplete) onComplete();
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const compressed = await compressPhoto(ev.target.result);
@@ -2312,6 +2316,7 @@ function capturePhoto(deliveryId) {
       if (_fbDb) {
         _fbDb.ref('orders/' + deliveryId).update({
           photoId: deliveryId, status: 'done',
+          completedAt: deliveries.find(x=>x.id===deliveryId)?.completedAt || Date.now(),
           ...(photoUrl ? { photoUrl } : {})
         }).catch(()=>{});
       }
