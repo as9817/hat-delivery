@@ -1250,6 +1250,7 @@ function addManual() {
 function getRegionFromMart() {
   return new Promise(resolve => {
     const mart = getMartLocation(); // Firebase 동기화된 마트 위치
+    if (!mart) { resolve(null); return; } // 마트 위치 미설정 시 null 반환
     kakao.maps.load(() => {
       const geocoder = new kakao.maps.services.Geocoder();
       geocoder.coord2RegionCode(mart.lng, mart.lat, (result, status) => {
@@ -1512,8 +1513,8 @@ function optimizeRoute() {
   // 좌표 있는 것만 최근점 탐욕 정렬
   let ordered = [];
   if (withCoords.length) {
-    const start = getMartLocation();
-    let remain = [...withCoords], cur = start;
+    const martLoc = getMartLocation();
+    let remain = [...withCoords], cur = martLoc || remain[0];
     while (remain.length) {
       remain.sort((a, b) => dist(cur, a) - dist(cur, b));
       cur = remain.shift();
@@ -2619,7 +2620,7 @@ const mapZone = (() => {
     // 중심 계산
     const withCoords = data.filter(d => d.lat && d.lng);
     const mart = getMartLocation();
-    let cLat = mart.lat || 37.641, cLng = mart.lng || 127.322;
+    let cLat = (mart && mart.lat) || 37.641, cLng = (mart && mart.lng) || 127.322;
     if (withCoords.length) {
       cLat = withCoords.reduce((s, d) => s + d.lat, 0) / withCoords.length;
       cLng = withCoords.reduce((s, d) => s + d.lng, 0) / withCoords.length;
@@ -2738,20 +2739,22 @@ const mapZone = (() => {
     }
     const start = getMartLocation();
     let remain = [...pending], ordered = [];
-    let cur = start;
+    let cur = start || (remain.length ? remain[0] : null);
     while (remain.length) {
       remain.sort((a, b) => dist(cur, a) - dist(cur, b));
       cur = remain.shift();
       ordered.push(cur);
     }
 
-    // 출발점 마커 (마트)
-    const storeM = makeStoreOverlay(start.lat, start.lng);
-    storeM.setMap(map);
-    routeMarkers.push(storeM);
+    // 출발점 마커 (마트) - 마트 위치 설정된 경우만 표시
+    if (start) {
+      const storeM = makeStoreOverlay(start.lat, start.lng);
+      storeM.setMap(map);
+      routeMarkers.push(storeM);
+    }
 
     // 배달지 마커 (번호 순서)
-    const pathPoints = [new kakao.maps.LatLng(start.lat, start.lng)];
+    const pathPoints = start ? [new kakao.maps.LatLng(start.lat, start.lng)] : [];
     ordered.forEach((d, i) => {
       const m = makeMarkerOverlay(d.lat, d.lng, '#FF6B00', i+1, 34,
         `<b>${i+1}번째 · ${d.customerName}</b><br><span style="color:#666">${d.address}</span><br><span style="color:#888;font-size:11px">📞 ${d.phone}</span>`);
@@ -2803,11 +2806,13 @@ const mapZone = (() => {
   // 📍 전체 보기 모드
   function showAllMode(data, legend) {
     const all = data.filter(d => d.lat && d.lng);
-    // 마트 핀
+    // 마트 핀 - 마트 위치 설정된 경우만 표시
     const mart = getMartLocation();
-    const storeM = makeStoreOverlay(mart.lat, mart.lng);
-    storeM.setMap(map);
-    deliveryMarkers.push(storeM);
+    if (mart) {
+      const storeM = makeStoreOverlay(mart.lat, mart.lng);
+      storeM.setMap(map);
+      deliveryMarkers.push(storeM);
+    }
 
     if (!all.length) return;
     all.forEach((d, i) => {
@@ -2822,17 +2827,22 @@ const mapZone = (() => {
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
     `;
-    const bounds = makeBounds([[mart.lat, mart.lng], ...all.map(d => [d.lat, d.lng])]);
+    const boundsCoords = mart
+      ? [[mart.lat, mart.lng], ...all.map(d => [d.lat, d.lng])]
+      : all.map(d => [d.lat, d.lng]);
+    const bounds = makeBounds(boundsCoords);
     map.setBounds(bounds, 40, 40, 40, 40);
   }
 
   // 🗾 구역 설정 모드
   function showZoneMode(data, legend) {
-    // 마트 핀
+    // 마트 핀 - 마트 위치 설정된 경우만 표시
     const mart = getMartLocation();
-    const storeM = makeStoreOverlay(mart.lat, mart.lng);
-    storeM.setMap(map);
-    deliveryMarkers.push(storeM);
+    if (mart) {
+      const storeM = makeStoreOverlay(mart.lat, mart.lng);
+      storeM.setMap(map);
+      deliveryMarkers.push(storeM);
+    }
 
     data.filter(d => d.lat && d.lng).forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';

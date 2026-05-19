@@ -2806,11 +2806,13 @@ const mapZone = (() => {
   // 📍 전체 보기 모드
   function showAllMode(data, legend) {
     const all = data.filter(d => d.lat && d.lng);
-    // 마트 핀
+    // 마트 핀 - 마트 위치 설정된 경우만 표시
     const mart = getMartLocation();
-    const storeM = makeStoreOverlay(mart.lat, mart.lng);
-    storeM.setMap(map);
-    deliveryMarkers.push(storeM);
+    if (mart) {
+      const storeM = makeStoreOverlay(mart.lat, mart.lng);
+      storeM.setMap(map);
+      deliveryMarkers.push(storeM);
+    }
 
     if (!all.length) return;
     all.forEach((d, i) => {
@@ -2825,17 +2827,22 @@ const mapZone = (() => {
       <div class="leg-row"><div class="leg-dot" style="background:#FF6B00"></div> 배송 대기</div>
       <div class="leg-row"><div class="leg-dot" style="background:#4CAF50"></div> 배송 완료</div>
     `;
-    const bounds = makeBounds([[mart.lat, mart.lng], ...all.map(d => [d.lat, d.lng])]);
+    const boundsCoords = mart
+      ? [[mart.lat, mart.lng], ...all.map(d => [d.lat, d.lng])]
+      : all.map(d => [d.lat, d.lng]);
+    const bounds = makeBounds(boundsCoords);
     map.setBounds(bounds, 40, 40, 40, 40);
   }
 
   // 🗾 구역 설정 모드
   function showZoneMode(data, legend) {
-    // 마트 핀
+    // 마트 핀 - 마트 위치 설정된 경우만 표시
     const mart = getMartLocation();
-    const storeM = makeStoreOverlay(mart.lat, mart.lng);
-    storeM.setMap(map);
-    deliveryMarkers.push(storeM);
+    if (mart) {
+      const storeM = makeStoreOverlay(mart.lat, mart.lng);
+      storeM.setMap(map);
+      deliveryMarkers.push(storeM);
+    }
 
     data.filter(d => d.lat && d.lng).forEach((d, i) => {
       const color = d.status === 'done' ? '#4CAF50' : '#FF6B00';
