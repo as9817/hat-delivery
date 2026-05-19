@@ -2083,7 +2083,7 @@ function parseReceiptText(text) {
 }
 
 function cleanName(s) { return s.replace(/[^[가-힣a-zA-Z\s]/g,'').trim(); }
-function cleanAddr(s)  { return s.replace(/[\w가-힣\s\-\.]/g,'').trim(); }
+function cleanAddr(s)  { return s.replace(/[^\w가-힣\s\-\.]/g,'').trim(); }
 
 function showResult(parsed) {
   console.log('showResult 실행중, parsed:', JSON.stringify(parsed));
