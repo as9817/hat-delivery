@@ -1796,7 +1796,7 @@ function deleteDelivery() {
     // Firebase 먼저: 주문 상태를 pending으로 복원 (OMS에서 재배정 가능하도록)
     _fbDb.ref('orders/' + id).update({
       status: 'pending',
-      assignedDriver: null,
+      assignedDriverId: null,
       assignedDriverName: null,
     }).then(() => {
       doDelete();
