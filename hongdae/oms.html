@@ -2025,6 +2025,10 @@ function renderOrderList() {
       ${itemStr?`<div class="oc-items">🛍️ ${itemStr}</div>`:''}
       <div class="oc-bottom">
         <span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span>
+        ${o.assignedDriverName ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0f4ff;border-radius:12px;padding:2px 8px 2px 4px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${getDriverColor(o.assignedDriverId)};color:#fff;font-size:9px;font-weight:800">${o.assignedDriverName.charAt(0)}</span>
+          <span style="font-size:11px;font-weight:700;color:${getDriverColor(o.assignedDriverId)}">${o.assignedDriverName}</span>
+        </span>` : ''}
         ${o.paymentMethod?`<span class="badge" style="background:#f5f5f5;color:#555">${PAY_LABELS[o.paymentMethod]||o.paymentMethod}</span>`:''}
         ${o.note?`<span style="font-size:11px;color:#888">📝 ${o.note}</span>`:''}
         ${totalAmt?`<div class="oc-amount">₩${totalAmt.toLocaleString()}</div>`:''}
@@ -5276,6 +5280,10 @@ function renderTmsTable() {
         ${o.photoUrl ? `<span style="font-size:10px;color:#4A90E2;font-weight:600">📸 사진있음</span>` : ''}
       </td>
       <td onclick="event.stopPropagation()">
+        ${driverName ? `<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${getDriverColor(driverId)};color:#fff;font-size:11px;font-weight:800;flex-shrink:0">${driverName.charAt(0)}</span>
+          <span style="font-size:12px;font-weight:700;color:${getDriverColor(driverId)}">${driverName}</span>
+        </div>` : ''}
         <select onchange="assignDriver('${o.id}',this.value)"
           style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:4px 6px;font-size:11px;font-family:inherit;color:${driverName?'#1a237e':'#aaa'};background:#fafafa;cursor:pointer;outline:none">
           <option value="" ${!driverId?'selected':''}>미배정</option>
