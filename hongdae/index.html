@@ -1797,7 +1797,7 @@ function deleteDelivery() {
     // Firebase에서 source 필드 직접 확인 (런타임 플래그보다 신뢰성 높음)
     _fbDb.ref('orders/' + id).once('value').then(snap => {
       const fbOrder = snap.val();
-      const isTmsOrder = !fbOrder || fbOrder.source === 'tms';
+      const isTmsOrder = !fbOrder || fbOrder.channel === 'tms' || fbOrder.source === 'tms';
 
       if (isTmsOrder) {
         // TMS 자체 주문(OCR 등): Firebase에서 완전 삭제
