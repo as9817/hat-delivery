@@ -1061,6 +1061,7 @@ function saveToFirebase(item) {
     paymentMethod: item.paymentMethod || '',
     totalAmount: item.totalAmount ? Number(item.totalAmount) : 0,
     createdAt: item.addedAt || Date.now(),
+    source: 'tms', // TMS에서 생성한 주문 표시
     // 기사 앱에서 등록한 주문 → 해당 기사 자동 배정
     assignedDriverId:   currentDriver?.id   || '',
     assignedDriverName: currentDriver?.name || ''
@@ -1784,9 +1785,6 @@ function deleteDelivery() {
   const id = document.getElementById('edit-id').value;
   if (!confirm('이 배송을 취소/삭제하시겠습니까?')) return;
 
-  const d = deliveries.find(x => x.id === id);
-  const isOmsOrder = d && d.fromOms; // OMS에서 배정된 주문 여부
-
   const doDelete = () => {
     deliveries = deliveries.filter(x => x.id !== id);
     saveDeliveries();
@@ -1796,25 +1794,27 @@ function deleteDelivery() {
   };
 
   if (_fbDb) {
-    if (isOmsOrder) {
-      // OMS 주문: pending으로 복원 (OMS에서 재배정 가능하도록)
-      _fbDb.ref('orders/' + id).update({
-        status: 'pending',
-        assignedDriverId: null,
-        assignedDriverName: null,
-      }).then(() => {
-        doDelete();
-      }).catch(() => {
-        showToast('❌ 삭제 실패. 다시 시도해주세요.');
-      });
-    } else {
-      // TMS 자체 주문(OCR 등): Firebase에서 완전 삭제
-      _fbDb.ref('orders/' + id).remove().then(() => {
-        doDelete();
-      }).catch(() => {
-        showToast('❌ 삭제 실패. 다시 시도해주세요.');
-      });
-    }
+    // Firebase에서 source 필드 직접 확인 (런타임 플래그보다 신뢰성 높음)
+    _fbDb.ref('orders/' + id).once('value').then(snap => {
+      const fbOrder = snap.val();
+      const isTmsOrder = !fbOrder || fbOrder.source === 'tms';
+
+      if (isTmsOrder) {
+        // TMS 자체 주문(OCR 등): Firebase에서 완전 삭제
+        return _fbDb.ref('orders/' + id).remove();
+      } else {
+        // OMS 주문: pending으로 복원 (OMS에서 재배정 가능하도록)
+        return _fbDb.ref('orders/' + id).update({
+          status: 'pending',
+          assignedDriverId: null,
+          assignedDriverName: null,
+        });
+      }
+    }).then(() => {
+      doDelete();
+    }).catch(() => {
+      showToast('❌ 삭제 실패. 다시 시도해주세요.');
+    });
   } else {
     doDelete();
   }
