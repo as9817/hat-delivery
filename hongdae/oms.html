@@ -2043,10 +2043,10 @@ function orderActions(o) {
   if (o.status === 'pending') return `
     <button class="btn btn-green btn-sm" style="flex:1" onclick="updateStatus('${o.id}','confirmed')">✅ 주문확인</button>
     <button class="btn btn-orange btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달발송</button>
-    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">✕</button>`;
+    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">🚫 주문취소</button>`;
   if (o.status === 'confirmed') return `
     <button class="btn btn-primary btn-sm" style="flex:1" onclick="sendToDelivery('${o.id}')">🚀 배달 배정하기</button>
-    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">취소</button>`;
+    <button class="btn btn-gray btn-sm" onclick="updateStatus('${o.id}','cancelled')">🚫 주문취소</button>`;
   if (o.status === 'delivering') return `
     <span style="font-size:11px;font-weight:700;color:#1565C0">🚗 배달중</span>
     <div style="display:flex;gap:4px;margin-top:4px">
@@ -5272,7 +5272,10 @@ function renderTmsTable() {
 
     const hasCoord = o.lat && o.lng;
     return `<tr class="${statusClass}" id="tr-${o.id}" onclick="focusOrderOnMap('${o.id}')" ondblclick="openOrderDetail('${o.id}')" style="cursor:pointer" title="더블클릭 시 상세 정보">
-      <td style="text-align:center;font-weight:700;color:#aaa;font-size:11px">${i+1}</td>
+      <td style="text-align:center;font-weight:700;color:#aaa;font-size:11px">
+        <div>${i+1}</div>
+        ${driverName ? `<div style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${getDriverColor(driverId)};color:#fff;font-size:11px;font-weight:800;margin-top:4px">${driverName.charAt(0)}</div>` : ''}
+      </td>
       <td>
         <div style="font-weight:700;color:#1a237e;font-size:13px">${o.customerName}${hasCoord ? ' 📍' : ''}${o.totalAmount ? ` <span style="font-size:12px;color:#e65100;font-weight:700">💰${Number(o.totalAmount).toLocaleString()}원</span>` : ''}</div>
         <div style="font-size:11px;color:#666;margin-top:2px;line-height:1.4">${o.address}</div>
@@ -5280,10 +5283,6 @@ function renderTmsTable() {
         ${o.photoUrl ? `<span style="font-size:10px;color:#4A90E2;font-weight:600">📸 사진있음</span>` : ''}
       </td>
       <td onclick="event.stopPropagation()">
-        ${driverName ? `<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${getDriverColor(driverId)};color:#fff;font-size:11px;font-weight:800;flex-shrink:0">${driverName.charAt(0)}</span>
-          <span style="font-size:12px;font-weight:700;color:${getDriverColor(driverId)}">${driverName}</span>
-        </div>` : ''}
         <select onchange="assignDriver('${o.id}',this.value)"
           style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:4px 6px;font-size:11px;font-family:inherit;color:${driverName?'#1a237e':'#aaa'};background:#fafafa;cursor:pointer;outline:none">
           <option value="" ${!driverId?'selected':''}>미배정</option>
