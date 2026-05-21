@@ -669,6 +669,10 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div class="filter-chip" data-filter="delivering" onclick="setFilter('delivering',this)">🔵 배달중</div>
       <div class="filter-chip" data-filter="done" onclick="setFilter('done',this)">✅ 완료</div>
       <div class="filter-chip" data-filter="cancelled" onclick="setFilter('cancelled',this)" style="color:#f44336;border-color:#f44336">❌ 취소</div>
+      <div class="filter-chip" data-filter="sms" onclick="setFilter('sms',this)">📱 문자</div>
+      <div class="filter-chip" data-filter="kakao" onclick="setFilter('kakao',this)">💬 카카오</div>
+      <div class="filter-chip" data-filter="call" onclick="setFilter('call',this)">📞 전화</div>
+      <div class="filter-chip" data-filter="ocr" onclick="setFilter('ocr',this)">📷 영수증</div>
     </div>
   </div>
 
@@ -2077,7 +2081,7 @@ function filterOrders() {
   if (currentFilter !== 'all') {
     if (['pending','confirmed','delivering','done','cancelled'].includes(currentFilter))
       filtered = filtered.filter(o => o.status === currentFilter);
-    else if (['kakao','sms','call'].includes(currentFilter))
+    else if (['kakao','sms','call','ocr'].includes(currentFilter))
       filtered = filtered.filter(o => o.channel === currentFilter);
   }
   if (orderSearchQuery) filtered = filtered.filter(o => matchesSearch(o, orderSearchQuery));
@@ -3131,11 +3135,11 @@ function renderStats() {
   }
 
   // ── 채널별 ──
-  const chData = { kakao:0, sms:0, call:0 };
+  const chData = { kakao:0, sms:0, call:0, ocr:0 };
   filtered.forEach(o => { if (chData[o.channel]!==undefined) chData[o.channel]++; });
   const maxCh = Math.max(...Object.values(chData), 1);
-  const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3' };
-  const chNames = { kakao:'💬 카카오톡', sms:'📱 문자', call:'📞 전화' };
+  const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3', ocr:'#7c3aed' };
+  const chNames = { kakao:'💬 카카오톡', sms:'📱 문자', call:'📞 전화', ocr:'📷 영수증' };
   const chEl = document.getElementById('ch-stats');
   if (chEl) chEl.innerHTML = Object.entries(chData).map(([k,v]) => `
     <div class="ch-stat-row">
@@ -3253,11 +3257,11 @@ function renderStatsModal() {
   renderDriverStatsTable(filtered, 'driver-stats-body-m', true);
 
   // 채널별
-  const chData = { kakao:0, sms:0, call:0 };
+  const chData = { kakao:0, sms:0, call:0, ocr:0 };
   filtered.forEach(o => { if(chData[o.channel]!==undefined) chData[o.channel]++; });
   const maxCh = Math.max(...Object.values(chData), 1);
-  const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3' };
-  const chNames  = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
+  const chColors = { kakao:'#FEE500', sms:'#4CAF50', call:'#2196F3', ocr:'#7c3aed' };
+  const chNames  = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화', ocr:'📷 영수증' };
   const chEl = document.getElementById('ch-stats-m');
   if (chEl) chEl.innerHTML = Object.entries(chData).map(([k,v]) => `
     <div class="ch-stat-row">
