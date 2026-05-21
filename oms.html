@@ -726,7 +726,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   <!-- 붙여넣기 파싱 -->
   <div class="card" id="paste-card">
     <div class="section-hdr">
-      <div class="section-title">💬 카카오/문자 내용 붙여넣기</div>
+      <div class="section-title">💬 주문 내용 입력 (카카오/문자/전화)</div>
     </div>
     <div class="parse-box">
       <div class="parse-hint">카카오/문자 내용을 붙여넣으세요 · 여러 건을 한꺼번에 넣으면 자동 분리됩니다<br><span style="color:#aaa">구분: 빈 줄 두 개 | --- | 번호목록 | 카카오톡 묶어서 복사</span></div>
@@ -2471,9 +2471,9 @@ function setChannel(ch, el) {
   });
   el.classList.add('sel-' + ch);
 
-  // 채널에 따라 붙여넣기 카드 표시/숨김
+  // OCR 채널만 붙여넣기 카드 숨김 (나머지는 모두 표시)
   document.getElementById('paste-card').style.display =
-    (ch === 'call') ? 'none' : 'block';
+    (ch === 'ocr') ? 'none' : 'block';
 }
 
 function setPay(p, el) {
@@ -2526,7 +2526,7 @@ function getItems() {
 // ══════════════════════════════════════════
 // 붙여넣기 파싱
 // ══════════════════════════════════════════
-function parsePaste() {
+async function parsePaste() {
   const text = document.getElementById('paste-text').value.trim();
   if (!text) { showToast('내용을 붙여넣어 주세요'); return; }
 
@@ -2536,6 +2536,19 @@ function parsePaste() {
     // 단일 메시지 → 폼 채우기
     document.getElementById('batch-preview').classList.remove('show');
     const result = parseOrderText(text);
+
+    // 지번 주소 → 도로명 자동 변환
+    if (result.address) {
+      showToast('🔄 주소 변환 중...');
+      try {
+        const roadAddr = await omsGeocodeToRoad(result.address);
+        if (roadAddr && roadAddr !== result.address) {
+          result.address = roadAddr;
+          showToast(`🗺 도로명 변환: ${roadAddr}`);
+        }
+      } catch(e) { /* 변환 실패 시 원본 유지 */ }
+    }
+
     applyParsed(result);
     const resEl = document.getElementById('parse-result');
     const lines = [];
