@@ -1848,7 +1848,8 @@ db.ref('orders').on('child_added', snap => {
 });
 
 // 초기 로드 완료 후 알림 활성화 (기존 주문은 무시)
-setTimeout(() => { _alertInitialized = true; }, 3000);
+// value 이벤트가 child_added 이후에 오므로, 한 번 받으면 초기화 완료
+db.ref('orders').once('value', () => { _alertInitialized = true; });
 
 db.ref('orders').on('value', snap => {
   const data = snap.val() || {};
