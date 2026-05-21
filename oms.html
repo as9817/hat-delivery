@@ -39,6 +39,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .badge-kakao{background:#FEE500;color:#3C1E1E}
 .badge-sms{background:#E8F5E9;color:#2E7D32}
 .badge-call{background:#E3F2FD;color:#1565C0}
+.badge-ocr{background:#f3e8ff;color:#5b21b6}
 .badge-pending{background:#FFF3E0;color:#E65100}
 .badge-confirmed{background:#E8F5E9;color:#2E7D32}
 .badge-delivering{background:#E3F2FD;color:#1565C0}
@@ -72,6 +73,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 .channel-btn.sel-kakao{border-color:#FEE500;background:#FFFDE7;color:#3C1E1E}
 .channel-btn.sel-sms{border-color:var(--green);background:#E8F5E9;color:#2E7D32}
 .channel-btn.sel-call{border-color:var(--blue);background:#E3F2FD;color:#1565C0}
+.channel-btn.sel-ocr{border-color:#7c3aed;background:#f3e8ff;color:#5b21b6}
 .channel-btn .ch-emoji{font-size:20px;display:block;margin-bottom:4px}
 
 /* ── 주문 카드 ── */
@@ -714,6 +716,9 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       </div>
       <div class="channel-btn" onclick="setChannel('call',this)">
         <span class="ch-emoji">📞</span>전화
+      </div>
+      <div class="channel-btn" onclick="setChannel('ocr',this)">
+        <span class="ch-emoji">📷</span>영수증
       </div>
     </div>
   </div>
@@ -1864,7 +1869,7 @@ function todayStart() {
 // 주문 목록 렌더
 // ══════════════════════════════════════════
 const STATUS_LABELS = { pending:'접수', confirmed:'확인', delivering:'배달중', done:'완료', cancelled:'취소' };
-const CH_LABELS = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화' };
+const CH_LABELS = { kakao:'💬 카카오', sms:'📱 문자', call:'📞 전화', ocr:'📷 영수증' };
 const PAY_LABELS = { card:'💳 카드', cash:'💵 현금', prepaid:'✅ 선불', transfer:'🏦 이체' };
 
 function setFilter(f, el) {
@@ -4583,6 +4588,9 @@ function omsGeocodeToRoad(addr) {
 
 // ── OCR 결과를 주문 폼에 적용 ──
 async function applyOcrResult() {
+  // 채널 자동으로 '영수증(OCR)'으로 전환
+  const ocrBtn = document.querySelector('.channel-btn[onclick*="ocr"]');
+  if (ocrBtn) setChannel('ocr', ocrBtn);
   const name = document.getElementById('ocr-name').value.trim();
   const phone = document.getElementById('ocr-phone').value.trim();
   const addr = document.getElementById('ocr-addr').value.trim();
