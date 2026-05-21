@@ -1278,9 +1278,14 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 이름</label>
       <input id="oms-mart-name-input" type="text" placeholder="예: 웰빙마트" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
     </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 주소 (신주소)</label>
+      <input id="oms-mart-addr-input" type="text" placeholder="예: 서울 용산구 회나무로 22" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+    </div>
     <div style="margin-bottom:20px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 주소</label>
-      <input id="oms-mart-addr-input" type="text" placeholder="예: 경기도 남양주시 화도읍..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 구주소 (지번 — 동까지만)</label>
+      <input id="oms-mart-old-addr-input" type="text" placeholder="예: 서울 용산구 이태원동" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+      <div style="font-size:11px;color:#888;margin-top:4px">문자 주문의 지번 주소 변환 시 사용됩니다</div>
     </div>
     <div style="font-size:11px;color:#f57c00;margin-bottom:16px;padding:8px 12px;background:#fff8e1;border-radius:8px">
       ⚠️ 저장하면 모든 기사 앱과 OMS에 즉시 반영됩니다
@@ -4853,7 +4858,8 @@ async function saveOmsMartLocation() {
     const { lat, lng, roadAddr } = geocoded;
     el.textContent = `✅ 좌표 확인: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
-    const martData = { address: roadAddr || addr, name, lat, lng, updatedAt: Date.now() };
+    const oldAddr = document.getElementById('oms-mart-old-addr-input')?.value.trim() || '';
+    const martData = { address: roadAddr || addr, oldAddress: oldAddr, name, lat, lng, updatedAt: Date.now() };
 
     // Firebase에 저장 → 모든 OMS/TMS 자동 반영
     await db.ref('settings/martLocation').set(martData);
@@ -4875,6 +4881,8 @@ function openOmsMartSettings() {
   if (ni) ni.value = m.name || '';
   const ai = document.getElementById('oms-mart-addr-input');
   if (ai) ai.value = m.address || '';
+  const oi = document.getElementById('oms-mart-old-addr-input');
+  if (oi) oi.value = m.oldAddress || '';
   document.getElementById('oms-mart-modal').style.display = 'flex';
 }
 
