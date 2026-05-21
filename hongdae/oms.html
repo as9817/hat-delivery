@@ -2007,8 +2007,9 @@ function renderOrderList() {
   }
 
   container.innerHTML = filtered.map((o, i) => {
-    const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
-    const totalAmt = o.totalAmount || (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
+    const safeItems = Array.isArray(o.items) ? o.items : (o.items ? [{name: String(o.items), qty:1, price:0}] : []);
+    const itemStr = safeItems.map(it => `${it.name} ${it.qty}개`).join(', ');
+    const totalAmt = o.totalAmount || safeItems.reduce((s, it) => s + (it.price*it.qty||0), 0);
     const time = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
 
     const actions = orderActions(o);
