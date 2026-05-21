@@ -92,6 +92,12 @@
     .photo-btn.c { background: #052613; color: #4ade80; }
     .no-del { padding: 14px; text-align: center; color: #374151; font-size: 12px; }
 
+    /* ── 채널 뱃지 ── */
+    .ch-badge { display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+    .ch-sms   { background: #1a3a1a; color: #4ade80; }
+    .ch-kakao { background: #3a3000; color: #FEE500; }
+    .ch-call  { background: #0f2240; color: #60a5fa; }
+
     /* ── ETA Panel ── */
     .eta-panel { padding: 10px 14px; background: rgba(21,93,48,0.2); border-top: 1px solid rgba(21,93,48,0.4); }
     .eta-title { font-size: 11px; color: #4ade80; font-weight: 700; margin-bottom: 4px; }
@@ -306,6 +312,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const COLORS = { A: '#ef4444', B: '#3b82f6', C: '#f59e0b', D: '#8b5cf6' };
+const CH_LABELS = { kakao: '💬 카카오', sms: '📱 문자', call: '📞 전화' };
+function chBadge(ch) { if (!ch || ch === 'call') return ''; return `<span class="ch-badge ch-${ch}">${CH_LABELS[ch]||ch}</span>`; }
 const DRIVER_IDS = ['A','B','C','D'];
 const drvMarkers = {};
 
@@ -400,7 +408,7 @@ function renderUnassignedPool(items) {
     <div>${items.map(d => `
       <div class="pool-item">
         <div class="pi-info">
-          <div class="pi-name">${esc(d.customerName||'고객')}</div>
+          <div class="pi-name">${esc(d.customerName||'고객')}${chBadge(d.channel)}</div>
           <div class="pi-addr">📍 ${esc(d.address||'-')}</div>
           <div class="pi-time">${d.phone ? '📞 '+esc(d.phone)+' · ' : ''}${d.createdAt ? fmtTime(d.createdAt) : ''}</div>
         </div>
@@ -455,7 +463,7 @@ function drvSection(id) {
       const ft = d.completedAt ? fmtTime(d.completedAt) : '';
       const cBtn = d.completionPhoto ? `<button class="photo-btn c" onclick="showPhoto(event,'${d.id}','completion','${escAttr(d.customerName||'고객')}')">📸 완료사진</button>` : '';
       return `<div class="del-item" onclick="focusDel('${d.id}')">
-        <div class="di-row"><span class="di-name">${esc(d.customerName||'고객')}</span><span class="di-st ${sc}">${st}</span></div>
+        <div class="di-row"><span class="di-name">${esc(d.customerName||'고객')}${chBadge(d.channel)}</span><span class="di-st ${sc}">${st}</span></div>
         <div class="di-addr">📍 ${esc(d.address||'-')}</div>
         ${d.phone ? `<div class="di-addr">📞 ${esc(d.phone)}</div>` : ''}
         <div class="di-meta">

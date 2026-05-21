@@ -2420,7 +2420,10 @@ function sendToDelivery(orderId) {
     orderId: o.id,
     assignedDriverId:   o.assignedDriverId,
     assignedDriverName: o.assignedDriverName || '',
+    driverId:           o.assignedDriverId,
     totalAmount: totalAmt,
+    channel: o.channel || 'call',
+    source: o.source || 'oms',
     createdAt: Date.now()
   };
 
@@ -2435,12 +2438,15 @@ function sendToDelivery(orderId) {
   };
 
   if (firebaseActive) {
-    db.ref('orders/' + orderId).update({
-      status: 'delivering',
-      assignedDriverId:   o.assignedDriverId,
-      assignedDriverName: o.assignedDriverName || '',
-      updatedAt: Date.now()
-    }).then(() => {
+    Promise.all([
+      db.ref('orders/' + orderId).update({
+        status: 'delivering',
+        assignedDriverId:   o.assignedDriverId,
+        assignedDriverName: o.assignedDriverName || '',
+        updatedAt: Date.now()
+      }),
+      db.ref('deliveries').push(delivery)
+    ]).then(() => {
       doLocalUpdate();
       showToast(`🚀 ${o.assignedDriverName} 기사에게 배달 전송 완료!`);
     }).catch(() => showToast('❌ 전송 실패. 다시 시도해주세요.'));
