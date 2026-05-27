@@ -2536,7 +2536,7 @@ function toggleAutoAssignBar() {
   }
 }
 
-// ── 경로 총 거리 계산 (Nearest Neighbor, 마트 출발) ──
+// ── 경로 총 거리 계산 (Nearest Neighbor, 마트 출발) → km 반환 ──
 function _calcRouteKm(orderIds, allPts) {
   const mart = getMartLocation();
   let curLat = mart?.lat || 37.5563, curLng = mart?.lng || 126.9227;
@@ -2557,20 +2557,32 @@ function _calcRouteKm(orderIds, allPts) {
   return total;
 }
 
-// ── Order Swap 최적화: 클러스터 간 주문 이동으로 전체 총 거리 최소화 ──
-// 각 반복마다 "이 주문을 다른 기사한테 넘기면 전체 총 km가 줄어드나?" 확인
+// ── 예상 소요시간 계산 → 분 반환 ──
+// 이동시간(경로km ÷ 평균속도 25km/h) + 건당 정지시간(초인종·전달·이동준비 4분)
+const ROUTE_AVG_SPEED_KMH = 25;
+const STOP_MINUTES_PER_ORDER = 4;
+function _calcEstimatedMinutes(orderIds, allPts) {
+  const km = _calcRouteKm(orderIds, allPts);
+  const travelMin = (km / ROUTE_AVG_SPEED_KMH) * 60;
+  const stopMin   = orderIds.length * STOP_MINUTES_PER_ORDER;
+  return travelMin + stopMin;
+}
+
+// ── Order Swap 최적화: 예상 소요시간 기준으로 클러스터 간 주문 이동 ──
+// "이 주문을 다른 기사한테 넘기면 두 기사의 합산 예상시간이 줄어드나?" 확인
+// → km만으로는 건수 부담을 무시하는 문제를 해결
 function _swapOptimizeClusters(clusters, allPts) {
   const k = clusters.length;
   if (k < 2) return clusters;
 
   const assignments = clusters.map(cl => [...cl.ids]);
   const n = allPts.length;
-  const minSize = 1; // 클러스터가 완전히 비는 건 방지
-  const maxSize = Math.ceil(n / k * 1.5); // 너무 몰리는 것도 방지
+  const minSize = 1;                       // 클러스터가 완전히 비는 건 방지
+  const maxSize = Math.ceil(n / k * 1.5); // 극단적 쏠림 방지
 
   let improved = true;
   let iterations = 0;
-  const beforeTotal = assignments.reduce((s, ids) => s + _calcRouteKm(ids, allPts), 0);
+  const beforeTotal = assignments.reduce((s, ids) => s + _calcEstimatedMinutes(ids, allPts), 0);
 
   while (improved && iterations < 40) {
     improved = false;
@@ -2578,21 +2590,23 @@ function _swapOptimizeClusters(clusters, allPts) {
 
     outer:
     for (let fromCi = 0; fromCi < k; fromCi++) {
-      if (assignments[fromCi].length <= minSize) continue; // 이 클러스터에서 빼면 안 됨
+      if (assignments[fromCi].length <= minSize) continue;
       for (let oi = 0; oi < assignments[fromCi].length; oi++) {
         const orderId = assignments[fromCi][oi];
-        const fromDist = _calcRouteKm(assignments[fromCi], allPts);
+        const fromCost = _calcEstimatedMinutes(assignments[fromCi], allPts);
 
         for (let toCi = 0; toCi < k; toCi++) {
           if (toCi === fromCi) continue;
-          if (assignments[toCi].length >= maxSize) continue; // 수신 클러스터 과부하 방지
+          if (assignments[toCi].length >= maxSize) continue;
 
-          const newFrom = assignments[fromCi].filter(id => id !== orderId);
-          const newTo   = [...assignments[toCi], orderId];
-          const toDist  = _calcRouteKm(assignments[toCi], allPts);
+          const newFrom  = assignments[fromCi].filter(id => id !== orderId);
+          const newTo    = [...assignments[toCi], orderId];
+          const toCost   = _calcEstimatedMinutes(assignments[toCi], allPts);
+          const newFromC = _calcEstimatedMinutes(newFrom, allPts);
+          const newToC   = _calcEstimatedMinutes(newTo,   allPts);
 
-          const gain = (fromDist + toDist) - (_calcRouteKm(newFrom, allPts) + _calcRouteKm(newTo, allPts));
-          if (gain > 0.05) { // 50m 이상 절감 시 교환
+          // 합산 예상시간이 0.5분(30초) 이상 줄어들면 교환
+          if ((fromCost + toCost) - (newFromC + newToC) > 0.5) {
             assignments[fromCi] = newFrom;
             assignments[toCi]   = newTo;
             improved = true;
@@ -2603,11 +2617,15 @@ function _swapOptimizeClusters(clusters, allPts) {
     }
   }
 
-  const afterTotal = assignments.reduce((s, ids) => s + _calcRouteKm(ids, allPts), 0);
+  const afterTotal = assignments.reduce((s, ids) => s + _calcEstimatedMinutes(ids, allPts), 0);
+  const perDriver  = assignments.map(ids => {
+    const min = _calcEstimatedMinutes(ids, allPts);
+    const km  = _calcRouteKm(ids, allPts);
+    return `${ids.length}건·${km.toFixed(1)}km·약${Math.round(min)}분`;
+  });
   console.log(
-    `[자동배정 Swap] ${iterations}회 반복 | 총 이동거리 ${beforeTotal.toFixed(2)}km → ${afterTotal.toFixed(2)}km` +
-    ` (절감 ${(beforeTotal - afterTotal).toFixed(2)}km)` +
-    ` | 배분: ${assignments.map(a => a.length + '건').join(' / ')}`
+    `[자동배정 Swap] ${iterations}회 반복 | 합산 예상시간 ${beforeTotal.toFixed(1)}분 → ${afterTotal.toFixed(1)}분` +
+    ` (절감 ${(beforeTotal - afterTotal).toFixed(1)}분) | ${perDriver.join(' / ')}`
   );
 
   return assignments.map(ids => ({ ids }));
@@ -2709,8 +2727,9 @@ function previewAutoAssign() {
   clusters.forEach((cl, ci) => {
     const [dId, d] = activeDrivers[ci] || [];
     const names = cl.ids.map(id => { const o = orders.find(x=>x.id===id); return o ? o.customerName : id; });
-    const routeKm = _calcRouteKm(cl.ids, previewPts).toFixed(1);
-    html += `<div style="margin-bottom:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getDriverColor(dId)};margin-right:4px"></span><b>${d?.name||'?'}</b> (${cl.ids.length}건 · 약 ${routeKm}km): ${names.join(', ')}</div>`;
+    const routeKm  = _calcRouteKm(cl.ids, previewPts).toFixed(1);
+    const estMin   = Math.round(_calcEstimatedMinutes(cl.ids, previewPts));
+    html += `<div style="margin-bottom:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getDriverColor(dId)};margin-right:4px"></span><b>${d?.name||'?'}</b> (${cl.ids.length}건 · ${routeKm}km · 약 ${estMin}분): ${names.join(', ')}</div>`;
   });
   document.getElementById('auto-assign-result').innerHTML = html;
 }
