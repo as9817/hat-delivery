@@ -2536,43 +2536,82 @@ function toggleAutoAssignBar() {
   }
 }
 
-// 균등 구역 분할: 마트 중심 기준 방위각으로 정렬 후 K등분 → 항상 균등 배분
+// Constrained K-means: 지리적 응집성 + 균등 배분
 // points = [{lat,lng,id}], k = 기사 수
+// 각 클러스터 최대 크기 = ceil(n/k) 로 cap → 쏠림 방지
 function kMeansClusters(points, k) {
   if (!points.length || k < 1) return [];
   k = Math.min(k, points.length);
+  const n = points.length;
+  const maxSize = Math.ceil(n / k);
 
+  // ── K-means++ 초기 중심 선택 ──
+  const pts = points.map(p => ({ ...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng) }));
+  let centers = [];
+  // 첫 번째 중심: 마트에서 가장 먼 포인트
   const mart = getMartLocation();
-  const mLat = mart?.lat || 37.5563;
-  const mLng = mart?.lng || 126.9227;
+  const mLat = mart?.lat || 37.5563, mLng = mart?.lng || 126.9227;
+  let best = pts.reduce((b, p) => haversineKm(p.lat, p.lng, mLat, mLng) > haversineKm(b.lat, b.lng, mLat, mLng) ? p : b, pts[0]);
+  centers.push({ lat: best.lat, lng: best.lng });
 
-  // 마트 중심 기준 방위각 계산 (라디안)
-  const withAngle = points.map(p => {
-    const dlat = parseFloat(p.lat) - mLat;
-    const dlng = parseFloat(p.lng) - mLng;
-    const angle = Math.atan2(dlng, dlat); // -π ~ π
-    return { ...p, angle };
-  });
-
-  // 방위각 순서로 정렬
-  withAngle.sort((a, b) => a.angle - b.angle);
-
-  // K등분: 각 구역에 floor(n/k) or ceil(n/k)개씩 균등 배분
-  const n = withAngle.length;
-  const base = Math.floor(n / k);
-  const extra = n % k; // 앞 extra개 구역에 1개씩 더
-
-  const clusters = [];
-  let idx = 0;
-  for (let i = 0; i < k; i++) {
-    const size = base + (i < extra ? 1 : 0);
-    clusters.push({
-      ids: withAngle.slice(idx, idx + size).map(p => p.id)
+  for (let i = 1; i < k; i++) {
+    // 기존 중심들과 가장 먼 포인트를 다음 중심으로 (K-means++ 방식)
+    let farthest = null, maxD = -1;
+    pts.forEach(p => {
+      const minD = Math.min(...centers.map(c => haversineKm(p.lat, p.lng, c.lat, c.lng)));
+      if (minD > maxD) { maxD = minD; farthest = p; }
     });
-    idx += size;
+    if (farthest) centers.push({ lat: farthest.lat, lng: farthest.lng });
   }
 
-  return clusters;
+  let assignments = new Array(n).fill(0);
+
+  // ── 반복: 균등 배정 → 중심 업데이트 ──
+  for (let iter = 0; iter < 50; iter++) {
+    // 1) 거리 행렬 계산
+    const costs = pts.map(p => centers.map(c => haversineKm(p.lat, p.lng, c.lat, c.lng)));
+
+    // 2) 균등 탐욕 배정: (포인트, 클러스터) 쌍을 거리 오름차순 정렬 후 cap 존중하며 배정
+    const pairs = [];
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < k; j++)
+        pairs.push({ pi: i, ci: j, cost: costs[i][j] });
+    pairs.sort((a, b) => a.cost - b.cost);
+
+    const newAssign = new Array(n).fill(-1);
+    const clusterSz = new Array(k).fill(0);
+
+    for (const { pi, ci } of pairs) {
+      if (newAssign[pi] === -1 && clusterSz[ci] < maxSize) {
+        newAssign[pi] = ci;
+        clusterSz[ci]++;
+      }
+    }
+    // 혹시 미배정 포인트 → 빈 슬롯에 강제 배정
+    for (let i = 0; i < n; i++) {
+      if (newAssign[i] === -1) {
+        for (let j = 0; j < k; j++) {
+          if (clusterSz[j] < maxSize + 1) { newAssign[i] = j; clusterSz[j]++; break; }
+        }
+      }
+    }
+
+    // 3) 수렴 체크
+    const changed = newAssign.some((a, i) => a !== assignments[i]);
+    assignments = newAssign;
+    if (!changed) break;
+
+    // 4) 중심 업데이트
+    centers = centers.map((_, ci) => {
+      const cl = pts.filter((_, i) => assignments[i] === ci);
+      if (!cl.length) return centers[ci];
+      return { lat: cl.reduce((s, p) => s + p.lat, 0) / cl.length, lng: cl.reduce((s, p) => s + p.lng, 0) / cl.length };
+    });
+  }
+
+  return centers.map((_, ci) => ({
+    ids: pts.filter((_, i) => assignments[i] === ci).map(p => p.id)
+  }));
 }
 
 function previewAutoAssign() {
