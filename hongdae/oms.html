@@ -2543,7 +2543,8 @@ function kMeansClusters(points, k) {
   if (!points.length || k < 1) return [];
   k = Math.min(k, points.length);
   const n = points.length;
-  const maxSize = Math.ceil(n / k);
+  // 지리적 군집 우선: 엄격한 균등 배분(n/k) 대신 30% 여유 허용 (예: 10건 2명 → 최대 7건)
+  const maxSize = Math.ceil(n / k * 1.3);
 
   // ── K-means++ 초기 중심 선택 ──
   const pts = points.map(p => ({ ...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng) }));
