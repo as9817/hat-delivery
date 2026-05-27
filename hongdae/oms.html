@@ -2536,52 +2536,43 @@ function toggleAutoAssignBar() {
   }
 }
 
-// K-means 클러스터링: points = [{lat,lng,id}], k = 클러스터 수
+// 균등 구역 분할: 마트 중심 기준 방위각으로 정렬 후 K등분 → 항상 균등 배분
+// points = [{lat,lng,id}], k = 기사 수
 function kMeansClusters(points, k) {
   if (!points.length || k < 1) return [];
   k = Math.min(k, points.length);
 
-  // 초기 중심: 첫 번째 포인트부터 균등 간격으로 선택 (K-means++ 근사)
-  let centers = [];
-  const shuffled = [...points].sort(() => Math.random() - 0.5);
-  centers.push({ lat: shuffled[0].lat, lng: shuffled[0].lng });
-  for (let i = 1; i < k; i++) {
-    // 기존 중심들과 가장 먼 포인트를 다음 중심으로
-    let farthest = null, maxDist = -1;
-    shuffled.forEach(p => {
-      const minD = Math.min(...centers.map(c => haversineKm(p.lat, p.lng, c.lat, c.lng)));
-      if (minD > maxDist) { maxDist = minD; farthest = p; }
+  const mart = getMartLocation();
+  const mLat = mart?.lat || 37.5563;
+  const mLng = mart?.lng || 126.9227;
+
+  // 마트 중심 기준 방위각 계산 (라디안)
+  const withAngle = points.map(p => {
+    const dlat = parseFloat(p.lat) - mLat;
+    const dlng = parseFloat(p.lng) - mLng;
+    const angle = Math.atan2(dlng, dlat); // -π ~ π
+    return { ...p, angle };
+  });
+
+  // 방위각 순서로 정렬
+  withAngle.sort((a, b) => a.angle - b.angle);
+
+  // K등분: 각 구역에 floor(n/k) or ceil(n/k)개씩 균등 배분
+  const n = withAngle.length;
+  const base = Math.floor(n / k);
+  const extra = n % k; // 앞 extra개 구역에 1개씩 더
+
+  const clusters = [];
+  let idx = 0;
+  for (let i = 0; i < k; i++) {
+    const size = base + (i < extra ? 1 : 0);
+    clusters.push({
+      ids: withAngle.slice(idx, idx + size).map(p => p.id)
     });
-    if (farthest) centers.push({ lat: farthest.lat, lng: farthest.lng });
+    idx += size;
   }
 
-  let assignments = new Array(points.length).fill(0);
-  for (let iter = 0; iter < 30; iter++) {
-    // 각 포인트를 가장 가까운 중심에 배정
-    let changed = false;
-    points.forEach((p, i) => {
-      let best = 0, bestDist = Infinity;
-      centers.forEach((c, ci) => {
-        const d = haversineKm(p.lat, p.lng, c.lat, c.lng);
-        if (d < bestDist) { bestDist = d; best = ci; }
-      });
-      if (assignments[i] !== best) { assignments[i] = best; changed = true; }
-    });
-    if (!changed) break;
-
-    // 중심 업데이트
-    centers = centers.map((_, ci) => {
-      const cluster = points.filter((_, i) => assignments[i] === ci);
-      if (!cluster.length) return centers[ci];
-      return { lat: cluster.reduce((s,p) => s+p.lat, 0)/cluster.length, lng: cluster.reduce((s,p) => s+p.lng, 0)/cluster.length };
-    });
-  }
-
-  // 결과: 클러스터별 포인트 ID 배열
-  return centers.map((c, ci) => ({
-    center: c,
-    ids: points.filter((_, i) => assignments[i] === ci).map(p => p.id)
-  }));
+  return clusters;
 }
 
 function previewAutoAssign() {
