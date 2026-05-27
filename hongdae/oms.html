@@ -5453,30 +5453,59 @@ function updateOmsMapMarkers() {
   // 기사별 색상 초기화 (순서 일관성 위해 매번 재계산)
   _driverColorMap = {};
 
-  // 기사별 주문 순번 카운터
-  const driverSeq = {}; // driverId → seq
-
+  // 기사별로 그룹핑
+  const _driverOrderGroups = {};
   todayOrders.forEach(o => {
-    const driverId = o.assignedDriverId || null;
-    const color = getDriverColor(driverId);
+    const key = o.assignedDriverId || '__unassigned';
+    if (!_driverOrderGroups[key]) _driverOrderGroups[key] = [];
+    _driverOrderGroups[key].push(o);
+  });
 
-    // 기사 이니셜: 이름 첫 글자, 없으면 driverId 앞 2자
-    let initial = '미';
-    if (driverId && tmsDriverData[driverId]?.name) {
-      initial = tmsDriverData[driverId].name.charAt(0);
-    } else if (driverId) {
-      initial = driverId.slice(0, 2);
+  // Nearest Neighbor 경로 최적화 (마트 출발 → 가장 가까운 주문 순)
+  function _optimizeRouteOrder(orderList) {
+    if (orderList.length <= 1) return orderList;
+    const mart = getMartLocation();
+    let curLat = mart?.lat || 37.5563, curLng = mart?.lng || 126.9227;
+    const remaining = [...orderList];
+    const result = [];
+    while (remaining.length > 0) {
+      let bestIdx = 0, bestDist = Infinity;
+      remaining.forEach((o, i) => {
+        const d = haversineKm(curLat, curLng, parseFloat(o.lat), parseFloat(o.lng));
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      });
+      const next = remaining.splice(bestIdx, 1)[0];
+      result.push(next);
+      curLat = parseFloat(next.lat);
+      curLng = parseFloat(next.lng);
     }
+    return result;
+  }
 
-    // 기사별 순번
-    if (!driverSeq[driverId || '__unassigned']) driverSeq[driverId || '__unassigned'] = 0;
-    driverSeq[driverId || '__unassigned']++;
-    const seq = driverSeq[driverId || '__unassigned'];
+  // 기사별 최적화 순서로 마커 생성
+  Object.entries(_driverOrderGroups).forEach(([groupKey, groupOrders]) => {
+    const sortedOrders = _optimizeRouteOrder(groupOrders);
+    sortedOrders.forEach((o, idx) => {
+      const driverId = o.assignedDriverId || null;
+      const color = getDriverColor(driverId);
 
-    const label = `${initial}-${seq}`;
-    const marker = makeDeliveryMarker(o.lat, o.lng, label, o.status, o.id, driverId ? color : null);
-    marker.setMap(tmsMap);
-    _omsOrderMarkers[o.id] = marker;
+      // 기사 이니셜: TMS위치데이터 → 계정목록 → assignedDriverName 순으로 참조
+      let initial = '미';
+      if (driverId) {
+        const driverName =
+          tmsDriverData[driverId]?.name ||
+          driverAccountsList[driverId]?.name ||
+          o.assignedDriverName ||
+          '';
+        initial = driverName ? driverName.charAt(0) : driverId.slice(0, 2);
+      }
+
+      const seq = idx + 1;
+      const label = `${initial}-${seq}`;
+      const marker = makeDeliveryMarker(o.lat, o.lng, label, o.status, o.id, driverId ? color : null);
+      marker.setMap(tmsMap);
+      _omsOrderMarkers[o.id] = marker;
+    });
   });
 
   // 마트 중심 2km 반경 뷰 유지 (첫 로드 시에만 적용)
@@ -5498,7 +5527,7 @@ function updateMapLegend() {
   if (!entries.length) { el.innerHTML = ''; return; }
   const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   el.innerHTML = entries.map(([driverId, color]) => {
-    const name = tmsDriverData[driverId]?.name || driverId;
+    const name = tmsDriverData[driverId]?.name || driverAccountsList[driverId]?.name || driverId;
     const initial = name.charAt(0);
     // 오늘 + 진행중 주문만 카운트
     const active = orders.filter(o =>
