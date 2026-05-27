@@ -2588,12 +2588,15 @@ function _swapOptimizeClusters(clusters, allPts) {
     improved = false;
     iterations++;
 
+    // 현재 기사별 예상시간 계산
+    const allCosts = assignments.map(ids => _calcEstimatedMinutes(ids, allPts));
+    const currentWorst = Math.max(...allCosts); // 제일 늦게 끝나는 기사 시간
+
     outer:
     for (let fromCi = 0; fromCi < k; fromCi++) {
       if (assignments[fromCi].length <= minSize) continue;
       for (let oi = 0; oi < assignments[fromCi].length; oi++) {
         const orderId = assignments[fromCi][oi];
-        const fromCost = _calcEstimatedMinutes(assignments[fromCi], allPts);
 
         for (let toCi = 0; toCi < k; toCi++) {
           if (toCi === fromCi) continue;
@@ -2601,12 +2604,24 @@ function _swapOptimizeClusters(clusters, allPts) {
 
           const newFrom  = assignments[fromCi].filter(id => id !== orderId);
           const newTo    = [...assignments[toCi], orderId];
-          const toCost   = _calcEstimatedMinutes(assignments[toCi], allPts);
           const newFromC = _calcEstimatedMinutes(newFrom, allPts);
           const newToC   = _calcEstimatedMinutes(newTo,   allPts);
 
-          // 합산 예상시간이 0.5분(30초) 이상 줄어들면 교환
-          if ((fromCost + toCost) - (newFromC + newToC) > 0.5) {
+          // 교환 후 기사별 시간 재계산
+          const newAllCosts = allCosts.map((c, i) => {
+            if (i === fromCi) return newFromC;
+            if (i === toCi)   return newToC;
+            return c;
+          });
+          const newWorst = Math.max(...newAllCosts);
+
+          // 판단 기준 (우선순위 순):
+          // 1) 제일 늦게 끝나는 기사 시간이 0.5분 이상 줄어들면 → 무조건 교환
+          // 2) 최대시간 변화 없고 합산 시간이 0.5분 이상 줄어들면 → 교환
+          const totalBefore = allCosts[fromCi] + allCosts[toCi];
+          const totalAfter  = newFromC + newToC;
+          if (newWorst < currentWorst - 0.5 ||
+              (newWorst <= currentWorst + 0.1 && totalBefore - totalAfter > 0.5)) {
             assignments[fromCi] = newFrom;
             assignments[toCi]   = newTo;
             improved = true;
