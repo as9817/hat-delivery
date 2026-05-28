@@ -950,11 +950,22 @@ try {
   _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
-// ── 활성 기사 목록 실시간 동기화 (자동배분용) ──
-let _driverAccountsMap = {}; // driverId → {name, active, ...}
+// ── TMS 접속 중인 기사 실시간 동기화 (자동배분용) ──
+// drivers/ 노드: 기사가 TMS 앱 켜고 GPS 켜면 online:true + updatedAt 업데이트
+const DRIVER_ONLINE_THRESHOLD_MS = 30 * 60 * 1000; // 30분 이내 업데이트 = 접속중
+let _tmsOnlineDrivers = {}; // driverId → {name, online, updatedAt, ...}
 if (_fbDb) {
-  _fbDb.ref('driverAccounts').on('value', snap => {
-    _driverAccountsMap = snap.val() || {};
+  _fbDb.ref('drivers').on('value', snap => {
+    _tmsOnlineDrivers = snap.val() || {};
+  });
+}
+
+// 현재 TMS 접속중인 기사 목록 반환
+function getOnlineDrivers() {
+  const now = Date.now();
+  return Object.entries(_tmsOnlineDrivers).filter(([, d]) => {
+    const age = now - (d.updatedAt || 0);
+    return d.online === true && age < DRIVER_ONLINE_THRESHOLD_MS;
   });
 }
 
@@ -3090,9 +3101,9 @@ const mapZone = (() => {
   }
 
   async function autoCluster() {
-    // 활성 기사 확인
-    const activeDrivers = Object.entries(_driverAccountsMap).filter(([,d]) => d.active);
-    if (!activeDrivers.length) { showToast('⚠️ 활성 기사가 없습니다. OMS에서 기사를 활성화해주세요.'); return; }
+    // 현재 TMS 앱 켜고 있는 기사 확인 (30분 이내 GPS 업데이트)
+    const activeDrivers = getOnlineDrivers();
+    if (!activeDrivers.length) { showToast('⚠️ 현재 TMS에 접속 중인 기사가 없습니다. 기사가 TMS 앱을 켜고 GPS를 활성화해야 합니다.'); return; }
 
     // 미배정 + 좌표 있는 주문만
     const allData = loadData().filter(d => d.lat && d.lng);
