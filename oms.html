@@ -1531,6 +1531,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
 <script>
 // ══════════════════════════════════════════
@@ -1547,6 +1548,22 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
+// ══════════════════════════════════════════
+// Firebase Auth 초기화 (DB 보안용 공유계정)
+// ══════════════════════════════════════════
+const _fbAuth = firebase.auth();
+const _FB_OMS_EMAIL = 'admin@wellbing.com';
+const _FB_OMS_PASS  = 'wellbing1234';
+
+(function _fbAutoSignIn() {
+  if (localStorage.getItem('oms_fb_signedout') === '1') return;
+  _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+    return _fbAuth.currentUser
+      ? Promise.resolve()
+      : _fbAuth.signInWithEmailAndPassword(_FB_OMS_EMAIL, _FB_OMS_PASS);
+  }).catch(e => console.warn('[Firebase Auth]', e.message));
+})();
 
 // ══════════════════════════════════════════
 // OMS 인증 시스템
@@ -1608,6 +1625,14 @@ async function omsLogin() {
     }
 
     setOmsSession({ id, name: acct.name, role: acct.role || 'manager' });
+
+    // Firebase Auth 재연결 (로그아웃 후 재로그인 시)
+    localStorage.removeItem('oms_fb_signedout');
+    if (!_fbAuth.currentUser) {
+      _fbAuth.signInWithEmailAndPassword(_FB_OMS_EMAIL, _FB_OMS_PASS)
+        .catch(e => console.warn('[Firebase Auth]', e.message));
+    }
+
     showOmsApp();
 
   } catch(e) {
@@ -1657,6 +1682,8 @@ function toggleSettingsMenu() {
 function omsLogout() {
   if (!confirm('로그아웃 하시겠습니까?')) return;
   clearOmsSession();
+  localStorage.setItem('oms_fb_signedout', '1');
+  _fbAuth.signOut().catch(() => {});
   location.reload();
 }
 

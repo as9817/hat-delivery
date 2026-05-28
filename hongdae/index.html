@@ -16,6 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -949,6 +950,18 @@ try {
   _fbDb = firebase.database();
   _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
+
+// ── Firebase Auth 초기화 (DB 보안용 공유계정) ──
+(function _fbTmsAutoSignIn() {
+  try {
+    const auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+      return auth.currentUser
+        ? Promise.resolve()
+        : auth.signInWithEmailAndPassword('tms@hongdae.com', 'hongdae_tms2026');
+    }).catch(e => console.warn('[Firebase Auth]', e.message));
+  } catch(e) { console.warn('[Firebase Auth init]', e.message); }
+})();
 
 // ── Firebase 주문 실시간 동기화 (배정 주문 수신 + 상태 변경 반영) ──
 let _fbOrdersListener = null;
