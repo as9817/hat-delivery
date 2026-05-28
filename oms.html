@@ -565,6 +565,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
           <div class="settings-item" onclick="showImportModal();toggleSettingsMenu()">📥 주문 가져오기</div>
           <div class="settings-item" onclick="showCustImportModal();toggleSettingsMenu()">👥 고객 가져오기</div>
           <div class="settings-item" onclick="showDriversModal();toggleSettingsMenu()">🚗 기사관리</div>
+          <div class="settings-item" onclick="toggleAutoAssignBar();toggleSettingsMenu()">🤖 자동 배정</div>
           <div class="settings-item" onclick="openOmsMartSettings();toggleSettingsMenu()">🏪 마트위치</div>
           <div class="settings-item" onclick="openLearnedModal();toggleSettingsMenu()">📚 학습주소</div>
           <div class="settings-item" id="menu-accounts" style="display:none" onclick="showAccountsModal();toggleSettingsMenu()">🔐 계정관리</div>
@@ -691,6 +692,20 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       </thead>
       <tbody id="tms-tbody"></tbody>
     </table>
+  </div>
+
+  <!-- ── 자동 배정 패널 ── -->
+  <div id="auto-assign-bar" style="display:none;background:linear-gradient(135deg,#e8eaf6 0%,#f3f4fd 100%);border-radius:10px;margin:0 0 8px;padding:10px 12px;border:1px solid #c5cae9">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:700;color:#1a237e">🤖 K-means 자동 배정</div>
+      <button onclick="document.getElementById('auto-assign-bar').style.display='none'" style="border:none;background:none;font-size:18px;cursor:pointer;color:#aaa;padding:0;line-height:1">×</button>
+    </div>
+    <div style="font-size:11px;color:#555;margin-bottom:8px" id="auto-assign-desc">활성 기사 수에 맞게 구역을 자동 분배하여 미배정 주문을 배정합니다 (3km 이상은 수동 배정 필요)</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="runAutoAssign()">🚀 자동 배정 실행</button>
+      <button class="btn btn-gray btn-sm" onclick="previewAutoAssign()">👁 미리보기</button>
+    </div>
+    <div id="auto-assign-result" style="margin-top:8px;font-size:12px;color:#555"></div>
   </div>
 
   <!-- ── 모바일: 기존 카드 목록 ── -->
@@ -2215,12 +2230,23 @@ function openOrderDetail(id) {
     <!-- 배달 정보 -->
     <div style="background:#f8f9ff;border-radius:14px;padding:14px;margin-bottom:12px">
       <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">배달 정보</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:${Object.keys(driverAccountsList).length>0?'12':'0'}px">
         <div><div style="font-size:11px;color:#aaa">주문시간</div><div style="font-size:13px;font-weight:600">${orderTime}</div></div>
         ${completedTime?`<div><div style="font-size:11px;color:#aaa">완료시간</div><div style="font-size:13px;font-weight:600;color:#2e7d32">✅ ${completedTime}</div></div>`:''}
-        ${o.assignedDriverName?`<div><div style="font-size:11px;color:#aaa">담당기사</div><div style="font-size:13px;font-weight:600">🚗 ${o.assignedDriverName}</div></div>`:''}
         ${o.paymentStatus?`<div><div style="font-size:11px;color:#aaa">결제상태</div><div style="font-size:13px;font-weight:600">${o.paymentStatus==='unpaid'?'⏳ 미완료':o.paymentStatus==='onsite'?'💳 현장결제':'✅ 완납'}</div></div>`:''}
       </div>
+      ${Object.keys(driverAccountsList).filter(id=>driverAccountsList[id].active).length>0?`
+      <div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:6px">🚗 담당기사 배정</div>
+        <select onchange="assignDriver('${o.id}',this.value)"
+          style="width:100%;border:1.5px solid ${o.assignedDriverId?'#1a237e':'#e0e0e0'};border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;color:${o.assignedDriverId?'#1a237e':'#aaa'};background:${o.assignedDriverId?'#E8EAF6':'#fafafa'};cursor:pointer;outline:none;font-weight:${o.assignedDriverId?'700':'400'}">
+          <option value="" ${!o.assignedDriverId?'selected':''}>미배정</option>
+          ${Object.entries(driverAccountsList).filter(([,d])=>d.active).map(([id,d])=>
+            `<option value="${id}" ${o.assignedDriverId===id?'selected':''}>${d.name}</option>`
+          ).join('')}
+        </select>
+        ${o.assignedDriverId?`<div style="font-size:11px;color:#1565C0;margin-top:5px;font-weight:600">✅ ${o.assignedDriverName} 기사 배정됨</div>`:'<div style="font-size:11px;color:#e65100;margin-top:5px">⚠️ 배달발송 전 기사를 먼저 배정해주세요</div>'}
+      </div>`:''}
     </div>
 
     <!-- 영수증 사진 -->
@@ -5067,30 +5093,102 @@ function updateOmsMapMarkers() {
   // 기사별 색상 초기화 (순서 일관성 위해 매번 재계산)
   _driverColorMap = {};
 
-  // 기사별 주문 순번 카운터
-  const driverSeq = {}; // driverId → seq
-
+  // 기사별로 그룹핑
+  const _driverOrderGroups = {};
   todayOrders.forEach(o => {
-    const driverId = o.assignedDriverId || null;
-    const color = getDriverColor(driverId);
+    const key = o.assignedDriverId || '__unassigned';
+    if (!_driverOrderGroups[key]) _driverOrderGroups[key] = [];
+    _driverOrderGroups[key].push(o);
+  });
 
-    // 기사 이니셜: 이름 첫 글자, 없으면 driverId 앞 2자
-    let initial = '미';
-    if (driverId && tmsDriverData[driverId]?.name) {
-      initial = tmsDriverData[driverId].name.charAt(0);
-    } else if (driverId) {
-      initial = driverId.slice(0, 2);
+  // 경로 총 거리 계산 (주어진 순서대로)
+  function _routeTotalKm(ordered) {
+    const mart = getMartLocation();
+    let curLat = mart?.lat || 37.5391, curLng = mart?.lng || 126.9893;
+    let total = 0;
+    for (const o of ordered) {
+      const lat = parseFloat(o.lat), lng = parseFloat(o.lng);
+      total += haversineKm(curLat, curLng, lat, lng);
+      curLat = lat; curLng = lng;
+    }
+    return total;
+  }
+
+  // 경로 최적화: n≤8이면 브루트포스, n>8이면 NN + 2-opt
+  function _optimizeRouteOrder(orderList) {
+    const n = orderList.length;
+    if (n <= 1) return orderList;
+
+    if (n <= 8) {
+      const idxs = orderList.map((_, i) => i);
+      let bestPerm = idxs, bestDist = Infinity;
+      function permute(arr, start) {
+        if (start === arr.length) {
+          const d = _routeTotalKm(arr.map(i => orderList[i]));
+          if (d < bestDist) { bestDist = d; bestPerm = [...arr]; }
+          return;
+        }
+        for (let i = start; i < arr.length; i++) {
+          [arr[start], arr[i]] = [arr[i], arr[start]];
+          permute(arr, start + 1);
+          [arr[start], arr[i]] = [arr[i], arr[start]];
+        }
+      }
+      permute(idxs, 0);
+      return bestPerm.map(i => orderList[i]);
     }
 
-    // 기사별 순번
-    if (!driverSeq[driverId || '__unassigned']) driverSeq[driverId || '__unassigned'] = 0;
-    driverSeq[driverId || '__unassigned']++;
-    const seq = driverSeq[driverId || '__unassigned'];
+    const mart = getMartLocation();
+    let curLat = mart?.lat || 37.5391, curLng = mart?.lng || 126.9893;
+    const remaining = [...orderList];
+    let route = [];
+    while (remaining.length > 0) {
+      let bestIdx = 0, bestDist = Infinity;
+      remaining.forEach((o, i) => {
+        const d = haversineKm(curLat, curLng, parseFloat(o.lat), parseFloat(o.lng));
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      });
+      const next = remaining.splice(bestIdx, 1)[0];
+      route.push(next);
+      curLat = parseFloat(next.lat); curLng = parseFloat(next.lng);
+    }
+    let improved2 = true;
+    while (improved2) {
+      improved2 = false;
+      for (let i = 0; i < route.length - 1; i++) {
+        for (let j = i + 2; j < route.length; j++) {
+          const before = _routeTotalKm(route);
+          const newRoute = [...route.slice(0, i+1), ...route.slice(i+1, j+1).reverse(), ...route.slice(j+1)];
+          if (_routeTotalKm(newRoute) < before - 0.001) { route = newRoute; improved2 = true; }
+        }
+      }
+    }
+    return route;
+  }
 
-    const label = `${initial}-${seq}`;
-    const marker = makeDeliveryMarker(o.lat, o.lng, label, o.status, o.id, driverId ? color : null);
-    marker.setMap(tmsMap);
-    _omsOrderMarkers[o.id] = marker;
+  // 기사별 최적화 순서로 마커 생성
+  Object.entries(_driverOrderGroups).forEach(([groupKey, groupOrders]) => {
+    const sortedOrders = _optimizeRouteOrder(groupOrders);
+    sortedOrders.forEach((o, idx) => {
+      const driverId = o.assignedDriverId || null;
+      const color = getDriverColor(driverId);
+
+      // 기사 이니셜: TMS위치데이터 → 계정목록 → assignedDriverName 순으로 참조
+      let initial = '미';
+      if (driverId) {
+        const driverName =
+          tmsDriverData[driverId]?.name ||
+          driverAccountsList[driverId]?.name ||
+          o.assignedDriverName ||
+          '';
+        initial = driverName ? driverName.charAt(0) : driverId.slice(0, 2);
+      }
+
+      const label = `${initial}-${idx + 1}`;
+      const marker = makeDeliveryMarker(o.lat, o.lng, label, o.status, o.id, driverId ? color : null);
+      marker.setMap(tmsMap);
+      _omsOrderMarkers[o.id] = marker;
+    });
   });
 
   // 마트 중심 2km 반경 뷰 유지 (첫 로드 시에만 적용)
@@ -5112,7 +5210,7 @@ function updateMapLegend() {
   if (!entries.length) { el.innerHTML = ''; return; }
   const todayStart = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
   el.innerHTML = entries.map(([driverId, color]) => {
-    const name = tmsDriverData[driverId]?.name || driverId;
+    const name = tmsDriverData[driverId]?.name || driverAccountsList[driverId]?.name || driverId;
     const initial = name.charAt(0);
     // 오늘 + 진행중 주문만 카운트
     const active = orders.filter(o =>
@@ -5181,6 +5279,253 @@ function focusOrderOnMap(orderId) {
     row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     setTimeout(() => { if (row) row.classList.remove('tms-tr-highlight'); }, 2500);
   }
+}
+
+// ══════════════════════════════════════════
+// 거리 계산 (Haversine)
+// ══════════════════════════════════════════
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// 마트 → 주문 거리 반환 (-1: 좌표 없음)
+function calcOrderDistance(o) {
+  if (!o.lat || !o.lng) return -1;
+  const m = getMartLocation();
+  if (!m || !m.lat || !m.lng) return -1;
+  return haversineKm(m.lat, m.lng, parseFloat(o.lat), parseFloat(o.lng));
+}
+
+// ══════════════════════════════════════════
+// K-means 자동 배정
+// ══════════════════════════════════════════
+function toggleAutoAssignBar() {
+  const bar = document.getElementById('auto-assign-bar');
+  bar.style.display = bar.style.display === 'none' ? 'block' : 'none';
+  if (bar.style.display !== 'none') {
+    const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
+    const unassigned = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status));
+    const farOrders = unassigned.filter(o => calcOrderDistance(o) >= 3);
+    document.getElementById('auto-assign-desc').textContent =
+      `활성 기사 ${activeDrivers.length}명 · 미배정 주문 ${unassigned.length}건 (장거리 ${farOrders.length}건은 수동 배정 필요)`;
+  }
+}
+
+// ── 경로 총 거리 계산 (Nearest Neighbor, 마트 출발) → km 반환 ──
+function _calcRouteKm(orderIds, allPts) {
+  const mart = getMartLocation();
+  let curLat = mart?.lat || 37.5391, curLng = mart?.lng || 126.9893;
+  const pts = orderIds.map(id => allPts.find(p => p.id === id)).filter(Boolean);
+  if (!pts.length) return 0;
+  const remaining = [...pts];
+  let total = 0;
+  while (remaining.length > 0) {
+    let bestIdx = 0, bestDist = Infinity;
+    remaining.forEach((p, i) => {
+      const d = haversineKm(curLat, curLng, p.lat, p.lng);
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    });
+    total += bestDist;
+    const next = remaining.splice(bestIdx, 1)[0];
+    curLat = next.lat; curLng = next.lng;
+  }
+  return total;
+}
+
+// ── 예상 소요시간 계산 → 분 반환 ──
+// 이동시간(경로km ÷ 평균속도 25km/h) + 건당 정지시간(초인종·전달·이동준비 4분)
+const ROUTE_AVG_SPEED_KMH = 25;
+const STOP_MINUTES_PER_ORDER = 4;
+function _calcEstimatedMinutes(orderIds, allPts) {
+  const km = _calcRouteKm(orderIds, allPts);
+  const travelMin = (km / ROUTE_AVG_SPEED_KMH) * 60;
+  const stopMin   = orderIds.length * STOP_MINUTES_PER_ORDER;
+  return travelMin + stopMin;
+}
+
+// ── Order Swap 최적화: 예상 소요시간 기준, minimax 목표 ──
+function _swapOptimizeClusters(clusters, allPts) {
+  const k = clusters.length;
+  if (k < 2) return clusters;
+
+  const assignments = clusters.map(cl => [...cl.ids]);
+  const n = allPts.length;
+  const minSize = 1;
+  const maxSize = Math.ceil(n / k * 1.5);
+
+  let improved = true;
+  let iterations = 0;
+  const beforeTotal = assignments.reduce((s, ids) => s + _calcEstimatedMinutes(ids, allPts), 0);
+
+  while (improved && iterations < 40) {
+    improved = false;
+    iterations++;
+
+    const allCosts = assignments.map(ids => _calcEstimatedMinutes(ids, allPts));
+    const currentWorst = Math.max(...allCosts);
+
+    outer:
+    for (let fromCi = 0; fromCi < k; fromCi++) {
+      if (assignments[fromCi].length <= minSize) continue;
+      for (let oi = 0; oi < assignments[fromCi].length; oi++) {
+        const orderId = assignments[fromCi][oi];
+
+        for (let toCi = 0; toCi < k; toCi++) {
+          if (toCi === fromCi) continue;
+          if (assignments[toCi].length >= maxSize) continue;
+
+          const newFrom  = assignments[fromCi].filter(id => id !== orderId);
+          const newTo    = [...assignments[toCi], orderId];
+          const newFromC = _calcEstimatedMinutes(newFrom, allPts);
+          const newToC   = _calcEstimatedMinutes(newTo,   allPts);
+
+          const newAllCosts = allCosts.map((c, i) => {
+            if (i === fromCi) return newFromC;
+            if (i === toCi)   return newToC;
+            return c;
+          });
+          const newWorst = Math.max(...newAllCosts);
+
+          const totalBefore = allCosts[fromCi] + allCosts[toCi];
+          const totalAfter  = newFromC + newToC;
+          if (newWorst < currentWorst - 0.5 ||
+              (newWorst <= currentWorst + 0.1 && totalBefore - totalAfter > 0.5)) {
+            assignments[fromCi] = newFrom;
+            assignments[toCi]   = newTo;
+            improved = true;
+            break outer;
+          }
+        }
+      }
+    }
+  }
+
+  const afterTotal = assignments.reduce((s, ids) => s + _calcEstimatedMinutes(ids, allPts), 0);
+  const perDriver  = assignments.map(ids => {
+    const min = _calcEstimatedMinutes(ids, allPts);
+    const km  = _calcRouteKm(ids, allPts);
+    return `${ids.length}건·${km.toFixed(1)}km·약${Math.round(min)}분`;
+  });
+  console.log(
+    `[자동배정 Swap] ${iterations}회 반복 | 합산 예상시간 ${beforeTotal.toFixed(1)}분 → ${afterTotal.toFixed(1)}분` +
+    ` (절감 ${(beforeTotal - afterTotal).toFixed(1)}분) | ${perDriver.join(' / ')}`
+  );
+
+  return assignments.map(ids => ({ ids }));
+}
+
+// Constrained K-means + Swap 최적화
+function kMeansClusters(points, k) {
+  if (!points.length || k < 1) return [];
+  k = Math.min(k, points.length);
+  const n = points.length;
+  const maxSize = Math.ceil(n / k * 1.3);
+
+  const pts = points.map(p => ({ ...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng) }));
+  let centers = [];
+  const mart = getMartLocation();
+  const mLat = mart?.lat || 37.5391, mLng = mart?.lng || 126.9893;
+  let best = pts.reduce((b, p) => haversineKm(p.lat, p.lng, mLat, mLng) > haversineKm(b.lat, b.lng, mLat, mLng) ? p : b, pts[0]);
+  centers.push({ lat: best.lat, lng: best.lng });
+
+  for (let i = 1; i < k; i++) {
+    let farthest = null, maxD = -1;
+    pts.forEach(p => {
+      const minD = Math.min(...centers.map(c => haversineKm(p.lat, p.lng, c.lat, c.lng)));
+      if (minD > maxD) { maxD = minD; farthest = p; }
+    });
+    if (farthest) centers.push({ lat: farthest.lat, lng: farthest.lng });
+  }
+
+  let assignments = new Array(n).fill(0);
+
+  for (let iter = 0; iter < 50; iter++) {
+    const costs = pts.map(p => centers.map(c => haversineKm(p.lat, p.lng, c.lat, c.lng)));
+    const pairs = [];
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < k; j++)
+        pairs.push({ pi: i, ci: j, cost: costs[i][j] });
+    pairs.sort((a, b) => a.cost - b.cost);
+
+    const newAssign = new Array(n).fill(-1);
+    const clusterSz = new Array(k).fill(0);
+    for (const { pi, ci } of pairs) {
+      if (newAssign[pi] === -1 && clusterSz[ci] < maxSize) { newAssign[pi] = ci; clusterSz[ci]++; }
+    }
+    for (let i = 0; i < n; i++) {
+      if (newAssign[i] === -1) {
+        for (let j = 0; j < k; j++) {
+          if (clusterSz[j] < maxSize + 1) { newAssign[i] = j; clusterSz[j]++; break; }
+        }
+      }
+    }
+    const changed = newAssign.some((a, i) => a !== assignments[i]);
+    assignments = newAssign;
+    if (!changed) break;
+    centers = centers.map((_, ci) => {
+      const cl = pts.filter((_, i) => assignments[i] === ci);
+      if (!cl.length) return centers[ci];
+      return { lat: cl.reduce((s, p) => s + p.lat, 0) / cl.length, lng: cl.reduce((s, p) => s + p.lng, 0) / cl.length };
+    });
+  }
+
+  const rawClusters = centers.map((_, ci) => ({
+    ids: pts.filter((_, i) => assignments[i] === ci).map(p => p.id)
+  }));
+  return _swapOptimizeClusters(rawClusters, pts);
+}
+
+function previewAutoAssign() {
+  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
+  if (!activeDrivers.length) { showToast('⚠️ 활성 기사가 없습니다'); return; }
+
+  const unassigned = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status) && calcOrderDistance(o) < 3);
+  if (!unassigned.length) { document.getElementById('auto-assign-result').textContent = '배정 가능한 주문이 없습니다 (좌표 필요, 장거리 제외)'; return; }
+
+  const previewPts = unassigned.map(o => ({ lat: parseFloat(o.lat), lng: parseFloat(o.lng), id: o.id }));
+  const clusters = kMeansClusters(previewPts, activeDrivers.length);
+
+  let html = '<div style="font-weight:700;margin-bottom:6px">미리보기 결과:</div>';
+  clusters.forEach((cl, ci) => {
+    const [dId, d] = activeDrivers[ci] || [];
+    const names = cl.ids.map(id => { const o = orders.find(x=>x.id===id); return o ? o.customerName : id; });
+    const routeKm = _calcRouteKm(cl.ids, previewPts).toFixed(1);
+    const estMin  = Math.round(_calcEstimatedMinutes(cl.ids, previewPts));
+    html += `<div style="margin-bottom:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getDriverColor(dId)};margin-right:4px"></span><b>${d?.name||'?'}</b> (${cl.ids.length}건 · ${routeKm}km · 약 ${estMin}분): ${names.join(', ')}</div>`;
+  });
+  document.getElementById('auto-assign-result').innerHTML = html;
+}
+
+async function runAutoAssign() {
+  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
+  if (!activeDrivers.length) { showToast('⚠️ 활성 기사가 없습니다'); return; }
+
+  const unassigned = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status) && calcOrderDistance(o) < 3);
+  const farOrders  = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status) && calcOrderDistance(o) >= 3);
+
+  if (!unassigned.length) {
+    document.getElementById('auto-assign-result').textContent = farOrders.length ? `장거리 ${farOrders.length}건은 수동 배정이 필요합니다` : '배정 가능한 주문이 없습니다';
+    return;
+  }
+
+  const points = unassigned.map(o => ({ lat: parseFloat(o.lat), lng: parseFloat(o.lng), id: o.id }));
+  const clusters = kMeansClusters(points, activeDrivers.length);
+
+  let count = 0;
+  clusters.forEach((cl, ci) => {
+    const [dId] = activeDrivers[ci] || [];
+    if (!dId) return;
+    cl.ids.forEach(orderId => { assignDriver(orderId, dId); count++; });
+  });
+
+  let msg = `✅ ${count}건 자동 배정 완료`;
+  if (farOrders.length) msg += ` (🔴 장거리 ${farOrders.length}건은 수동 배정 필요)`;
+  document.getElementById('auto-assign-result').textContent = msg;
+  showToast(msg);
 }
 
 // ══════════════════════════════════════════
