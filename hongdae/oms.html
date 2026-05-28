@@ -5801,10 +5801,21 @@ function focusOrderOnMap(orderId) {
 // 기사 계정 관리
 // ══════════════════════════════════════════
 let driverAccountsList = {};
+let _driverAccountsRef = null;
 
-db.ref('driverAccounts').on('value', snap => {
-  driverAccountsList = snap.val() || {};
-  renderDriverList();
+// Firebase Auth 준비 완료 후 리스너 시작 (auth != null 규칙 대응)
+_fbAuth.onAuthStateChanged(user => {
+  if (_driverAccountsRef) { _driverAccountsRef.off(); _driverAccountsRef = null; }
+  if (user) {
+    _driverAccountsRef = db.ref('driverAccounts');
+    _driverAccountsRef.on('value', snap => {
+      driverAccountsList = snap.val() || {};
+      renderDriverList();
+    });
+  } else {
+    driverAccountsList = {};
+    renderDriverList();
+  }
 });
 
 function showDriversModal() {
