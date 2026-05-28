@@ -1079,9 +1079,25 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
           <input id="modal-drv-id" type="text" placeholder="driver01" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
         </div>
       </div>
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">비밀번호</label>
-        <input id="modal-drv-pw" type="password" placeholder="비밀번호 설정" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">비밀번호</label>
+          <input id="modal-drv-pw" type="password" placeholder="비밀번호 설정" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">연락처</label>
+          <input id="modal-drv-phone" type="tel" placeholder="010-0000-0000" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">차량 번호</label>
+          <input id="modal-drv-vehicleNum" type="text" placeholder="12가 3456" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">차종</label>
+          <input id="modal-drv-vehicleType" type="text" placeholder="라보, 다마스 등" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
       </div>
       <button onclick="registerDriver('modal')" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ 기사 등록</button>
     </div>
@@ -1089,6 +1105,54 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <!-- 기사 목록 -->
     <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:#333">등록된 기사</div>
     <div id="driver-list-modal" style="max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- 기사 수정 모달 -->
+<div class="stats-modal" id="driver-edit-modal" onclick="if(event.target===this)closeDriverEditModal()">
+  <div class="stats-modal-box" style="max-width:480px">
+    <div class="stats-modal-hdr">
+      <div class="stats-modal-title">✏️ 기사 정보 수정</div>
+      <button class="stats-modal-close" onclick="closeDriverEditModal()">✕</button>
+    </div>
+    <div style="padding:4px 0 8px">
+      <input type="hidden" id="edit-drv-id-key">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">이름</label>
+          <input id="edit-drv-name" type="text" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">아이디 (변경불가)</label>
+          <input id="edit-drv-id-display" type="text" disabled style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none;background:#f5f5f5;color:#999">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">새 비밀번호 (비우면 유지)</label>
+          <input id="edit-drv-pw" type="password" placeholder="변경 시에만 입력" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">연락처</label>
+          <input id="edit-drv-phone" type="tel" placeholder="010-0000-0000" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">차량 번호</label>
+          <input id="edit-drv-vehicleNum" type="text" placeholder="12가 3456" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">차종</label>
+          <input id="edit-drv-vehicleType" type="text" placeholder="라보, 다마스 등" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">주소</label>
+        <input id="edit-drv-address" type="text" placeholder="기사 주소 (선택)" style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;outline:none">
+      </div>
+      <button onclick="saveDriverEdit()" style="width:100%;background:#1a237e;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💾 저장</button>
+    </div>
   </div>
 </div>
 
@@ -5605,22 +5669,33 @@ function renderDriverList() {
   const html = !entries.length
     ? '<div style="text-align:center;color:#999;padding:24px">등록된 기사가 없습니다</div>'
     : entries.map(([id, d]) => `
-      <div style="background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;align-items:center;gap:10px">
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:14px">${d.name} <span style="font-size:11px;color:#999;font-weight:400">(${id})</span></div>
-          <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;${d.active ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fce4ec;color:#c62828'}">${d.active ? '활성' : '비활성'}</span>
+      <div style="background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${d.phone||d.vehicleNum||d.vehicleType?'8':'0'}px">
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:14px">${d.name} <span style="font-size:11px;color:#999;font-weight:400">(${id})</span></div>
+            <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;${d.active ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fce4ec;color:#c62828'}">${d.active ? '활성' : '비활성'}</span>
+          </div>
+          <button onclick="editDriver('${id}')"
+            style="border:none;border-radius:7px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#e8eaf6;color:#1a237e">
+            수정
+          </button>
+          <button onclick="toggleDriverActive('${id}', ${d.active})"
+            style="border:none;border-radius:7px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;${d.active ? 'background:#fce4ec;color:#c62828' : 'background:#e8f5e9;color:#2e7d32'}">
+            ${d.active ? '비활성화' : '활성화'}
+          </button>
+          <button onclick="deleteDriver('${id}', '${d.name}')"
+            style="border:none;border-radius:7px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#f5f5f5;color:#888">
+            삭제
+          </button>
         </div>
-        <button onclick="toggleDriverActive('${id}', ${d.active})"
-          style="border:none;border-radius:7px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;${d.active ? 'background:#fce4ec;color:#c62828' : 'background:#e8f5e9;color:#2e7d32'}">
-          ${d.active ? '비활성화' : '활성화'}
-        </button>
-        <button onclick="deleteDriver('${id}', '${d.name}')"
-          style="border:none;border-radius:7px;padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#f5f5f5;color:#888">
-          삭제
-        </button>
+        ${d.phone||d.vehicleNum||d.vehicleType||d.address ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:#666">
+          ${d.phone ? `<span>📞 ${d.phone}</span>` : ''}
+          ${d.vehicleNum ? `<span>🚗 ${d.vehicleNum}` + (d.vehicleType ? ` (${d.vehicleType})` : '') + `</span>` : (d.vehicleType ? `<span>🚗 ${d.vehicleType}</span>` : '')}
+          ${d.address ? `<span>📍 ${d.address}</span>` : ''}
+        </div>` : ''}
       </div>`).join('');
 
-  // 모달 목록과 탭 목록 모두 업데이트
   const modal = document.getElementById('driver-list-modal');
   if (modal) modal.innerHTML = html;
   const tab = document.getElementById('driver-list');
@@ -5628,27 +5703,76 @@ function renderDriverList() {
 }
 
 function registerDriver(src) {
-  // src='modal' → 기사관리 모달, 나머지 → 기사 탭 화면
   const prefix = src === 'modal' ? 'modal-drv-' : 'drv-';
-  const name = document.getElementById(prefix + 'name').value.trim();
-  const id   = document.getElementById(prefix + 'id').value.trim();
-  const pw   = document.getElementById(prefix + 'pw').value.trim();
+  const name        = document.getElementById(prefix + 'name').value.trim();
+  const id          = document.getElementById(prefix + 'id').value.trim();
+  const pw          = document.getElementById(prefix + 'pw').value.trim();
+  const phone       = (document.getElementById(prefix + 'phone')?.value || '').trim();
+  const vehicleNum  = (document.getElementById(prefix + 'vehicleNum')?.value || '').trim();
+  const vehicleType = (document.getElementById(prefix + 'vehicleType')?.value || '').trim();
 
   if (!name || !id || !pw) { showToast('이름, 아이디, 비밀번호를 모두 입력하세요'); return; }
-  if (!/^[a-zA-Z0-9_]+$/.test(id)) { showToast('아이디는 영문/숫자/밑줄만 가능합니다'); return; }
+  if (!/^[a-zA-Z0-9_가-힣]+$/.test(id)) { showToast('아이디는 영문/숫자/밑줄/한글만 가능합니다'); return; }
 
   db.ref('driverAccounts/' + id).once('value').then(snap => {
     if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return null; }
-    return db.ref('driverAccounts/' + id).set({
-      name, password: pw, active: true, createdAt: Date.now()
-    });
+    const data = { name, password: pw, active: true, createdAt: Date.now() };
+    if (phone) data.phone = phone;
+    if (vehicleNum) data.vehicleNum = vehicleNum;
+    if (vehicleType) data.vehicleType = vehicleType;
+    return db.ref('driverAccounts/' + id).set(data);
   }).then(result => {
-    if (result === null) return; // 중복 ID → 체인 중단
+    if (result === null) return;
     showToast('✅ ' + name + ' 기사 등록 완료');
-    document.getElementById(prefix + 'name').value = '';
-    document.getElementById(prefix + 'id').value = '';
-    document.getElementById(prefix + 'pw').value = '';
+    ['name','id','pw','phone','vehicleNum','vehicleType'].forEach(f => {
+      const el = document.getElementById(prefix + f);
+      if (el) el.value = '';
+    });
   }).catch(e => showToast('오류: ' + e.message));
+}
+
+function editDriver(id) {
+  const d = driverAccountsList[id];
+  if (!d) return;
+  document.getElementById('edit-drv-id-key').value = id;
+  document.getElementById('edit-drv-id-display').value = id;
+  document.getElementById('edit-drv-name').value = d.name || '';
+  document.getElementById('edit-drv-pw').value = '';
+  document.getElementById('edit-drv-phone').value = d.phone || '';
+  document.getElementById('edit-drv-vehicleNum').value = d.vehicleNum || '';
+  document.getElementById('edit-drv-vehicleType').value = d.vehicleType || '';
+  document.getElementById('edit-drv-address').value = d.address || '';
+  document.getElementById('driver-edit-modal').classList.add('show');
+}
+
+function closeDriverEditModal() {
+  document.getElementById('driver-edit-modal').classList.remove('show');
+}
+
+function saveDriverEdit() {
+  const id          = document.getElementById('edit-drv-id-key').value;
+  const name        = document.getElementById('edit-drv-name').value.trim();
+  const pw          = document.getElementById('edit-drv-pw').value.trim();
+  const phone       = document.getElementById('edit-drv-phone').value.trim();
+  const vehicleNum  = document.getElementById('edit-drv-vehicleNum').value.trim();
+  const vehicleType = document.getElementById('edit-drv-vehicleType').value.trim();
+  const address     = document.getElementById('edit-drv-address').value.trim();
+
+  if (!name) { showToast('이름을 입력하세요'); return; }
+
+  const updates = { name };
+  if (pw) updates.password = pw;
+  if (phone) updates.phone = phone; else updates.phone = null;
+  if (vehicleNum) updates.vehicleNum = vehicleNum; else updates.vehicleNum = null;
+  if (vehicleType) updates.vehicleType = vehicleType; else updates.vehicleType = null;
+  if (address) updates.address = address; else updates.address = null;
+
+  db.ref('driverAccounts/' + id).update(updates)
+    .then(() => {
+      showToast('✅ ' + name + ' 정보 수정 완료');
+      closeDriverEditModal();
+    })
+    .catch(e => showToast('오류: ' + e.message));
 }
 
 function toggleDriverActive(id, currentActive) {
