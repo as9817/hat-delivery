@@ -1602,6 +1602,12 @@ async function omsLogin() {
   document.querySelector('.login-btn').disabled = true;
 
   try {
+    // Firebase Auth가 아직 로그인 안 된 경우 먼저 인증
+    if (!_fbAuth.currentUser) {
+      await _fbAuth.signInWithEmailAndPassword(_FB_OMS_EMAIL, _FB_OMS_PASS);
+      localStorage.removeItem('oms_fb_signedout');
+    }
+
     // Firebase에서 계정 조회
     const snap = await db.ref('settings/omsAccounts').once('value');
     let accts = snap.val() || {};
