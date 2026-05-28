@@ -1604,8 +1604,16 @@ async function omsLogin() {
   try {
     // Firebase Auth가 아직 로그인 안 된 경우 먼저 인증
     if (!_fbAuth.currentUser) {
-      await _fbAuth.signInWithEmailAndPassword(_FB_OMS_EMAIL, _FB_OMS_PASS);
-      localStorage.removeItem('oms_fb_signedout');
+      try {
+        await _fbAuth.signInWithEmailAndPassword(_FB_OMS_EMAIL, _FB_OMS_PASS);
+        localStorage.removeItem('oms_fb_signedout');
+      } catch(authErr) {
+        errEl.textContent = '[Auth오류] ' + authErr.code + ': ' + authErr.message;
+        errEl.classList.add('show');
+        loadEl.classList.remove('show');
+        document.querySelector('.login-btn').disabled = false;
+        return;
+      }
     }
 
     // Firebase에서 계정 조회
