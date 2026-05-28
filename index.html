@@ -1962,6 +1962,76 @@ function resetAll() {
 // ══════════════════════════════════════════════════════
 let ocrImageFile = null;
 
+// ── EXIF Orientation 읽기 (세로 촬영 사진 가로 표시 방지) ──
+function getExifOrientation(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const view = new DataView(e.target.result);
+        if (view.getUint16(0, false) !== 0xFFD8) { resolve(1); return; }
+        let offset = 2;
+        while (offset < view.byteLength) {
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if (marker === 0xFFE1) {
+            offset += 2; // length
+            if (view.getUint32(offset, false) !== 0x45786966) { resolve(1); return; }
+            const little = view.getUint16(offset + 6, false) === 0x4949;
+            offset += 6 + view.getUint32(offset + 10, little);
+            const tags = view.getUint16(offset, little);
+            offset += 2;
+            for (let i = 0; i < tags; i++) {
+              if (view.getUint16(offset + i * 12, little) === 0x0112) {
+                resolve(view.getUint16(offset + i * 12 + 8, little));
+                return;
+              }
+            }
+            resolve(1); return;
+          } else if ((marker & 0xFF00) !== 0xFF00) break;
+          else offset += view.getUint16(offset, false);
+        }
+      } catch(e) {}
+      resolve(1);
+    };
+    reader.onerror = () => resolve(1);
+    reader.readAsArrayBuffer(file.slice(0, 65536));
+  });
+}
+
+// ── Orientation에 맞춰 Canvas 크기 조정 + 회전 적용 후 그리기 ──
+function drawRotated(file, img, maxSide) {
+  return getExifOrientation(file).then(orientation => {
+    const rotated = orientation >= 5; // 5,6,7,8 → 90/270° → 가로세로 뒤바뀜
+    const srcW = img.naturalWidth  || img.width;
+    const srcH = img.naturalHeight || img.height;
+    const longSide = Math.max(srcW, srcH);
+    const scale = Math.min(1, maxSide / longSide);
+    const dw = rotated ? Math.round(srcH * scale) : Math.round(srcW * scale);
+    const dh = rotated ? Math.round(srcW * scale) : Math.round(srcH * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = dw;
+    canvas.height = dh;
+    const ctx = canvas.getContext('2d');
+
+    ctx.save();
+    switch (orientation) {
+      case 2: ctx.transform(-1, 0, 0,  1,  dw,   0); break;
+      case 3: ctx.transform(-1, 0, 0, -1,  dw,  dh); break;
+      case 4: ctx.transform( 1, 0, 0, -1,   0,  dh); break;
+      case 5: ctx.transform( 0, 1, 1,  0,   0,   0); break;
+      case 6: ctx.transform( 0, 1,-1,  0,  dh,   0); break;
+      case 7: ctx.transform( 0,-1,-1,  0,  dh,  dw); break;
+      case 8: ctx.transform( 0,-1, 1,  0,   0,  dw); break;
+      default: break;
+    }
+    ctx.drawImage(img, 0, 0, srcW * scale, srcH * scale);
+    ctx.restore();
+    return canvas;
+  });
+}
+
 function handleFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1996,34 +2066,30 @@ async function startOCR(file) {
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
-        const scale = Math.min(1, 800 / Math.max(img.width, img.height));
-        const canvas = document.createElement('canvas');
-        canvas.width  = Math.round(img.width  * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        // 빨간/분홍 손글씨 제거: HSL 색상 기반으로 빨강 계열 픽셀 → 흰색
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const d = imgData.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const r = d[i]/255, g = d[i+1]/255, b = d[i+2]/255;
-          const max = Math.max(r,g,b), min = Math.min(r,g,b), delta = max - min;
-          if (delta < 0.1 || max < 0.3) continue; // 무채색·너무 어두운 픽셀 제외
-          let h = 0;
-          if (delta > 0) {
-            if (max === r) h = ((g - b) / delta) % 6;
-            else if (max === g) h = (b - r) / delta + 2;
-            else h = (r - g) / delta + 4;
-            h = h * 60; if (h < 0) h += 360;
+        drawRotated(file, img, 800).then(canvas => {
+          URL.revokeObjectURL(url);
+          // 빨간/분홍 손글씨 제거: HSL 색상 기반으로 빨강 계열 픽셀 → 흰색
+          const ctx = canvas.getContext('2d');
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i]/255, g = d[i+1]/255, b = d[i+2]/255;
+            const max = Math.max(r,g,b), min = Math.min(r,g,b), delta = max - min;
+            if (delta < 0.1 || max < 0.3) continue;
+            let h = 0;
+            if (delta > 0) {
+              if (max === r) h = ((g - b) / delta) % 6;
+              else if (max === g) h = (b - r) / delta + 2;
+              else h = (r - g) / delta + 4;
+              h = h * 60; if (h < 0) h += 360;
+            }
+            if ((h <= 30 || h >= 330) && delta > 0.2) {
+              d[i] = d[i+1] = d[i+2] = 255;
+            }
           }
-          // 빨강 계열 Hue(0~30° 또는 330~360°) + 채도 충분한 경우 흰색으로
-          if ((h <= 30 || h >= 330) && delta > 0.2) {
-            d[i] = d[i+1] = d[i+2] = 255;
-          }
-        }
-        ctx.putImageData(imgData, 0, 0);
-        URL.revokeObjectURL(url);
-        resolve(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
+        });
       };
       img.onerror = () => reject(new Error('이미지 로드 실패'));
       img.src = url;
