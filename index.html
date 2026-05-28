@@ -950,6 +950,14 @@ try {
   _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
+// ── 활성 기사 목록 실시간 동기화 (자동배분용) ──
+let _driverAccountsMap = {}; // driverId → {name, active, ...}
+if (_fbDb) {
+  _fbDb.ref('driverAccounts').on('value', snap => {
+    _driverAccountsMap = snap.val() || {};
+  });
+}
+
 // ── Firebase 주문 실시간 동기화 (배정 주문 수신 + 상태 변경 반영) ──
 let _fbOrdersListener = null;
 
@@ -2984,53 +2992,138 @@ const mapZone = (() => {
     panel.style.display = 'block';
   }
 
-  // ── K-Means 자동 구역 배분 ──────────────────────────
-  const DRIVER_NAMES  = ['A기사', 'B기사', 'C기사', 'D기사', 'E기사'];
-  const DRIVER_EMOJIS = ['🔵', '🔴', '🟢', '🟡', '🟣'];
+  // ── K-Means 자동 구역 배분 + Firebase 실제 배정 ──────────────────────────
+  const CLUSTER_COLORS = ['#2196F3','#F44336','#4CAF50','#FF9800','#9C27B0'];
 
-  function autoCluster(k = 2) {
-    const data = loadData().filter(d => d.lat && d.lng);
-    if (data.length < k) {
-      alert(`배송지가 최소 ${k}건 이상 있어야 합니다.`); return;
+  // 예상 소요시간 계산 (이동시간 + 건당 정지시간)
+  function _estMinutes(group, martLoc) {
+    if (!group.length) return 0;
+    let curLat = martLoc.lat, curLng = martLoc.lng, totalKm = 0;
+    const remaining = [...group];
+    while (remaining.length) {
+      let bi = 0, bd = Infinity;
+      remaining.forEach((p, i) => { const d = haversine({lat:curLat,lng:curLng}, p); if (d < bd) { bd = d; bi = i; } });
+      totalKm += bd;
+      const next = remaining.splice(bi, 1)[0];
+      curLat = next.lat; curLng = next.lng;
+    }
+    return (totalKm / 25) * 60 + group.length * 4; // 25km/h, 건당 4분
+  }
+
+  // Constrained K-means + Swap 최적화
+  function _smartCluster(points, k) {
+    if (!points.length || k < 1) return [];
+    k = Math.min(k, points.length);
+    const n = points.length;
+    const maxSize = Math.ceil(n / k * 1.3);
+    const mart = getMartLocation();
+    const mLat = mart?.lat || 37.5391, mLng = mart?.lng || 126.9893;
+
+    // K-means++ 초기화: 마트에서 가장 먼 점 → 순차 확장
+    let centers = [];
+    let best = points.reduce((b, p) => haversine(p, {lat:mLat,lng:mLng}) > haversine(b, {lat:mLat,lng:mLng}) ? p : b, points[0]);
+    centers.push({lat: best.lat, lng: best.lng});
+    for (let i = 1; i < k; i++) {
+      let far = null, maxD = -1;
+      points.forEach(p => {
+        const minD = Math.min(...centers.map(c => haversine(p, c)));
+        if (minD > maxD) { maxD = minD; far = p; }
+      });
+      if (far) centers.push({lat: far.lat, lng: far.lng});
     }
 
-    // 기존 자동 구역 제거 (수동 구역은 유지)
-    zones = zones.filter(z => {
-      if (z.auto) { z.polygon.remove(); return false; }
-      return true;
-    });
-
-    // K-Means 실행
-    const labels = kMeans(data, k);
-
-    // 기사 이름 선택 팝업
-    const numStr = prompt(
-      `몇 명의 기사로 배분할까요? (현재 ${data.length}骱)\n예) 2 또는 3`,
-      String(k)
-    );
-    const actualK = parseInt(numStr);
-    if (!actualK || actualK < 1 || actualK > 5) {
-      showToast('1~5 사이 숫자를 입력하세요'); return;
+    let assignments = new Array(n).fill(0);
+    for (let iter = 0; iter < 50; iter++) {
+      const pairs = [];
+      for (let i = 0; i < n; i++)
+        for (let j = 0; j < k; j++)
+          pairs.push({ pi: i, ci: j, cost: haversine(points[i], centers[j]) });
+      pairs.sort((a, b) => a.cost - b.cost);
+      const newAssign = new Array(n).fill(-1);
+      const sz = new Array(k).fill(0);
+      for (const {pi, ci} of pairs) {
+        if (newAssign[pi] === -1 && sz[ci] < maxSize) { newAssign[pi] = ci; sz[ci]++; }
+      }
+      for (let i = 0; i < n; i++) {
+        if (newAssign[i] === -1) {
+          for (let j = 0; j < k; j++) { if (sz[j] < maxSize + 1) { newAssign[i] = j; sz[j]++; break; } }
+        }
+      }
+      const changed = newAssign.some((a, i) => a !== assignments[i]);
+      assignments = newAssign;
+      if (!changed) break;
+      centers = centers.map((_, ci) => {
+        const cl = points.filter((_, i) => assignments[i] === ci);
+        if (!cl.length) return centers[ci];
+        return { lat: cl.reduce((s,p) => s+p.lat, 0)/cl.length, lng: cl.reduce((s,p) => s+p.lng, 0)/cl.length };
+      });
     }
 
-    const finalLabels = actualK === k ? labels : kMeans(data, actualK);
-    const clusterColors = ['#2196F3','#F44336','#4CAF50','#FF9800','#9C27B0'];
+    // Swap 최적화 (minimax: 제일 늦게 끝나는 기사 시간 최소화)
+    const mart2 = getMartLocation();
+    const grps = centers.map((_, ci) => points.filter((_, i) => assignments[i] === ci));
+    const asgn = grps.map(g => [...g]);
+    let improved = true;
+    for (let iter2 = 0; improved && iter2 < 40; iter2++) {
+      improved = false;
+      const costs = asgn.map(g => _estMinutes(g, mart2));
+      const worst = Math.max(...costs);
+      outer2:
+      for (let fi = 0; fi < k; fi++) {
+        if (asgn[fi].length <= 1) continue;
+        for (let oi = 0; oi < asgn[fi].length; oi++) {
+          const item = asgn[fi][oi];
+          for (let ti = 0; ti < k; ti++) {
+            if (ti === fi || asgn[ti].length >= Math.ceil(n / k * 1.5)) continue;
+            const nf = asgn[fi].filter((_, i) => i !== oi);
+            const nt = [...asgn[ti], item];
+            const nCosts = costs.map((c,i) => i===fi ? _estMinutes(nf,mart2) : i===ti ? _estMinutes(nt,mart2) : c);
+            const nWorst = Math.max(...nCosts);
+            if (nWorst < worst - 0.5 || (nWorst <= worst + 0.1 && costs[fi]+costs[ti] - nCosts[fi]-nCosts[ti] > 0.5)) {
+              asgn[fi] = nf; asgn[ti] = nt; improved = true; break outer2;
+            }
+          }
+        }
+      }
+    }
+    return asgn; // [[point,...], [point,...], ...]
+  }
 
-    // 결과 HTML
-    let resultHtml = `<h4>🤖 K-Means 자동 배분 결과 (${actualK}명)</h4>`;
+  async function autoCluster() {
+    // 활성 기사 확인
+    const activeDrivers = Object.entries(_driverAccountsMap).filter(([,d]) => d.active);
+    if (!activeDrivers.length) { showToast('⚠️ 활성 기사가 없습니다. OMS에서 기사를 활성화해주세요.'); return; }
 
-    for (let c = 0; c < actualK; c++) {
-      const group = data.filter((_, i) => finalLabels[i] === c);
-      if (!group.length) continue;
+    // 미배정 + 좌표 있는 주문만
+    const allData = loadData().filter(d => d.lat && d.lng);
+    const unassigned = allData.filter(d => !d.assignedDriverId && ['pending','confirmed'].includes(d.status));
+    if (!unassigned.length) { showToast('배정 가능한 미배정 주문이 없습니다'); return; }
 
-      const color = clusterColors[c % clusterColors.length];
-      const emoji = DRIVER_EMOJIS[c];
-      const name  = DRIVER_NAMES[c];
+    const k = activeDrivers.length;
+    const mart = getMartLocation();
 
-      // Convex Hull → 확장 → 폴리곤
-      const hull     = convexHull(group);
+    // 기존 자동 구역 제거
+    zones = zones.filter(z => { if (z.auto) { z.polygon.remove(); return false; } return true; });
+
+    // 클러스터링 실행
+    const groups = _smartCluster(unassigned, k);
+    const clusterColors = CLUSTER_COLORS;
+
+    let resultHtml = `<h4>🤖 자동 배분 결과 (${k}명)</h4>`;
+    let assignCount = 0;
+    const promises = [];
+
+    groups.forEach((group, ci) => {
+      if (!group.length) return;
+      const [dId, dInfo] = activeDrivers[ci] || [];
+      if (!dId) return;
+
+      const color = clusterColors[ci % clusterColors.length];
+      const estMin = Math.round(_estMinutes(group, mart));
+
+      // 지도 폴리곤 시각화
+      const hull = convexHull(group);
       const expanded = hull.length >= 3 ? expandHull(hull, 0.004) : hull;
-
       const path = expanded.map(p => new kakao.maps.LatLng(p.lat, p.lng));
       const poly = new kakao.maps.Polygon({
         path, strokeColor: color, strokeWeight: 2.5, strokeOpacity: 1,
@@ -3038,30 +3131,41 @@ const mapZone = (() => {
       });
       poly.setMap(map);
       const center = polygonCenter(expanded);
-      const lbl = makeZoneLabel(center.lat, center.lng, `${emoji} ${name} (${group.length}건)`);
+      const lbl = makeZoneLabel(center.lat, center.lng, `${dInfo?.name||dId} (${group.length}건·약${estMin}분)`);
       lbl.setMap(map);
+      zones.push({ id: `auto_${ci}`, points: expanded, polygon: poly, label: lbl, color, auto: true });
 
-      zones.push({ id: `auto_${c}`, points: expanded, polygon: poly, label: lbl, color, auto: true });
+      // Firebase 실제 배정
+      group.forEach(order => {
+        promises.push(
+          _fbDb.ref('orders/' + order.id).update({
+            assignedDriverId:   dId,
+            assignedDriverName: dInfo?.name || dId,
+            assignedAt:         Date.now(),
+            status:             order.status === 'pending' ? 'confirmed' : order.status
+          })
+        );
+        assignCount++;
+      });
 
-      // 결과 패널 행
       resultHtml += `
         <div class="zone-row">
-          <span class="zbadge" style="background:${color};color:#fff">${emoji} ${name}</span>
-          <span style="color:#aaa;font-size:11px">${group.length}건</span>
-          ${group.map(d => `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName}</span>`).join('')}
+          <span class="zbadge" style="background:${color};color:#fff">${dInfo?.name||dId}</span>
+          <span style="color:#aaa;font-size:11px">${group.length}건 · 약 ${estMin}분</span>
+          ${group.map(d => `<span class="zbadge" style="background:#f5f5f5;color:#333">${d.customerName||''}</span>`).join('')}
         </div>`;
-    }
+    });
 
-    // 결과 패널 표시
+    await Promise.all(promises);
+
     const panel = document.getElementById('map-result');
     panel.innerHTML = resultHtml;
     panel.style.display = 'block';
 
-    // 지도 범위 맞춤
-    const allCoords = data.map(d => [d.lat, d.lng]);
+    const allCoords = unassigned.map(d => [d.lat, d.lng]);
     if (allCoords.length > 1) { const b = makeBounds(allCoords); map.setBounds(b, 50, 50, 50, 50); }
 
-    showToast(`✅ ${actualK}명 기사 구역 자동 배분 완료`);
+    showToast(`✅ ${assignCount}건 자동 배정 완료`);
   }
 
   return { init, showMode, startDraw, finishDraw, cancelDraw, clearZones, checkPIP, autoCluster };
