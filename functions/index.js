@@ -44,7 +44,10 @@ exports.processReceipt = functions
       const parsed = await parseWithGemini(rawText, GEMINI_KEY);
 
       logger.info('STEP 3: Kakao API');
-      const location = await standardizeAddress(parsed.address, KAKAO_KEY);
+      const martSnap = await db.ref('settings/martLocation').once('value').catch(() => null);
+      const martData = martSnap?.val() || {};
+      const nearbyDongs = Array.isArray(martData.nearbyDongs) ? martData.nearbyDongs : [];
+      const location = await standardizeAddress(parsed.address, KAKAO_KEY, nearbyDongs);
 
       res.status(200).json({
         status: 'success',
@@ -333,15 +336,33 @@ async function parseOrderWithGemini(message, apiKey) {
   try { return JSON.parse(m[0]); } catch (e) { logger.warn('JSON 파싱 실패:', m[0]); return {}; }
 }
 
-async function standardizeAddress(rawAddress, kakaoKey) {
+async function kakaoAddrSearch(query, kakaoKey) {
+  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=1`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const doc = data.documents?.[0];
+  if (!doc) return null;
+  return { road_address: doc.road_address?.address_name || doc.address?.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+}
+
+async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = []) {
   if (!rawAddress?.trim()) return { road_address: '', detail_address: '', lat: null, lng: null };
   const dm = rawAddress.match(/\d+호|\d+동|\d+층/);
   const da = dm ? dm[0] : '';
   const q  = da ? rawAddress.slice(0, rawAddress.lastIndexOf(da)).trim() : rawAddress.trim();
-  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=1`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
-  if (!res.ok) throw new Error(`Kakao: ${res.status}`);
-  const data = await res.json();
-  const doc = data.documents?.[0];
-  if (!doc) return { road_address: q, detail_address: da, lat: null, lng: null };
-  return { road_address: doc.road_address?.address_name || doc.address?.address_name || q, detail_address: da, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+
+  // 1차: 원본 주소 검색
+  const r1 = await kakaoAddrSearch(q, kakaoKey);
+  if (r1) return { ...r1, detail_address: da };
+
+  // 지번 형태가 아니면 포기
+  if (!/^\d/.test(q) || nearbyDongs.length === 0) return { road_address: q, detail_address: da, lat: null, lng: null };
+
+  // 2차: 주변 동 이름 순서대로 시도
+  for (const dong of nearbyDongs) {
+    const r2 = await kakaoAddrSearch(dong + ' ' + q, kakaoKey);
+    if (r2) { logger.info('주변동 검색 성공:', dong, r2.road_address); return { ...r2, detail_address: da }; }
+  }
+
+  return { road_address: q, detail_address: da, lat: null, lng: null };
 }
