@@ -410,6 +410,13 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     logger.info('건물명 키워드 검색:', q);
     const rk = await kakaoKeywordSearch(q, kakaoKey, martLat, martLng);
     if (rk) { logger.info('키워드 검색 성공:', rk.road_address); return { ...rk, detail_address: da }; }
+
+    // 주소 검색 실패 시 고객명(상호명)으로 2차 시도
+    if (fallbackName && fallbackName !== q) {
+      logger.info('고객명으로 2차 키워드 검색:', fallbackName);
+      const rk2 = await kakaoKeywordSearch(fallbackName, kakaoKey, martLat, martLng);
+      if (rk2) { logger.info('고객명 검색 성공:', rk2.road_address); return { ...rk2, detail_address: da }; }
+    }
   }
 
   return { road_address: rawAddress, detail_address: '', lat: null, lng: null };
