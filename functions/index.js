@@ -46,7 +46,14 @@ exports.processReceipt = functions
       logger.info('STEP 3: Kakao API');
       const martSnap = await db.ref('settings/martLocation').once('value').catch(() => null);
       const martData = martSnap?.val() || {};
-      const nearbyDongs = Array.isArray(martData.nearbyDongs) ? martData.nearbyDongs : [];
+      const savedDongs = Array.isArray(martData.nearbyDongs) ? martData.nearbyDongs : [];
+      // 마트 기본 동(이태원동 등)을 항상 맨 앞에
+      const martDongMatch = (martData.oldAddress || '').match(/([가-힣]+동)/);
+      const martDong = martDongMatch ? martDongMatch[1] : '';
+      const nearbyDongs = martDong
+        ? [martDong, ...savedDongs.filter(d => d !== martDong)]
+        : savedDongs;
+      logger.info('주변 동 검색 순서:', nearbyDongs.join(' → '));
       const location = await standardizeAddress(parsed.address, KAKAO_KEY, nearbyDongs);
 
       res.status(200).json({
