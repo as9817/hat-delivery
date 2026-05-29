@@ -56,6 +56,7 @@ exports.processReceipt = functions
             lat: location.lat || null,
             lng: location.lng || null,
           },
+          totalAmount: parsed.totalAmount || '',
         },
       });
     } catch (err) {
@@ -84,7 +85,16 @@ async function extractTextWithVision(base64Image, apiKey) {
 }
 
 async function parseWithGemini(rawText, apiKey) {
-  const prompt = "너는 마트 영수증 데이터 파싱 전문가야. 1. 고객명('성명:' 옆 텍스트, '합계금액' 무시), 2. 연락처('010' 패턴), 3. 주소('주소:' 뒤 한 줄 병합). 반드시 JSON({name,phone,address})으로만 응답.\n\n[OCR]\n" + rawText;
+  const prompt = `너는 마트 영수증 데이터 파싱 전문가야. 아래 OCR 텍스트에서 다음 4가지를 추출해:
+1. name: 고객명 ('성명:' 옆 텍스트. '합계금액' 키워드 자체는 이름이 아님)
+2. phone: 연락처 ('010'으로 시작하는 전화번호)
+3. address: 주소 ('주소:' 뒤 텍스트 한 줄 병합)
+4. totalAmount: 합계금액 (영수증에서 '합계', '합 계', '총합계', '결제금액' 키워드 바로 옆/아래 숫자. 쉼표 제거한 순수 숫자만. 상품 바코드나 상품코드가 아닌 최종 결제 금액)
+
+반드시 JSON({name,phone,address,totalAmount})으로만 응답. totalAmount는 숫자 문자열(예: "17300").
+
+[OCR]
+` + rawText;
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 256 } }) }
@@ -107,7 +117,7 @@ exports.receiveOrder = functions
   .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Auth-Token');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Auth-Token, Accept');
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
 
@@ -116,8 +126,12 @@ exports.receiveOrder = functions
     const token = req.headers['x-auth-token'];
     if (token !== AUTH_TOKEN) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
-    const { message, channel = 'sms', sender = '' } = req.body;
-    if (!message?.trim()) { res.status(400).json({ error: 'message 없음' }); return; }
+    // JSON 또는 form-urlencoded 둘 다 지원
+    const body = req.body || {};
+    const message = (body.message || '').trim();
+    const channel = body.channel || 'sms';
+    const sender  = body.sender  || '';
+    if (!message) { res.status(400).json({ error: 'message 없음' }); return; }
 
     const GEMINI_KEY = process.env.GEMINI_KEY;
     const KAKAO_KEY  = process.env.KAKAO_KEY;
@@ -263,7 +277,7 @@ exports.receiveOrder = functions
         id:           orderId,
         customerName: finalName   || '미확인',
         address:      finalAddress,
-        phone:        parsed.phone   || '-',
+        phone:        parsed.phone   || sender || '-',
         items:        finalItems,
         memo:         parsed.memo    || '',
         status:       'pending',
