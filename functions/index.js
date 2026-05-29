@@ -44,6 +44,20 @@ exports.processReceipt = functions
       const parsed = await parseWithGemini(rawText, GEMINI_KEY);
 
       logger.info('STEP 3: Kakao API');
+      // 학습주소 먼저 확인
+      if (parsed.name) {
+        const learnedSnap = await db.ref('settings/learnedLocations/' + parsed.name).once('value').catch(() => null);
+        const learned = learnedSnap?.val();
+        if (learned?.road_address) {
+          logger.info('학습주소 적용:', parsed.name, learned.road_address);
+          res.status(200).json({ status: 'success', data: {
+            customer: { name: parsed.name, phone: parsed.phone || '' },
+            location: { road_address: learned.road_address, detail_address: learned.detail_address || '', lat: learned.lat || null, lng: learned.lng || null },
+            totalAmount: parsed.totalAmount || '',
+          }});
+          return;
+        }
+      }
       const martSnap = await db.ref('settings/martLocation').once('value').catch(() => null);
       const martData = martSnap?.val() || {};
       const savedDongs = Array.isArray(martData.nearbyDongs) ? martData.nearbyDongs : [];
