@@ -44,7 +44,25 @@ exports.processReceipt = functions
       const parsed = await parseWithGemini(rawText, GEMINI_KEY);
 
       logger.info('STEP 3: Kakao API');
-      const location = await standardizeAddress(parsed.address, KAKAO_KEY);
+      // 마트 지역 읽어서 짧은 지번 주소 앞에 붙이기
+      let martDistrict = '';
+      try {
+        const martSnap = await db.ref('settings/martLocation').once('value');
+        const martData = martSnap.val();
+        if (martData?.oldAddress) {
+          const dm = martData.oldAddress.match(/^(.+?동)/);
+          martDistrict = dm ? dm[1].trim() : martData.oldAddress.trim();
+        } else if (martData?.address) {
+          const m = martData.address.match(/^(.+?(?:구|군))/);
+          if (m) martDistrict = m[1].trim();
+        }
+      } catch(e) { logger.warn('마트 위치 읽기 실패'); }
+
+      const queryAddr = (martDistrict && parsed.address && parsed.address.match(/^\d+-?\d*$/))
+        ? martDistrict + ' ' + parsed.address
+        : parsed.address;
+      logger.info('Kakao 검색 주소:', queryAddr);
+      const location = await standardizeAddress(queryAddr, KAKAO_KEY);
 
       res.status(200).json({
         status: 'success',
