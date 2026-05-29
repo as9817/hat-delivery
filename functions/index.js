@@ -95,13 +95,13 @@ async function parseWithGemini(rawText, apiKey) {
 
 [OCR]
 ` + rawText;
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 256 } }) }
-  );
-  if (!res.ok) { const e = await res.json(); throw new Error(`Gemini: ${e.error?.message || res.status}`); }
-  const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 0 }, temperature: 0, maxOutputTokens: 256 }
+  });
+  const raw = response.text || '{}';
   const m = raw.replace(/```json|```/gi, '').match(/\{[\s\S]*\}/);
   if (!m) throw new Error('Gemini: JSON 없음');
   return JSON.parse(m[0]);
