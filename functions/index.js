@@ -49,13 +49,10 @@ exports.processReceipt = functions
       try {
         const martSnap = await db.ref('settings/martLocation').once('value');
         const martData = martSnap.val();
-        if (martData?.oldAddress) {
-          const dm = martData.oldAddress.match(/^(.+?동)/);
-          martDistrict = dm ? dm[1].trim() : martData.oldAddress.trim();
-        } else if (martData?.address) {
-          const m = martData.address.match(/^(.+?(?:구|군))/);
-          if (m) martDistrict = m[1].trim();
-        }
+        // 구 단위까지만 추출 (동 붙이면 다른 동 지번 검색 시 오류)
+        const baseAddr = martData?.oldAddress || martData?.address || '';
+        const m = baseAddr.match(/^(.+?(?:구|군))/);
+        if (m) martDistrict = m[1].trim();
       } catch(e) { logger.warn('마트 위치 읽기 실패'); }
 
       const queryAddr = (martDistrict && parsed.address && /^\d/.test(parsed.address))
