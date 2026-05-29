@@ -58,7 +58,7 @@ exports.processReceipt = functions
         }
       } catch(e) { logger.warn('마트 위치 읽기 실패'); }
 
-      const queryAddr = (martDistrict && parsed.address && parsed.address.match(/^\d+-?\d*$/))
+      const queryAddr = (martDistrict && parsed.address && /^\d/.test(parsed.address))
         ? martDistrict + ' ' + parsed.address
         : parsed.address;
       logger.info('Kakao 검색 주소:', queryAddr);
