@@ -1899,22 +1899,35 @@ function getMartLocation() {
 function loadMartLocationFromFirebase() {
   return new Promise(resolve => {
     if (!_fbDb) { resolve(getMartLocation()); return; }
-    _fbDb.ref('settings/martLocation').once('value', snap => {
-      const data = snap.val();
-      if (data && data.lat && data.lng) {
-        localStorage.setItem('mart_location_hongdae', JSON.stringify(data));
-      }
-      resolve(getMartLocation());
-    });
+    const doRead = () => {
+      _fbDb.ref('settings/martLocation').once('value', snap => {
+        const data = snap.val();
+        if (data && data.lat && data.lng) {
+          localStorage.setItem('mart_location_hongdae', JSON.stringify(data));
+        }
+        resolve(getMartLocation());
+      }, () => resolve(getMartLocation()));
+    };
+    const auth = firebase.auth();
+    if (auth.currentUser) {
+      doRead();
+    } else {
+      auth.signInWithEmailAndPassword('tms@hongdae.com', 'hongdae_tms2026')
+        .catch(() => {})
+        .finally(() => doRead());
+    }
   });
 }
 
 if (_fbDb) {
-  _fbDb.ref('settings/martLocation').on('value', snap => {
-    const data = snap.val();
-    if (data && data.lat && data.lng) {
-      localStorage.setItem('mart_location_hongdae', JSON.stringify(data));
-    }
+  firebase.auth().onAuthStateChanged(user => {
+    if (!user) return;
+    _fbDb.ref('settings/martLocation').on('value', snap => {
+      const data = snap.val();
+      if (data && data.lat && data.lng) {
+        localStorage.setItem('mart_location_hongdae', JSON.stringify(data));
+      }
+    });
   });
 }
 
@@ -2065,12 +2078,11 @@ async function startOCR(file) {
 
     // 2단계: Cloud Function 호출 (마트 위치 Firebase에서 최신값 읽어서 전달)
     setStep('step-init', 'active');
-    const mart = await loadMartLocationFromFirebase();
-    if (!mart) { throw new Error('마트 위치가 설정되지 않았습니다. 설정 메뉴에서 마트 주소를 먼저 입력해주세요.'); }
+    const mart = await loadMartLocationFromFirebase().catch(() => null);
     const response = await fetch(CLOUD_FN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64: base64, martLat: mart.lat, martLng: mart.lng })
+      body: JSON.stringify({ imageBase64: base64, martLat: mart?.lat || null, martLng: mart?.lng || null })
     });
     setStep('step-init', 'done');
 
