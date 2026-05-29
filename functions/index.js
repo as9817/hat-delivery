@@ -406,15 +406,18 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
       if (r2) { logger.info('주변동 검색 성공:', dong, r2.road_address); return { ...r2, detail_address: da }; }
     }
   } else {
-    // 건물명/아파트 → 키워드 검색 (마트 3km 반경)
-    logger.info('건물명 키워드 검색:', q);
-    const rk = await kakaoKeywordSearch(q, kakaoKey, martLat, martLng);
+    // 건물명/아파트 → 키워드 검색 (괄호 제거 후 검색)
+    const qClean = q.replace(/\(.*?\)/g, '').trim();
+    logger.info('건물명 키워드 검색:', qClean);
+    const rk = await kakaoKeywordSearch(qClean, kakaoKey, martLat, martLng);
     if (rk) { logger.info('키워드 검색 성공:', rk.road_address); return { ...rk, detail_address: da }; }
 
     // 주소 검색 실패 시 고객명(상호명)으로 2차 시도
+    // 지하/층 등 위치 설명어 제거 후 순수 상호명만 사용
     if (fallbackName && fallbackName !== q) {
-      logger.info('고객명으로 2차 키워드 검색:', fallbackName);
-      const rk2 = await kakaoKeywordSearch(fallbackName, kakaoKey, martLat, martLng);
+      const pureName = fallbackName.replace(/(지하|[0-9]+층|B[0-9]+|옥상)$/g, '').trim();
+      logger.info('고객명으로 2차 키워드 검색:', pureName);
+      const rk2 = await kakaoKeywordSearch(pureName, kakaoKey, martLat, martLng);
       if (rk2) { logger.info('고객명 검색 성공:', rk2.road_address); return { ...rk2, detail_address: da }; }
     }
   }
