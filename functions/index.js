@@ -60,7 +60,9 @@ exports.processReceipt = functions
         : parsed.address;
       logger.info('Kakao 검색 주소:', queryAddr);
       const martCoords = await db.ref('settings/martLocation').once('value').then(s => s.val()).catch(() => null);
-      const location = await standardizeAddress(queryAddr, KAKAO_KEY, martCoords?.lat, martCoords?.lng);
+      const martDongMatch = (martCoords?.oldAddress || '').match(/^(.+?동)/);
+      const martDong = martDongMatch ? martDongMatch[1].trim() : '';
+      const location = await standardizeAddress(queryAddr, KAKAO_KEY, martCoords?.lat, martCoords?.lng, martDong);
 
       res.status(200).json({
         status: 'success',
@@ -349,45 +351,73 @@ async function parseOrderWithGemini(message, apiKey) {
   try { return JSON.parse(m[0]); } catch (e) { logger.warn('JSON 파싱 실패:', m[0]); return {}; }
 }
 
-async function standardizeAddress(rawAddress, kakaoKey, martLat, martLng) {
+async function kakaoAddressSearch(query, kakaoKey) {
+  const res = await fetch(
+    `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=1`,
+    { headers: { Authorization: `KakaoAK ${kakaoKey}` } }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  const doc = data.documents?.[0];
+  if (!doc) return null;
+  return { road_address: doc.road_address?.address_name || doc.address?.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+}
+
+async function getNearbyDongs(martLat, martLng, kakaoKey) {
+  const dongs = new Set();
+  const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+  const radiusKm = 3;
+  const samples = angles.map(angle => {
+    const rad = angle * Math.PI / 180;
+    return {
+      lat: martLat + (radiusKm / 111) * Math.cos(rad),
+      lng: martLng + (radiusKm / (111 * Math.cos(martLat * Math.PI / 180))) * Math.sin(rad),
+    };
+  });
+  await Promise.all(samples.map(async ({ lat, lng }) => {
+    try {
+      const res = await fetch(
+        `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
+        { headers: { Authorization: `KakaoAK ${kakaoKey}` } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const dong = data.documents?.[0]?.region_3depth_name;
+      if (dong) dongs.add(dong);
+    } catch(e) {}
+  }));
+  return [...dongs];
+}
+
+async function standardizeAddress(rawAddress, kakaoKey, martLat, martLng, martDong) {
   if (!rawAddress?.trim()) return { road_address: '', detail_address: '', lat: null, lng: null };
   const dm = rawAddress.match(/\d+호|\d+동|\d+층/);
   const da = dm ? dm[0] : '';
   const q  = da ? rawAddress.slice(0, rawAddress.lastIndexOf(da)).trim() : rawAddress.trim();
 
-  // 1차: 주소 검색 API
-  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=1`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
-  if (!res.ok) throw new Error(`Kakao: ${res.status}`);
-  const data = await res.json();
-  const doc = data.documents?.[0];
-  if (doc) {
-    return { road_address: doc.road_address?.address_name || doc.address?.address_name || q, detail_address: da, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+  // 1차: 원본 주소 검색
+  const r1 = await kakaoAddressSearch(q, kakaoKey);
+  if (r1) return { ...r1, detail_address: da };
+
+  // 지번 형태가 아니면 포기
+  if (!/^\d/.test(q)) return { road_address: q, detail_address: da, lat: null, lng: null };
+
+  // 2차: 마트 기본 동 먼저 시도
+  if (martDong) {
+    logger.info('Kakao 2차 (마트 동):', martDong + ' ' + q);
+    const r2 = await kakaoAddressSearch(martDong + ' ' + q, kakaoKey);
+    if (r2) { logger.info('2차 성공:', r2.road_address); return { ...r2, detail_address: da }; }
   }
 
-  // 2차: 마트 좌표 기준 반경 3km 키워드 검색 (지번만 있을 때 동 이름 없이도 찾기)
+  // 3차: 마트 3km 반경 주변 동 수집 후 순차 검색
   if (martLat && martLng) {
-    const pureNum = rawAddress.match(/^\d+[\-\d\s]*\d*/)?.[0]?.trim();
-    if (pureNum) {
-      logger.info('Kakao 2차 검색 (좌표 기반):', pureNum);
-      const res2 = await fetch(
-        `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(pureNum)}&size=5`,
-        { headers: { Authorization: `KakaoAK ${kakaoKey}` } }
-      );
-      if (res2.ok) {
-        const data2 = await res2.json();
-        // 마트 좌표와 가장 가까운 결과 선택
-        const docs = data2.documents || [];
-        let best = null, bestDist = Infinity;
-        for (const d of docs) {
-          const dlat = parseFloat(d.y), dlng = parseFloat(d.x);
-          const dist = Math.sqrt((dlat - martLat) ** 2 + (dlng - martLng) ** 2);
-          if (dist < bestDist) { bestDist = dist; best = d; }
-        }
-        if (best) {
-          logger.info('Kakao 2차 검색 성공:', best.road_address?.address_name || best.address?.address_name);
-          return { road_address: best.road_address?.address_name || best.address?.address_name || q, detail_address: da, lat: parseFloat(best.y), lng: parseFloat(best.x) };
-        }
-      }
+    logger.info('Kakao 3차 (반경 동 검색) 시작');
+    const nearbyDongs = await getNearbyDongs(martLat, martLng, kakaoKey);
+    logger.info('주변 동 목록:', nearbyDongs.join(', '));
+    for (const dong of nearbyDongs) {
+      if (dong === martDong) continue; // 이미 시도함
+      const r3 = await kakaoAddressSearch(dong + ' ' + q, kakaoKey);
+      if (r3) { logger.info('3차 성공:', dong, r3.road_address); return { ...r3, detail_address: da }; }
     }
   }
 
