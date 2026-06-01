@@ -111,7 +111,7 @@ async function extractTextWithVision(base64Image, apiKey) {
 async function parseWithGemini(rawText, apiKey) {
   const prompt = `너는 마트 영수증 데이터 파싱 전문가야. 아래 OCR 텍스트에서 다음 4가지를 추출해:
 1. name: 고객명 ('성명:' 옆 텍스트. '합계금액' 키워드 자체는 이름이 아님)
-2. phone: 연락처 ('010'으로 시작하는 전화번호)
+2. phone: 연락처 (전화번호. 010 없이 국번만 있어도 그대로 추출. 없으면 null)
 3. address: 주소 ('주소:' 뒤 텍스트 한 줄 병합)
 4. totalAmount: 합계금액 (영수증에서 '합계', '합 계', '총합계', '결제금액' 키워드 바로 옆/아래 숫자. 쉼표 제거한 순수 숫자만. 상품 바코드나 상품코드가 아닌 최종 결제 금액)
 
@@ -390,9 +390,10 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     return { road_address: '', detail_address: '', lat: null, lng: null };
   }
 
-  const dm = rawAddress.match(/\d+호|\d+동|\d+층/);
-  const da = dm ? dm[0] : '';
-  const q  = da ? rawAddress.slice(0, rawAddress.lastIndexOf(da)).trim() : rawAddress.trim();
+  // 상세주소 패턴: 101호, 3층, 나-516, 가동 101호 등
+  const dm = rawAddress.match(/[가-힣]?-?\d+호|\d+층|\d+동\s*\d*호?|[가나다라마바사아자차카타파하]-\d+/);
+  const da = dm ? dm[0].replace(/^-/, '') : ''; // 앞 대시 제거
+  const q  = da ? rawAddress.slice(0, rawAddress.lastIndexOf(dm[0])).replace(/-\s*$/, '').trim() : rawAddress.trim();
 
   // 1차: 원본 주소 검색
   const r1 = await kakaoAddrSearch(q, kakaoKey);

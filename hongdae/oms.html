@@ -1431,9 +1431,23 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 이름</label>
       <input id="oms-mart-name-input" type="text" placeholder="예: 홍대마트" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
     </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 주소 (신주소)</label>
+      <input id="oms-mart-addr-input" type="text" placeholder="예: 서울 마포구 홍대입구로 22" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 구주소 (지번 — 동까지만)</label>
+      <input id="oms-mart-old-addr-input" type="text" placeholder="예: 서울 마포구 서교동" style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+      <div style="font-size:11px;color:#888;margin-top:4px">문자 주문의 지번 주소 변환 시 사용됩니다</div>
+    </div>
     <div style="margin-bottom:20px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">마트 주소</label>
-      <input id="oms-mart-addr-input" type="text" placeholder="예: 경기도 남양주시 화도읍..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">📍 배달 반경 동 목록</label>
+      <div id="oms-nearby-dongs-wrap" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;min-height:32px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input id="oms-dong-add-input" type="text" placeholder="동 이름 직접 추가" style="flex:1;border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
+        <button onclick="omsAddDong()" style="background:#1a237e;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">추가</button>
+      </div>
+      <button onclick="omsAutoCollectDongs()" id="oms-auto-collect-btn" style="width:100%;background:#e8eaf6;color:#1a237e;border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">🔍 마트 3km 주변 동 자동 수집</button>
     </div>
     <div style="font-size:11px;color:#f57c00;margin-bottom:16px;padding:8px 12px;background:#fff8e1;border-radius:8px">
       ⚠️ 저장하면 모든 기사 앱과 OMS에 즉시 반영됩니다
@@ -5575,19 +5589,112 @@ async function saveOmsMartLocation() {
     });
 
     const { lat, lng, roadAddr } = geocoded;
-    el.textContent = `✅ 좌표 확인: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    el.textContent = `✅ 좌표 확인: ${lat.toFixed(6)}, ${lng.toFixed(6)} — 주변 동 수집 중...`;
 
-    const martData = { address: roadAddr || addr, name, lat, lng, updatedAt: Date.now() };
+    const oldAddr = document.getElementById('oms-mart-old-addr-input')?.value.trim() || '';
+    const manualDongs = _omsDongList.slice();
+    const nearbyDongs = await collectNearbyDongs(lat, lng);
+    nearbyDongs.forEach(d => { if (!manualDongs.includes(d)) manualDongs.push(d); });
+
+    const martData = { address: roadAddr || addr, oldAddress: oldAddr, name, lat, lng, nearbyDongs: manualDongs, updatedAt: Date.now() };
 
     // Firebase에 저장 → 모든 OMS/TMS 자동 반영
     await db.ref('settings/martLocation').set(martData);
+    _omsDongList = manualDongs;
+    renderOmsDongList();
+    showToast(`✅ 마트 위치 저장 완료! 주변 동 ${manualDongs.length}개 수집`);
     console.log('[saveOmsMartLocation] Firebase 저장 완료:', martData);
-    showToast(`✅ 마트 위치 저장 완료! lat:${lat.toFixed(5)}, lng:${lng.toFixed(5)}`);
     setTimeout(() => { document.getElementById('oms-mart-modal').style.display = 'none'; }, 1500);
   } catch(e) {
     console.error('[saveOmsMartLocation] 오류:', e);
     el.textContent = '❌ ' + e.message;
     showToast('❌ 저장 실패: ' + e.message);
+  }
+}
+
+let _omsDongList = [];
+
+function renderOmsDongList() {
+  const wrap = document.getElementById('oms-nearby-dongs-wrap');
+  if (!wrap) return;
+  if (_omsDongList.length === 0) {
+    wrap.innerHTML = '<div style="font-size:12px;color:#aaa;padding:6px 0">동 목록이 없습니다. 자동 수집하거나 직접 추가하세요.</div>';
+    return;
+  }
+  wrap.innerHTML = _omsDongList.map((d, i) => `
+    <div style="display:flex;align-items:center;gap:6px;background:#e8eaf6;border-radius:10px;padding:6px 10px">
+      <span style="font-size:12px;color:#888;width:20px;text-align:center;font-weight:700">${i+1}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;color:#1a237e">${d}</span>
+      <button onclick="omsDongMove(${i}, -1)" ${i===0?'disabled':''} style="background:none;border:none;cursor:pointer;color:#666;font-size:14px;padding:2px 4px">▲</button>
+      <button onclick="omsDongMove(${i}, 1)" ${i===_omsDongList.length-1?'disabled':''} style="background:none;border:none;cursor:pointer;color:#666;font-size:14px;padding:2px 4px">▼</button>
+      <button onclick="omsRemoveDong(${i})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px;padding:2px 4px">×</button>
+    </div>`).join('');
+}
+
+function omsDongMove(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= _omsDongList.length) return;
+  [_omsDongList[idx], _omsDongList[newIdx]] = [_omsDongList[newIdx], _omsDongList[idx]];
+  renderOmsDongList();
+}
+
+function omsAddDong() {
+  const inp = document.getElementById('oms-dong-add-input');
+  const val = inp.value.trim();
+  if (!val) return;
+  if (!_omsDongList.includes(val)) { _omsDongList.push(val); renderOmsDongList(); }
+  inp.value = '';
+}
+
+function omsRemoveDong(idx) {
+  _omsDongList.splice(idx, 1);
+  renderOmsDongList();
+}
+
+async function collectNearbyDongs(lat, lng) {
+  const KAKAO_KEY = '81ed53400272ae3a6bdf85b65e64eaff';
+  const dongs = new Set();
+  const angles = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5]; // 16방향
+  const radii = [0.3, 0.6, 1.0, 1.5, 2.0, 2.5, 3.0]; // 가까운 반경 추가
+  const samples = [{ lat, lng }]; // 마트 중심점 추가
+  for (const radiusKm of radii) {
+    for (const angle of angles) {
+      const rad = angle * Math.PI / 180;
+      samples.push({
+        lat: lat + (radiusKm / 111) * Math.cos(rad),
+        lng: lng + (radiusKm / (111 * Math.cos(lat * Math.PI / 180))) * Math.sin(rad),
+      });
+    }
+  }
+  await Promise.all(samples.map(async ({ lat: sLat, lng: sLng }) => {
+    try {
+      const res = await fetch(`https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${sLng}&y=${sLat}`, { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } });
+      if (!res.ok) return;
+      const data = await res.json();
+      const dong = data.documents?.[0]?.region_3depth_name;
+      if (dong) dongs.add(dong);
+    } catch(e) {}
+  }));
+  return [...dongs];
+}
+
+async function omsAutoCollectDongs() {
+  const btn = document.getElementById('oms-auto-collect-btn');
+  const lat = _martLocation?.lat;
+  const lng = _martLocation?.lng;
+  if (!lat || !lng) { showToast('마트 주소를 먼저 저장하세요'); return; }
+  btn.textContent = '🔄 수집 중...';
+  btn.disabled = true;
+  try {
+    const dongs = await collectNearbyDongs(lat, lng);
+    dongs.forEach(d => { if (!_omsDongList.includes(d)) _omsDongList.push(d); });
+    renderOmsDongList();
+    showToast(`✅ ${dongs.length}개 동 수집 완료`);
+  } catch(e) {
+    showToast('수집 실패: ' + e.message);
+  } finally {
+    btn.textContent = '🔍 마트 3km 주변 동 자동 수집';
+    btn.disabled = false;
   }
 }
 
@@ -5599,6 +5706,10 @@ function openOmsMartSettings() {
   if (ni) ni.value = m.name || '';
   const ai = document.getElementById('oms-mart-addr-input');
   if (ai) ai.value = m.address || '';
+  const oi = document.getElementById('oms-mart-old-addr-input');
+  if (oi) oi.value = m.oldAddress || '';
+  _omsDongList = Array.isArray(m.nearbyDongs) ? [...m.nearbyDongs] : [];
+  renderOmsDongList();
   document.getElementById('oms-mart-modal').style.display = 'flex';
 }
 
@@ -5623,24 +5734,74 @@ function loadLearnedList() {
       return;
     }
     el.innerHTML = Object.entries(data).map(([key, val]) => `
-      <div style="background:#f8f9ff;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px;color:#1a237e;margin-bottom:4px">👤 ${key}</div>
-          <div style="font-size:13px;color:#333">${val.road_address || '-'}</div>
-          ${val.detail_address ? `<div style="font-size:12px;color:#666;margin-top:2px">상세: ${val.detail_address}</div>` : ''}
-          ${val.note ? `<div style="font-size:11px;color:#aaa;margin-top:4px">${val.note}</div>` : ''}
-          <div style="font-size:11px;color:#bbb;margin-top:2px">${val.updatedAt ? new Date(val.updatedAt).toLocaleString('ko-KR') : ''}</div>
+      <div style="background:#f8f9ff;border-radius:12px;padding:14px 16px" id="learned-item-${encodeURIComponent(key)}">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:14px;color:#1a237e;margin-bottom:2px">👤 ${key}</div>
+            <div style="font-size:13px;color:#333">${val.road_address || '-'}</div>
+            ${val.detail_address ? `<div style="font-size:12px;color:#666;margin-top:2px">상세: ${val.detail_address}</div>` : ''}
+            <div style="font-size:11px;color:#bbb;margin-top:2px">${val.updatedAt ? new Date(val.updatedAt).toLocaleString('ko-KR') : ''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button onclick="editLearnedLocation('${key}', '${(val.road_address||'').replace(/'/g,"\\'")}', '${(val.detail_address||'').replace(/'/g,"\\'")}', '${(val.phone||'').replace(/'/g,"\\'")}', ${val.lat||null}, ${val.lng||null})" style="background:#e8eaf6;border:none;border-radius:8px;padding:6px 10px;color:#1a237e;font-size:12px;font-weight:700;cursor:pointer">✏️ 수정</button>
+            <button onclick="deleteLearnedLocation('${key}')" style="background:#ffebee;border:none;border-radius:8px;padding:6px 10px;color:#e53935;font-size:12px;font-weight:700;cursor:pointer">🗑 삭제</button>
+          </div>
         </div>
-        <button onclick="deleteLearnedLocation('${key}')" style="background:#ffebee;border:none;border-radius:8px;padding:8px 12px;color:#e53935;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🗑 삭제</button>
+        <div id="learned-edit-${encodeURIComponent(key)}" style="display:none;border-top:1px solid #e0e0e0;padding-top:10px">
+          <input id="learned-edit-name-${encodeURIComponent(key)}" type="text" placeholder="성명" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;box-sizing:border-box">
+          <input id="learned-edit-phone-${encodeURIComponent(key)}" type="text" placeholder="연락처" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;box-sizing:border-box">
+          <input id="learned-edit-addr-${encodeURIComponent(key)}" type="text" placeholder="주소" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;box-sizing:border-box">
+          <input id="learned-edit-detail-${encodeURIComponent(key)}" type="text" placeholder="상세주소 (동/호수 등)" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
+          <div style="display:flex;gap:6px">
+            <button onclick="saveLearnedLocation('${key}')" style="flex:1;background:#1a237e;color:#fff;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">저장</button>
+            <button onclick="cancelLearnedEdit('${key}')" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">취소</button>
+          </div>
+        </div>
       </div>
     `).join('');
   });
 }
+
 function deleteLearnedLocation(key) {
   if (!confirm(`"${key}" 학습 주소를 삭제할까요?`)) return;
   db.ref('settings/learnedLocations/' + key).remove()
     .then(() => { showToast('삭제 완료'); loadLearnedList(); })
     .catch(() => showToast('삭제 실패'));
+}
+
+function editLearnedLocation(key, addr, detail, phone, lat, lng) {
+  const k = encodeURIComponent(key);
+  document.getElementById('learned-edit-' + k).style.display = 'block';
+  document.getElementById('learned-edit-name-' + k).value = key;
+  document.getElementById('learned-edit-phone-' + k).value = phone || '';
+  document.getElementById('learned-edit-addr-' + k).value = addr;
+  document.getElementById('learned-edit-detail-' + k).value = detail;
+}
+
+function cancelLearnedEdit(key) {
+  document.getElementById('learned-edit-' + encodeURIComponent(key)).style.display = 'none';
+}
+
+async function saveLearnedLocation(key) {
+  const k = encodeURIComponent(key);
+  const newName = document.getElementById('learned-edit-name-' + k).value.trim();
+  const phone = document.getElementById('learned-edit-phone-' + k).value.trim();
+  const addr = document.getElementById('learned-edit-addr-' + k).value.trim();
+  const detail = document.getElementById('learned-edit-detail-' + k).value.trim();
+  if (!newName) { showToast('성명을 입력하세요'); return; }
+  let lat = null, lng = null;
+  try {
+    const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(addr)}&size=1`, { headers: { Authorization: 'KakaoAK 39fb0580f590466411a2e2239b082414' } });
+    const data = await res.json();
+    const doc = data.documents?.[0];
+    if (doc) { lat = parseFloat(doc.y); lng = parseFloat(doc.x); }
+  } catch(e) {}
+  const updated = { road_address: addr, detail_address: detail, phone, lat, lng, updatedAt: Date.now(), note: '수동 수정' };
+  const saves = [db.ref('settings/learnedLocations/' + newName).set(updated)];
+  if (newName !== key) saves.push(db.ref('settings/learnedLocations/' + key).remove());
+  Promise.all(saves)
+    .then(() => { showToast('✅ 수정 완료'); loadLearnedList(); })
+    .catch(() => showToast('수정 실패'));
 }
 
 // ── OMS 지도 마커 업데이트 ──

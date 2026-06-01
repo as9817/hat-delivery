@@ -566,6 +566,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
           <div class="settings-item" onclick="showCustImportModal();toggleSettingsMenu()">👥 고객 가져오기</div>
           <div class="settings-item" onclick="showDriversModal();toggleSettingsMenu()">🚗 기사관리</div>
           <div class="settings-item" onclick="toggleAutoAssignBar();toggleSettingsMenu()">🤖 자동 배정</div>
+          <div class="settings-item" onclick="openBatchOcr();toggleSettingsMenu()">📷 일괄 OCR</div>
           <div class="settings-item" onclick="openOmsMartSettings();toggleSettingsMenu()">🏪 마트위치</div>
           <div class="settings-item" onclick="openLearnedModal();toggleSettingsMenu()">📚 학습주소</div>
           <div class="settings-item" id="menu-accounts" style="display:none" onclick="showAccountsModal();toggleSettingsMenu()">🔐 계정관리</div>
@@ -1057,6 +1058,50 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   <button class="alert-close" onclick="closeOrderAlert()">×</button>
 </div>
 
+<!-- ═══════════════════════════════════════
+     일괄 OCR 배치 모달
+     ═══════════════════════════════════════ -->
+<div id="batch-ocr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2100;overflow-y:auto;padding:16px">
+  <div style="background:#fff;border-radius:20px;max-width:500px;margin:0 auto;padding:20px;box-shadow:0 8px 40px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:17px;font-weight:700;color:#1a237e">📷 일괄 OCR 등록</div>
+      <button onclick="closeBatchOcr()" style="background:#f5f5f5;border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+    </div>
+    <div style="font-size:13px;color:#666;margin-bottom:14px;line-height:1.6">영수증 사진을 여러 장 선택하면 순서대로 OCR 인식 후 <b>K-means 자동 배정</b>까지 한 번에 처리합니다.</div>
+
+    <!-- 파일 선택 -->
+    <div id="batch-drop-zone" onclick="document.getElementById('batch-file-input').click()" style="border:2px dashed #c5cae9;border-radius:12px;padding:20px;text-align:center;cursor:pointer;margin-bottom:14px;transition:.2s" onmouseover="this.style.borderColor='#1a237e'" onmouseout="this.style.borderColor='#c5cae9'">
+      <div style="font-size:32px;margin-bottom:6px">📂</div>
+      <div style="font-size:14px;font-weight:700;color:#1a237e">영수증 사진 선택</div>
+      <div style="font-size:12px;color:#aaa;margin-top:4px">여러 장 동시 선택 가능 (JPG, PNG)</div>
+    </div>
+    <input type="file" id="batch-file-input" accept="image/*" multiple style="display:none" onchange="handleBatchFiles(this)">
+
+    <!-- 큐 목록 -->
+    <div id="batch-queue" style="margin-bottom:14px;max-height:280px;overflow-y:auto"></div>
+
+    <!-- 진행 상태 -->
+    <div id="batch-progress-wrap" style="display:none;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#555;margin-bottom:6px">
+        <span id="batch-progress-text">처리 중...</span>
+        <span id="batch-progress-count"></span>
+      </div>
+      <div style="background:#f0f0f0;border-radius:20px;height:6px;overflow:hidden">
+        <div id="batch-progress-bar" style="background:#1a237e;height:100%;width:0;border-radius:20px;transition:.3s"></div>
+      </div>
+    </div>
+
+    <!-- 결과 요약 -->
+    <div id="batch-summary" style="display:none;background:#e8f5e9;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#2e7d32;font-weight:600"></div>
+
+    <!-- 액션 버튼 -->
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-gray" style="flex:1" onclick="closeBatchOcr()">닫기</button>
+      <button class="btn btn-primary" id="batch-start-btn" style="flex:1;display:none" onclick="startBatchOcr()">🚀 일괄 등록 시작</button>
+    </div>
+  </div>
+</div>
+
 <!-- PC 통계 모달 -->
 <!-- 기사관리 모달 -->
 <div class="stats-modal" id="drivers-modal" onclick="hideDriversModal(event)">
@@ -1392,12 +1437,13 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
       <div style="font-size:11px;color:#888;margin-top:4px">문자 주문의 지번 주소 변환 시 사용됩니다</div>
     </div>
     <div style="margin-bottom:20px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">📍 배달 반경 동 목록 <span style="font-weight:400;color:#aaa">(저장 시 자동 수집)</span></label>
-      <div id="oms-nearby-dongs-wrap" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:32px"></div>
-      <div style="display:flex;gap:6px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;font-weight:600">📍 배달 반경 동 목록</label>
+      <div id="oms-nearby-dongs-wrap" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;min-height:32px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
         <input id="oms-dong-add-input" type="text" placeholder="동 이름 직접 추가" style="flex:1;border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
         <button onclick="omsAddDong()" style="background:#1a237e;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">추가</button>
       </div>
+      <button onclick="omsAutoCollectDongs()" id="oms-auto-collect-btn" style="width:100%;background:#e8eaf6;color:#1a237e;border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">🔍 마트 3km 주변 동 자동 수집</button>
     </div>
     <div style="font-size:11px;color:#f57c00;margin-bottom:16px;padding:8px 12px;background:#fff8e1;border-radius:8px">
       ⚠️ 저장하면 모든 기사 앱과 OMS에 즉시 반영됩니다
@@ -5069,7 +5115,7 @@ function getMartLocation() { return _martLocation; }
 db.ref('settings/martLocation').on('value', snap => {
   const data = snap.val();
   if (data && data.lat && data.lng) {
-    _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '웰빙마트', address: data.address || '' };
+    _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '웰빙마트', address: data.address || '', oldAddress: data.oldAddress || '', nearbyDongs: data.nearbyDongs || [] };
     localStorage.setItem('mart_location', JSON.stringify(_martLocation));
     if (_mapInitialized) {
       updateOmsMapMarkers(); // 지도 이미 초기화됐으면 마커만 갱신
@@ -5144,12 +5190,25 @@ let _omsDongList = [];
 function renderOmsDongList() {
   const wrap = document.getElementById('oms-nearby-dongs-wrap');
   if (!wrap) return;
+  if (_omsDongList.length === 0) {
+    wrap.innerHTML = '<div style="font-size:12px;color:#aaa;padding:6px 0">동 목록이 없습니다. 자동 수집하거나 직접 추가하세요.</div>';
+    return;
+  }
   wrap.innerHTML = _omsDongList.map((d, i) => `
-    <span style="display:inline-flex;align-items:center;gap:4px;background:#e8eaf6;color:#1a237e;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600">
-      ${d}
-      <span onclick="omsRemoveDong(${i})" style="cursor:pointer;color:#888;font-size:14px;line-height:1">×</span>
-    </span>`).join('');
-  if (_omsDongList.length === 0) wrap.innerHTML = '<span style="font-size:12px;color:#aaa">저장 시 자동 수집됩니다</span>';
+    <div style="display:flex;align-items:center;gap:6px;background:#e8eaf6;border-radius:10px;padding:6px 10px">
+      <span style="font-size:12px;color:#888;width:20px;text-align:center;font-weight:700">${i+1}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;color:#1a237e">${d}</span>
+      <button onclick="omsDongMove(${i}, -1)" ${i===0?'disabled':''} style="background:none;border:none;cursor:pointer;color:#666;font-size:14px;padding:2px 4px">▲</button>
+      <button onclick="omsDongMove(${i}, 1)" ${i===_omsDongList.length-1?'disabled':''} style="background:none;border:none;cursor:pointer;color:#666;font-size:14px;padding:2px 4px">▼</button>
+      <button onclick="omsRemoveDong(${i})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px;padding:2px 4px">×</button>
+    </div>`).join('');
+}
+
+function omsDongMove(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= _omsDongList.length) return;
+  [_omsDongList[idx], _omsDongList[newIdx]] = [_omsDongList[newIdx], _omsDongList[idx]];
+  renderOmsDongList();
 }
 
 function omsAddDong() {
@@ -5165,16 +5224,43 @@ function omsRemoveDong(idx) {
   renderOmsDongList();
 }
 
+async function omsAutoCollectDongs() {
+  const btn = document.getElementById('oms-auto-collect-btn');
+  const lat = _martLocation?.lat;
+  const lng = _martLocation?.lng;
+  if (!lat || !lng) { showToast('마트 주소를 먼저 저장하세요'); return; }
+  btn.textContent = '🔄 수집 중...';
+  btn.disabled = true;
+  try {
+    const dongs = await collectNearbyDongs(lat, lng);
+    dongs.forEach(d => { if (!_omsDongList.includes(d)) _omsDongList.push(d); });
+    renderOmsDongList();
+    showToast(`✅ ${dongs.length}개 동 수집 완료`);
+  } catch(e) {
+    showToast('수집 실패: ' + e.message);
+  } finally {
+    btn.textContent = '🔍 마트 3km 주변 동 자동 수집';
+    btn.disabled = false;
+  }
+}
+
 async function collectNearbyDongs(lat, lng) {
-  const KAKAO_KEY = '39fb0580f590466411a2e2239b082414';
+  const KAKAO_KEY = '81ed53400272ae3a6bdf85b65e64eaff';
   if (!KAKAO_KEY) return [];
   const dongs = new Set();
-  const angles = [0, 45, 90, 135, 180, 225, 270, 315];
-  const radiusKm = 3;
-  await Promise.all(angles.map(async angle => {
-    const rad = angle * Math.PI / 180;
-    const sLat = lat + (radiusKm / 111) * Math.cos(rad);
-    const sLng = lng + (radiusKm / (111 * Math.cos(lat * Math.PI / 180))) * Math.sin(rad);
+  const angles = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5]; // 16방향
+  const radii = [0.3, 0.6, 1.0, 1.5, 2.0, 2.5, 3.0]; // 가까운 반경 추가
+  const samples = [{ lat, lng }]; // 마트 중심점 추가
+  for (const radiusKm of radii) {
+    for (const angle of angles) {
+      const rad = angle * Math.PI / 180;
+      samples.push({
+        lat: lat + (radiusKm / 111) * Math.cos(rad),
+        lng: lng + (radiusKm / (111 * Math.cos(lat * Math.PI / 180))) * Math.sin(rad),
+      });
+    }
+  }
+  await Promise.all(samples.map(async ({ lat: sLat, lng: sLng }) => {
     try {
       const res = await fetch(
         `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${sLng}&y=${sLat}`,
@@ -5234,11 +5320,13 @@ function loadLearnedList() {
             <div style="font-size:11px;color:#bbb;margin-top:2px">${val.updatedAt ? new Date(val.updatedAt).toLocaleString('ko-KR') : ''}</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px">
-            <button onclick="editLearnedLocation('${key}', '${(val.road_address||'').replace(/'/g,"\\'")}', '${(val.detail_address||'').replace(/'/g,"\\'")}', ${val.lat||null}, ${val.lng||null})" style="background:#e8eaf6;border:none;border-radius:8px;padding:6px 10px;color:#1a237e;font-size:12px;font-weight:700;cursor:pointer">✏️ 수정</button>
+            <button onclick="editLearnedLocation('${key}', '${(val.road_address||'').replace(/'/g,"\\'")}', '${(val.detail_address||'').replace(/'/g,"\\'")}', '${(val.phone||'').replace(/'/g,"\\'")}', ${val.lat||null}, ${val.lng||null})" style="background:#e8eaf6;border:none;border-radius:8px;padding:6px 10px;color:#1a237e;font-size:12px;font-weight:700;cursor:pointer">✏️ 수정</button>
             <button onclick="deleteLearnedLocation('${key}')" style="background:#ffebee;border:none;border-radius:8px;padding:6px 10px;color:#e53935;font-size:12px;font-weight:700;cursor:pointer">🗑 삭제</button>
           </div>
         </div>
         <div id="learned-edit-${encodeURIComponent(key)}" style="display:none;border-top:1px solid #e0e0e0;padding-top:10px">
+          <input id="learned-edit-name-${encodeURIComponent(key)}" type="text" placeholder="성명" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;box-sizing:border-box">
+          <input id="learned-edit-phone-${encodeURIComponent(key)}" type="text" placeholder="연락처" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;box-sizing:border-box">
           <input id="learned-edit-addr-${encodeURIComponent(key)}" type="text" placeholder="주소" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;box-sizing:border-box">
           <input id="learned-edit-detail-${encodeURIComponent(key)}" type="text" placeholder="상세주소 (동/호수 등)" style="width:100%;border:1.5px solid #c5cae9;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
           <div style="display:flex;gap:6px">
@@ -5257,9 +5345,11 @@ function deleteLearnedLocation(key) {
     .catch(() => showToast('삭제 실패'));
 }
 
-function editLearnedLocation(key, addr, detail, lat, lng) {
+function editLearnedLocation(key, addr, detail, phone, lat, lng) {
   const k = encodeURIComponent(key);
   document.getElementById('learned-edit-' + k).style.display = 'block';
+  document.getElementById('learned-edit-name-' + k).value = key;
+  document.getElementById('learned-edit-phone-' + k).value = phone || '';
   document.getElementById('learned-edit-addr-' + k).value = addr;
   document.getElementById('learned-edit-detail-' + k).value = detail;
 }
@@ -5270,9 +5360,11 @@ function cancelLearnedEdit(key) {
 
 async function saveLearnedLocation(key) {
   const k = encodeURIComponent(key);
+  const newName = document.getElementById('learned-edit-name-' + k).value.trim();
+  const phone = document.getElementById('learned-edit-phone-' + k).value.trim();
   const addr = document.getElementById('learned-edit-addr-' + k).value.trim();
   const detail = document.getElementById('learned-edit-detail-' + k).value.trim();
-  if (!addr) { showToast('주소를 입력하세요'); return; }
+  if (!newName) { showToast('성명을 입력하세요'); return; }
 
   // Kakao로 좌표 재검색
   let lat = null, lng = null;
@@ -5283,8 +5375,13 @@ async function saveLearnedLocation(key) {
     if (doc) { lat = parseFloat(doc.y); lng = parseFloat(doc.x); }
   } catch(e) {}
 
-  const updated = { road_address: addr, detail_address: detail, lat, lng, updatedAt: Date.now(), note: '수동 수정' };
-  db.ref('settings/learnedLocations/' + key).set(updated)
+  const updated = { road_address: addr, detail_address: detail, phone, lat, lng, updatedAt: Date.now(), note: '수동 수정' };
+
+  // 성명 변경 시 기존 키 삭제 후 새 키로 저장
+  const saves = [db.ref('settings/learnedLocations/' + newName).set(updated)];
+  if (newName !== key) saves.push(db.ref('settings/learnedLocations/' + key).remove());
+
+  Promise.all(saves)
     .then(() => { showToast('✅ 수정 완료'); loadLearnedList(); })
     .catch(() => showToast('수정 실패'));
 }
@@ -6090,6 +6187,169 @@ if (window.innerWidth >= 768) {
     kakao.maps.load(() => setTimeout(initTmsMap, 100));
   }
   // Firebase 수신 시 _mapInitialized 체크 후 초기화 (위 리스너에서 처리)
+}
+
+// ══════════════════════════════════════════
+// 일괄 OCR (배치 모드)
+// ══════════════════════════════════════════
+let batchQueue = []; // [{file, dataUrl, status, parsed}]
+
+function openBatchOcr() {
+  batchQueue = [];
+  document.getElementById('batch-queue').innerHTML = '';
+  document.getElementById('batch-progress-wrap').style.display = 'none';
+  document.getElementById('batch-summary').style.display = 'none';
+  document.getElementById('batch-start-btn').style.display = 'none';
+  document.getElementById('batch-file-input').value = '';
+  document.getElementById('batch-ocr-modal').style.display = 'block';
+}
+
+function closeBatchOcr() {
+  document.getElementById('batch-ocr-modal').style.display = 'none';
+  batchQueue = [];
+}
+
+function handleBatchFiles(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+
+  batchQueue = files.map(f => ({ file: f, dataUrl: null, status: 'queued', parsed: null, error: null }));
+  renderBatchQueue();
+  document.getElementById('batch-start-btn').style.display = 'block';
+
+  // 미리보기 생성
+  batchQueue.forEach((item, i) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      batchQueue[i].dataUrl = e.target.result;
+      renderBatchQueue();
+    };
+    reader.readAsDataURL(item.file);
+  });
+}
+
+function renderBatchQueue() {
+  const html = batchQueue.map((item, i) => {
+    const icon = item.status === 'queued' ? '🕐' : item.status === 'processing' ? '🔄' : item.status === 'done' ? '✅' : '❌';
+    const label = item.status === 'done' && item.parsed ? `${item.parsed.name||'?'} · ${item.parsed.address||'주소없음'}` : item.error || item.file.name;
+    return `<div style="display:flex;align-items:center;gap:8px;background:#f8f9ff;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+      ${item.dataUrl ? `<img src="${item.dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:40px;height:40px;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${icon} ${i+1}. ${item.file.name}</div>
+        <div style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('batch-queue').innerHTML = html;
+}
+
+async function startBatchOcr() {
+  const key = localStorage.getItem(VISION_KEY_STORAGE);
+  if (!key) { showToast('Vision API 키를 먼저 설정해주세요'); showApiKeyModal(); return; }
+
+  document.getElementById('batch-start-btn').style.display = 'none';
+  document.getElementById('batch-progress-wrap').style.display = 'block';
+  document.getElementById('batch-summary').style.display = 'none';
+
+  let successCount = 0, failCount = 0;
+
+  for (let i = 0; i < batchQueue.length; i++) {
+    const item = batchQueue[i];
+    batchQueue[i].status = 'processing';
+    renderBatchQueue();
+
+    // 진행률 업데이트
+    document.getElementById('batch-progress-text').textContent = `${item.file.name} 처리 중...`;
+    document.getElementById('batch-progress-count').textContent = `${i+1} / ${batchQueue.length}`;
+    document.getElementById('batch-progress-bar').style.width = `${((i+1)/batchQueue.length)*100}%`;
+
+    try {
+      // dataUrl에서 base64 추출
+      const base64 = item.dataUrl ? item.dataUrl.split(',')[1] : await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.readAsDataURL(item.file);
+      });
+
+      // Vision API 호출
+      const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${key}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ requests: [{ image: { content: base64 }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }] })
+      });
+      const data = await res.json();
+      const annotation = data.responses?.[0]?.fullTextAnnotation || data.responses?.[0]?.textAnnotations?.[0];
+      const text = annotation?.text || annotation?.description || '';
+
+      if (!text.trim()) throw new Error('텍스트 인식 실패');
+
+      const parsed = parseReceiptText(text, null);
+
+      // 주소 도로명 변환
+      if (parsed.address) {
+        try { parsed.address = await omsGeocodeToRoad(parsed.address); } catch(e) {}
+      }
+
+      // 좌표 획득
+      let lat = null, lng = null;
+      if (parsed.address) {
+        try {
+          const coords = await new Promise((resolve, reject) => {
+            kakao.maps.load(() => {
+              const geocoder = new kakao.maps.services.Geocoder();
+              geocoder.addressSearch(parsed.address, (result, status) => {
+                if (status === kakao.maps.services.Status.OK && result.length > 0) {
+                  resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+                } else reject(new Error('좌표 없음'));
+              });
+            });
+          });
+          lat = coords.lat; lng = coords.lng;
+        } catch(e) {}
+      }
+
+      // 주문 등록
+      const order = {
+        id: uid(), createdAt: Date.now(), updatedAt: Date.now(),
+        status: 'pending', channel: 'ocr',
+        customerName: parsed.name || '이름미확인',
+        phone: parsed.phone || '',
+        address: parsed.address || '',
+        lat, lng,
+        items: parsed.items || [],
+        totalAmount: (parsed.items||[]).reduce((s,it)=>s+(it.price*it.qty||0),0) || 0,
+        note: '', paymentMethod: currentPay,
+        assignedDriverId: '', assignedDriverName: ''
+      };
+
+      orders.unshift(order);
+      saveOrders();
+      if (firebaseActive) db.ref('orders/' + order.id).set(order);
+
+      batchQueue[i].status = 'done';
+      batchQueue[i].parsed = { name: order.customerName, address: order.address };
+      successCount++;
+    } catch(e) {
+      batchQueue[i].status = 'error';
+      batchQueue[i].error = e.message;
+      failCount++;
+    }
+    renderBatchQueue();
+  }
+
+  // 완료 후 자동 배정 제안
+  document.getElementById('batch-progress-text').textContent = '처리 완료!';
+  renderOrderList();
+  renderStats();
+  updateHeader();
+
+  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
+  const canAutoAssign = activeDrivers.length > 0;
+
+  document.getElementById('batch-summary').style.display = 'block';
+  document.getElementById('batch-summary').innerHTML =
+    `✅ ${successCount}건 등록 완료${failCount?` · ❌ ${failCount}건 실패`:''}` +
+    (canAutoAssign ? `<br><button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="closeBatchOcr();toggleAutoAssignBar();runAutoAssign()">🤖 지금 바로 자동 배정</button>` : '');
 }
 
 // ══════════════════════════════════════════
