@@ -112,7 +112,7 @@ async function parseWithGemini(rawText, apiKey) {
   const prompt = `너는 마트 영수증 데이터 파싱 전문가야. 아래 OCR 텍스트에서 다음 4가지를 추출해:
 1. name: 고객명 ('성명:' 옆 텍스트. '합계금액' 키워드 자체는 이름이 아님)
 2. phone: 연락처 (전화번호. 010 없이 국번만 있어도 그대로 추출. 없으면 null)
-3. address: 주소 ('주소:' 뒤 텍스트 한 줄 병합)
+3. address: 주소 ('주소:' 키워드 바로 뒤에 오는 텍스트만. 영수증 상단 마트/가게 주소는 제외하고 고객 배달 주소만 추출. 보통 지번(숫자-숫자) 또는 건물명+동호수 형태)
 4. totalAmount: 합계금액 (영수증에서 '합계', '합 계', '총합계', '결제금액' 키워드 바로 옆/아래 숫자. 쉼표 제거한 순수 숫자만. 상품 바코드나 상품코드가 아닌 최종 결제 금액)
 
 반드시 JSON({name,phone,address,totalAmount})으로만 응답. totalAmount는 숫자 문자열(예: "17300").
@@ -390,10 +390,15 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     return { road_address: '', detail_address: '', lat: null, lng: null };
   }
 
+  // 지하/지중/지층 등 위치 설명어 제거 (검색 전)
+  const locDescMatch = rawAddress.match(/\s*(지하|지중|지층|옥상|B\d+)$/);
+  const locDesc = locDescMatch ? locDescMatch[0].trim() : '';
+  const addrClean = locDesc ? rawAddress.slice(0, rawAddress.lastIndexOf(locDescMatch[0])).trim() : rawAddress;
+
   // 상세주소 패턴: 101호, 3층, 나-516, 가동 101호 등
-  const dm = rawAddress.match(/[가-힣]?-?\d+호|\d+층|\d+동\s*\d*호?|[가나다라마바사아자차카타파하]-\d+/);
-  const da = dm ? dm[0].replace(/^-/, '') : ''; // 앞 대시 제거
-  const q  = da ? rawAddress.slice(0, rawAddress.lastIndexOf(dm[0])).replace(/-\s*$/, '').trim() : rawAddress.trim();
+  const dm = addrClean.match(/[가-힣]?-?\d+호|\d+층|\d+동\s*\d*호?|[가나다라마바사아자차카타파하]-\d+/);
+  const da = [dm ? dm[0].replace(/^-/, '') : '', locDesc].filter(Boolean).join(' '); // 앞 대시 제거
+  const q  = da && dm ? addrClean.slice(0, addrClean.lastIndexOf(dm[0])).replace(/-\s*$/, '').trim() : addrClean.trim();
 
   // 1차: 원본 주소 검색
   const r1 = await kakaoAddrSearch(q, kakaoKey);
@@ -401,10 +406,21 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
 
   // 주소가 숫자 시작(지번)이면 주변 동 검색, 아니면 키워드 검색(건물명/아파트)
   if (/^\d/.test(q)) {
-    // 2차: 주변 동 이름 순서대로 시도
+    // 지번 뒤 건물명 분리: "258-116 새남교회" → jibun="258-116", bldg="새남교회"
+    const jibunMatch = q.match(/^(\d+(?:-\d+)?)\s*(.*)$/);
+    const jibunOnly = jibunMatch ? jibunMatch[1] : q;
+    const bldgName  = jibunMatch ? jibunMatch[2].trim() : '';
+
+    // 2차: 주변 동 이름 순서대로 시도 (지번만으로)
     for (const dong of nearbyDongs) {
-      const r2 = await kakaoAddrSearch(dong + ' ' + q, kakaoKey);
-      if (r2) { logger.info('주변동 검색 성공:', dong, r2.road_address); return { ...r2, detail_address: da }; }
+      const r2 = await kakaoAddrSearch(dong + ' ' + jibunOnly, kakaoKey);
+      if (r2) { logger.info('주변동 검색 성공:', dong, r2.road_address); return { ...r2, detail_address: [bldgName, da].filter(Boolean).join(' ') }; }
+    }
+    // 3차: 건물명 있으면 키워드 검색
+    if (bldgName) {
+      logger.info('지번+건물명 키워드 검색:', bldgName);
+      const rk3 = await kakaoKeywordSearch(bldgName, kakaoKey, martLat, martLng);
+      if (rk3) { logger.info('건물명 키워드 검색 성공:', rk3.road_address); return { ...rk3, detail_address: da }; }
     }
   } else {
     // 건물명/아파트 → 키워드 검색 (괄호 제거 후 검색)
