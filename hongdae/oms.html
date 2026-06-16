@@ -2021,7 +2021,7 @@ db.ref('orders').on('value', snap => {
     ...orders.filter(o => !o.fromFb && !fbIds.has(o.id)),
     ...fbOrders.map(o => ({ ...o, fromFb: true }))
   ];
-  orders.sort((a, b) => b.createdAt - a.createdAt);
+  orders.sort((a, b) => a.createdAt - b.createdAt); // 접수순(오래된 것부터) → 신규 주문은 맨 아래
   saveOrders();
 
   // 새 주문 감지 알림 (초기 로드 후부터)
@@ -5835,108 +5835,19 @@ function updateOmsMapMarkers() {
   // 기사별 색상 초기화 (순서 일관성 위해 매번 재계산)
   _driverColorMap = {};
 
-  // 기사별로 그룹핑
-  const _driverOrderGroups = {};
-  todayOrders.forEach(o => {
-    const key = o.assignedDriverId || '__unassigned';
-    if (!_driverOrderGroups[key]) _driverOrderGroups[key] = [];
-    _driverOrderGroups[key].push(o);
-  });
+  // 기사별 색상 초기화
+  _driverColorMap = {};
 
-  // 경로 총 거리 계산 (마트 출발, 주어진 순서 그대로)
-  function _routeTotalKm(ordered) {
-    const mart = getMartLocation();
-    let curLat = mart?.lat || 37.5563, curLng = mart?.lng || 126.9227;
-    let total = 0;
-    for (const o of ordered) {
-      const lat = parseFloat(o.lat), lng = parseFloat(o.lng);
-      total += haversineKm(curLat, curLng, lat, lng);
-      curLat = lat; curLng = lng;
-    }
-    return total;
-  }
-
-  // 경로 최적화: n≤8이면 모든 순열 탐색(브루트포스), n>8이면 NN + 2-opt
-  function _optimizeRouteOrder(orderList) {
-    const n = orderList.length;
-    if (n <= 1) return orderList;
-
-    // ── 브루트포스: n≤8, 순열 최대 40320개 ──
-    if (n <= 8) {
-      const idxs = orderList.map((_, i) => i);
-      let bestPerm = idxs, bestDist = Infinity;
-      function permute(arr, start) {
-        if (start === arr.length) {
-          const d = _routeTotalKm(arr.map(i => orderList[i]));
-          if (d < bestDist) { bestDist = d; bestPerm = [...arr]; }
-          return;
-        }
-        for (let i = start; i < arr.length; i++) {
-          [arr[start], arr[i]] = [arr[i], arr[start]];
-          permute(arr, start + 1);
-          [arr[start], arr[i]] = [arr[i], arr[start]];
-        }
-      }
-      permute(idxs, 0);
-      return bestPerm.map(i => orderList[i]);
-    }
-
-    // ── n>8: Nearest Neighbor 초기해 + 2-opt 개선 ──
-    const mart = getMartLocation();
-    let curLat = mart?.lat || 37.5563, curLng = mart?.lng || 126.9227;
-    const remaining = [...orderList];
-    let route = [];
-    while (remaining.length > 0) {
-      let bestIdx = 0, bestDist = Infinity;
-      remaining.forEach((o, i) => {
-        const d = haversineKm(curLat, curLng, parseFloat(o.lat), parseFloat(o.lng));
-        if (d < bestDist) { bestDist = d; bestIdx = i; }
-      });
-      const next = remaining.splice(bestIdx, 1)[0];
-      route.push(next);
-      curLat = parseFloat(next.lat); curLng = parseFloat(next.lng);
-    }
-    // 2-opt
-    let improved2 = true;
-    while (improved2) {
-      improved2 = false;
-      for (let i = 0; i < route.length - 1; i++) {
-        for (let j = i + 2; j < route.length; j++) {
-          const before = _routeTotalKm(route);
-          const newRoute = [...route.slice(0, i + 1), ...route.slice(i + 1, j + 1).reverse(), ...route.slice(j + 1)];
-          if (_routeTotalKm(newRoute) < before - 0.001) {
-            route = newRoute; improved2 = true;
-          }
-        }
-      }
-    }
-    return route;
-  }
-
-  // 기사별 최적화 순서로 마커 생성
-  Object.entries(_driverOrderGroups).forEach(([groupKey, groupOrders]) => {
-    const sortedOrders = _optimizeRouteOrder(groupOrders);
-    sortedOrders.forEach((o, idx) => {
-      const driverId = o.assignedDriverId || null;
-      const color = getDriverColor(driverId);
-
-      // 기사 이니셜: TMS위치데이터 → 계정목록 → assignedDriverName 순으로 참조
-      let initial = '미';
-      if (driverId) {
-        const driverName =
-          tmsDriverData[driverId]?.name ||
-          driverAccountsList[driverId]?.name ||
-          o.assignedDriverName ||
-          '';
-        initial = driverName ? driverName.charAt(0) : driverId.slice(0, 2);
-      }
-
-      const seq = idx + 1;
-      const label = `${initial}-${seq}`;
-      const marker = makeDeliveryMarker(o.lat, o.lng, label, o.status, o.id, driverId ? color : null);
-      marker.setMap(tmsMap);
-      _omsOrderMarkers[o.id] = marker;
-    });
+  // 목록 순서(i+1)와 동일한 전체 번호로 마커 생성 → 기사별 번호 아닌 전체 순번 사용
+  const todayAll = filterOrders().filter(o => o.createdAt >= today);
+  todayAll.forEach((o, i) => {
+    if (!o.lat || !o.lng) return; // 좌표 없으면 마커 생략
+    const driverId = o.assignedDriverId || null;
+    const color = getDriverColor(driverId);
+    const label = `${i + 1}`; // 목록 번호와 완전 일치
+    const marker = makeDeliveryMarker(o.lat, o.lng, label, o.status, o.id, driverId ? color : null);
+    marker.setMap(tmsMap);
+    _omsOrderMarkers[o.id] = marker;
   });
 
   // 마트 중심 2km 반경 뷰 유지 (첫 로드 시에만 적용)
