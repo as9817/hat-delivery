@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>햇배달 - 슈퍼어드민</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f6f9;color:#1a1a2e;min-height:100vh}
+.header{background:#1a1a2e;color:#fff;padding:16px 24px;display:flex;align-items:center;gap:12px}
+.header h1{font-size:17px;font-weight:700}
+.header .badge{margin-left:auto;font-size:12px;color:#bbb;display:flex;align-items:center;gap:10px}
+.header button{background:#33344e;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
+.wrap{max-width:920px;margin:0 auto;padding:24px}
+.card{background:#fff;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.card h2{font-size:15px;margin-bottom:14px;color:#333}
+.row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+input,select{border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:inherit;flex:1;min-width:140px}
+input:focus,select:focus{border-color:#ff7a3d}
+.btn{background:#ff7a3d;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn.ghost{background:#f0f0f0;color:#555}
+.tenant{border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:10px}
+.tenant-top{display:flex;align-items:center;gap:10px}
+.tenant-name{font-weight:700;font-size:14px}
+.tenant-id{font-size:11px;color:#999;background:#f4f6f9;padding:2px 8px;border-radius:6px}
+.tenant-actions{margin-left:auto;display:flex;gap:6px}
+.member{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;padding:6px 0;border-top:1px solid #f4f4f4}
+.member .role{background:#eef2ff;color:#4a5fd8;border-radius:6px;padding:1px 7px;font-size:11px}
+.empty{color:#aaa;font-size:13px;padding:10px 0}
+.msg{font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:10px;display:none}
+.msg.show{display:block}
+.msg.ok{background:#eafbf0;color:#1a9d56}
+.msg.err{background:#fff0ee;color:#d23c2f}
+.applink{font-size:12px;color:#ff7a3d;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🛠 햇배달 슈퍼어드민</h1>
+  <div class="badge">
+    <span id="who"></span>
+    <button onclick="saLogout()">로그아웃</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h2>새 테넌트(마트) 추가</h2>
+    <div class="msg" id="tenantMsg"></div>
+    <div class="row">
+      <input id="newTenantName" placeholder="마트명 (예: 행복마트)">
+      <input id="newTenantId" placeholder="테넌트 ID (영문/숫자, 예: happymart)">
+      <button class="btn" onclick="createTenant()">테넌트 생성</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>테넌트 목록</h2>
+    <div id="tenantList"><div class="empty">불러오는 중...</div></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA_QC1p052HO3TEv0SnTjgS3LL9pY5Xfww",
+  authDomain: "hatdelivery-saas.firebaseapp.com",
+  databaseURL: "https://hatdelivery-saas-default-rtdb.firebaseio.com",
+  projectId: "hatdelivery-saas",
+  storageBucket: "hatdelivery-saas.firebasestorage.app",
+  messagingSenderId: "609228475077",
+  appId: "1:609228475077:web:6a72b2c8f58e8a0e133eac",
+  measurementId: "G-E327TX7FT2"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+// 두 번째 보조 앱 인스턴스: 신규 사용자 생성 시 슈퍼어드민의 로그인 세션이 바뀌지 않도록 분리
+const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
+const secondaryAuth = secondaryApp.auth();
+
+let currentUid = null;
+
+auth.onAuthStateChanged(function (user) {
+  if (!user) { location.href = 'login.html'; return; }
+  db.ref('superadmins/' + user.uid).once('value').then(function (snap) {
+    if (snap.val() !== true) {
+      alert('슈퍼어드민 권한이 없습니다.');
+      location.href = 'login.html';
+      return;
+    }
+    currentUid = user.uid;
+    document.getElementById('who').textContent = user.email;
+    loadTenants();
+  });
+});
+
+function saLogout() {
+  auth.signOut().then(function () { location.href = 'login.html'; });
+}
+
+function showMsg(text, ok) {
+  const el = document.getElementById('tenantMsg');
+  el.textContent = text;
+  el.className = 'msg show ' + (ok ? 'ok' : 'err');
+  setTimeout(function () { el.classList.remove('show'); }, 4000);
+}
+
+function slugify(s) {
+  return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '').slice(0, 30);
+}
+
+document.getElementById('newTenantName').addEventListener('input', function () {
+  const idEl = document.getElementById('newTenantId');
+  if (!idEl.dataset.touched) idEl.value = slugify(this.value);
+});
+document.getElementById('newTenantId').addEventListener('input', function () {
+  this.dataset.touched = '1';
+});
+
+function createTenant() {
+  const name = document.getElementById('newTenantName').value.trim();
+  const id = slugify(document.getElementById('newTenantId').value);
+  if (!name || !id) { showMsg('마트명과 테넌트 ID를 입력해주세요', false); return; }
+
+  db.ref('tenant_meta/' + id).once('value').then(function (snap) {
+    if (snap.exists()) { showMsg('이미 존재하는 테넌트 ID입니다', false); return; }
+    return db.ref('tenant_meta/' + id).set({
+      name: name, createdAt: Date.now(), active: true, createdBy: currentUid
+    }).then(function () {
+      document.getElementById('newTenantName').value = '';
+      document.getElementById('newTenantId').value = '';
+      document.getElementById('newTenantId').dataset.touched = '';
+      showMsg('"' + name + '" 테넌트가 생성되었습니다', true);
+      loadTenants();
+    });
+  });
+}
+
+function loadTenants() {
+  db.ref('tenant_meta').once('value').then(function (snap) {
+    const data = snap.val() || {};
+    const ids = Object.keys(data).sort(function (a, b) { return (data[b].createdAt||0) - (data[a].createdAt||0); });
+    const listEl = document.getElementById('tenantList');
+    if (!ids.length) { listEl.innerHTML = '<div class="empty">아직 테넌트가 없습니다</div>'; return; }
+
+    listEl.innerHTML = ids.map(function (id) {
+      const t = data[id];
+      const members = t.members || {};
+      const memberRows = Object.keys(members).map(function (uid) {
+        const m = members[uid];
+        return '<div class="member">' + (m.name || m.email) + ' &lt;' + m.email + '&gt; <span class="role">' + (m.role || 'staff') + '</span></div>';
+      }).join('') || '<div class="empty" style="padding:6px 0">아직 계정이 없습니다</div>';
+
+      return '<div class="tenant">' +
+        '<div class="tenant-top">' +
+          '<div class="tenant-name">' + escapeHtml(t.name) + '</div>' +
+          '<div class="tenant-id">' + id + '</div>' +
+          '<div class="tenant-actions">' +
+            '<button class="btn sm" onclick="openAddUser(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">계정 추가</button>' +
+            '<a class="applink" href="app.html?tenant=' + id + '" onclick="impersonate(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">앱 열기 →</a>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:10px">' + memberRows + '</div>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function escapeHtml(s) { return (s||'').replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function escapeAttr(s) { return (s||'').replace(/'/g, "\\'"); }
+
+// 슈퍼어드민이 특정 테넌트 화면을 미리보기 위해 hd_tenant_id를 임시로 세팅
+function impersonate(tenantId, tenantName) {
+  localStorage.setItem('hd_tenant_id', tenantId);
+  localStorage.setItem('hd_tenant_name', tenantName);
+}
+
+function openAddUser(tenantId, tenantName) {
+  const email = prompt(tenantName + ' 에 추가할 계정 이메일을 입력하세요:');
+  if (!email) return;
+  const name = prompt('담당자 이름:') || email;
+  const pw = prompt('초기 비밀번호 (8자 이상):');
+  if (!pw || pw.length < 8) { alert('비밀번호는 8자 이상이어야 합니다'); return; }
+  const role = (prompt('역할 (admin / staff)', 'admin') || 'admin').trim();
+
+  secondaryAuth.createUserWithEmailAndPassword(email.trim(), pw).then(function (cred) {
+    const uid = cred.user.uid;
+    const updates = {};
+    updates['users/' + uid] = { tenantId: tenantId, email: email.trim(), name: name, role: role, createdAt: Date.now() };
+    updates['tenant_meta/' + tenantId + '/members/' + uid] = { email: email.trim(), name: name, role: role };
+    return db.ref().update(updates).then(function () { return secondaryAuth.signOut(); });
+  }).then(function () {
+    showMsg(email + ' 계정이 생성되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    showMsg('계정 생성 실패: ' + e.message, false);
+  });
+}
+</script>
+</body>
+</html>
