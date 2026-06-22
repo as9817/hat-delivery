@@ -114,4 +114,24 @@ function routeAfterLogin(user, silent) {
         const meta = metaSnap.val() || {};
         if (meta.active === false) {
           if (!silent) showErr('마트 서비스가 비활성화되었습니다. 관리자에게 문의하세요.');
-          
+          auth.signOut();
+          return;
+        }
+        if (meta.planExpiry && meta.planExpiry < Date.now()) {
+          if (!silent) showErr('구독이 만료되었습니다. 관리자에게 문의하세요.');
+          auth.signOut();
+          return;
+        }
+        localStorage.setItem('hd_tenant_id', info.tenantId);
+        localStorage.setItem('hd_tenant_name', meta.name || '');
+        localStorage.setItem('hd_role', info.role || 'staff');
+        location.href = 'app.html';
+      });
+    });
+  }).catch(function (e) {
+    if (!silent) showErr('로그인 확인 중 오류: ' + e.message);
+  });
+}
+</script>
+</body>
+</html>

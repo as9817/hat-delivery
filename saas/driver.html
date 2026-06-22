@@ -3270,4 +3270,13 @@ const mapZone = (() => {
 
 <script>
 // ── PWA 서비스워커 등록 ──
-if ('serviceW
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/hat-delivery/sw.js')
+      .then(() => console.log('SW 등록 완료'))
+      .catch(e => console.warn('SW 등록 실패:', e));
+  });
+}
+</script>
+</body>
+</html>

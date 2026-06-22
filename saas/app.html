@@ -6263,4 +6263,133 @@ function renderBatchQueue() {
     const icon = item.status === 'queued' ? '🕐' : item.status === 'processing' ? '🔄' : item.status === 'done' ? '✅' : '❌';
     const label = item.status === 'done' && item.parsed ? `${item.parsed.name||'?'} · ${item.parsed.address||'주소없음'}` : item.error || item.file.name;
     return `<div style="display:flex;align-items:center;gap:8px;background:#f8f9ff;border-radius:8px;padding:8px 10px;margin-bottom:6px">
-      ${item.dataUrl ? `<img src="${item.dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:40px;height:40px;border-radius:6px;background:#f0f0
+      ${item.dataUrl ? `<img src="${item.dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:40px;height:40px;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${icon} ${i+1}. ${item.file.name}</div>
+        <div style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('batch-queue').innerHTML = html;
+}
+
+async function startBatchOcr() {
+  const key = localStorage.getItem(VISION_KEY_STORAGE);
+  if (!key) { showToast('Vision API 키를 먼저 설정해주세요'); showApiKeyModal(); return; }
+
+  document.getElementById('batch-start-btn').style.display = 'none';
+  document.getElementById('batch-progress-wrap').style.display = 'block';
+  document.getElementById('batch-summary').style.display = 'none';
+
+  let successCount = 0, failCount = 0;
+
+  for (let i = 0; i < batchQueue.length; i++) {
+    const item = batchQueue[i];
+    batchQueue[i].status = 'processing';
+    renderBatchQueue();
+
+    // 진행률 업데이트
+    document.getElementById('batch-progress-text').textContent = `${item.file.name} 처리 중...`;
+    document.getElementById('batch-progress-count').textContent = `${i+1} / ${batchQueue.length}`;
+    document.getElementById('batch-progress-bar').style.width = `${((i+1)/batchQueue.length)*100}%`;
+
+    try {
+      // dataUrl에서 base64 추출
+      const base64 = item.dataUrl ? item.dataUrl.split(',')[1] : await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.readAsDataURL(item.file);
+      });
+
+      // Vision API 호출
+      const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${key}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ requests: [{ image: { content: base64 }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }] })
+      });
+      const data = await res.json();
+      const annotation = data.responses?.[0]?.fullTextAnnotation || data.responses?.[0]?.textAnnotations?.[0];
+      const text = annotation?.text || annotation?.description || '';
+
+      if (!text.trim()) throw new Error('텍스트 인식 실패');
+
+      const parsed = parseReceiptText(text, null);
+
+      // 주소 도로명 변환
+      if (parsed.address) {
+        try { parsed.address = await omsGeocodeToRoad(parsed.address); } catch(e) {}
+      }
+
+      // 좌표 획득
+      let lat = null, lng = null;
+      if (parsed.address) {
+        try {
+          const coords = await new Promise((resolve, reject) => {
+            kakao.maps.load(() => {
+              const geocoder = new kakao.maps.services.Geocoder();
+              geocoder.addressSearch(parsed.address, (result, status) => {
+                if (status === kakao.maps.services.Status.OK && result.length > 0) {
+                  resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+                } else reject(new Error('좌표 없음'));
+              });
+            });
+          });
+          lat = coords.lat; lng = coords.lng;
+        } catch(e) {}
+      }
+
+      // 주문 등록
+      const order = {
+        id: uid(), createdAt: Date.now(), updatedAt: Date.now(),
+        status: 'pending', channel: 'ocr',
+        customerName: parsed.name || '이름미확인',
+        phone: parsed.phone || '',
+        address: parsed.address || '',
+        lat, lng,
+        items: parsed.items || [],
+        totalAmount: (parsed.items||[]).reduce((s,it)=>s+(it.price*it.qty||0),0) || 0,
+        note: '', paymentMethod: currentPay,
+        assignedDriverId: '', assignedDriverName: ''
+      };
+
+      orders.push(order);
+      orders.sort((a, b) => a.createdAt - b.createdAt);
+      saveOrders();
+      if (firebaseActive) tref('orders/' + order.id).set(order);
+
+      batchQueue[i].status = 'done';
+      batchQueue[i].parsed = { name: order.customerName, address: order.address };
+      successCount++;
+    } catch(e) {
+      batchQueue[i].status = 'error';
+      batchQueue[i].error = e.message;
+      failCount++;
+    }
+    renderBatchQueue();
+  }
+
+  // 완료 후 자동 배정 제안
+  document.getElementById('batch-progress-text').textContent = '처리 완료!';
+  renderOrderList();
+  renderStats();
+  updateHeader();
+
+  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
+  const canAutoAssign = activeDrivers.length > 0;
+
+  document.getElementById('batch-summary').style.display = 'block';
+  document.getElementById('batch-summary').innerHTML =
+    `✅ ${successCount}건 등록 완료${failCount?` · ❌ ${failCount}건 실패`:''}` +
+    (canAutoAssign ? `<br><button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="closeBatchOcr();toggleAutoAssignBar();runAutoAssign()">🤖 지금 바로 자동 배정</button>` : '');
+}
+
+// ══════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════
+loadOrders();
+updateHeader();
+addItemRow();
+
+</script>
+</body>
+</html>
