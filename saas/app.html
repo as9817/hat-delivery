@@ -1691,11 +1691,14 @@ _fbAuth.onAuthStateChanged(function (user) {
     if (saSnap.val() === true) return;
     return db.ref('users/' + user.uid).once('value').then(function (snap) {
       const info = snap.val();
-      if (!info || info.tenantId !== TENANT_ID) {
+      if (!info || info.tenantId !== TENANT_ID || info.active === false) {
         localStorage.removeItem('hd_tenant_id');
         localStorage.removeItem('hd_tenant_name');
+        if (info && info.active === false) alert('비활성화된 계정입니다. 관리자에게 문의하세요.');
         location.href = 'login.html';
+        return;
       }
+      db.ref('users/' + user.uid + '/lastLogin').set(Date.now()).catch(function () {});
     });
   }).catch(function (e) { console.warn('[테넌트 검증 실패]', e.message); });
 });

@@ -105,6 +105,11 @@ function routeAfterLogin(user, silent) {
         auth.signOut();
         return;
       }
+      if (info.active === false) {
+        if (!silent) showErr('비활성화된 계정입니다. 관리자에게 문의하세요.');
+        auth.signOut();
+        return;
+      }
       return db.ref('tenant_meta/' + info.tenantId + '/name').once('value').then(function (nameSnap) {
         localStorage.setItem('hd_tenant_id', info.tenantId);
         localStorage.setItem('hd_tenant_name', nameSnap.val() || '');

@@ -25,8 +25,13 @@ input:focus,select:focus{border-color:#ff7a3d}
 .tenant-name{font-weight:700;font-size:14px}
 .tenant-id{font-size:11px;color:#999;background:#f4f6f9;padding:2px 8px;border-radius:6px}
 .tenant-actions{margin-left:auto;display:flex;gap:6px}
-.member{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;padding:6px 0;border-top:1px solid #f4f4f4}
+.member{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;padding:8px 0;border-top:1px solid #f4f4f4;cursor:pointer}
+.member:hover{background:#fafafa}
 .member .role{background:#eef2ff;color:#4a5fd8;border-radius:6px;padding:1px 7px;font-size:11px}
+.member .inactive{background:#fff0ee;color:#d23c2f;border-radius:6px;padding:1px 7px;font-size:11px}
+.member .arrow{margin-left:auto;color:#ccc;font-size:12px}
+.detail-row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #f4f4f4}
+.detail-row span:first-child{color:#888}
 .empty{color:#aaa;font-size:13px;padding:10px 0}
 .msg{font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:10px;display:none}
 .msg.show{display:block}
@@ -76,6 +81,8 @@ input:focus,select:focus{border-color:#ff7a3d}
     <input id="modalEmail" type="email" placeholder="user@company.com">
     <label>담당자 이름</label>
     <input id="modalName" type="text" placeholder="홍길동">
+    <label>연락처</label>
+    <input id="modalPhone" type="tel" placeholder="010-1234-5678">
     <label>초기 비밀번호 (8자 이상)</label>
     <input id="modalPw" type="text" placeholder="••••••••">
     <label>역할</label>
@@ -86,6 +93,35 @@ input:focus,select:focus{border-color:#ff7a3d}
     <div class="actions">
       <button class="btn ghost" onclick="closeAddUserModal()">취소</button>
       <button class="btn" onclick="submitAddUser()">생성</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="memberDetailModal">
+  <div class="modal">
+    <h3 id="detailName"></h3>
+    <div class="msg" id="detailMsg"></div>
+    <div class="detail-row"><span>소속 마트</span><span id="detailTenantName"></span></div>
+    <div class="detail-row"><span>이메일</span><span id="detailEmail"></span></div>
+    <div class="detail-row"><span>가입일</span><span id="detailCreatedAt"></span></div>
+    <div class="detail-row"><span>마지막 로그인</span><span id="detailLastLogin"></span></div>
+    <div class="detail-row"><span>상태</span><span id="detailStatus"></span></div>
+    <label>성명</label>
+    <input id="detailNameInput" type="text" placeholder="홍길동">
+    <label>연락처</label>
+    <input id="detailPhone" type="tel" placeholder="010-1234-5678">
+    <label>역할</label>
+    <select id="detailRole">
+      <option value="admin">admin</option>
+      <option value="staff">staff</option>
+    </select>
+    <div class="actions">
+      <button class="btn ghost" onclick="sendMemberPasswordReset()">비밀번호 재설정 메일</button>
+      <button class="btn" onclick="saveMemberDetail()">저장</button>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="detailToggleBtn" onclick="toggleMemberActive()">비활성화</button>
+      <button class="btn ghost" onclick="closeMemberDetailModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -182,7 +218,10 @@ function loadTenants() {
       const members = t.members || {};
       const memberRows = Object.keys(members).map(function (uid) {
         const m = members[uid];
-        return '<div class="member">' + (m.name || m.email) + ' &lt;' + m.email + '&gt; <span class="role">' + (m.role || 'staff') + '</span></div>';
+        const statusBadge = m.active === false ? '<span class="inactive">비활성</span>' : '<span class="role">' + (m.role || 'staff') + '</span>';
+        return '<div class="member" onclick="openMemberDetail(\'' + id + '\',\'' + uid + '\',\'' + escapeAttr(t.name) + '\')">' +
+          escapeHtml(m.name || m.email) + ' &lt;' + escapeHtml(m.email) + '&gt; ' + statusBadge +
+          '<span class="arrow">›</span></div>';
       }).join('') || '<div class="empty" style="padding:6px 0">아직 계정이 없습니다</div>';
 
       return '<div class="tenant">' +
@@ -216,6 +255,7 @@ function openAddUser(tenantId, tenantName) {
   document.getElementById('modalTenantName').textContent = tenantName;
   document.getElementById('modalEmail').value = '';
   document.getElementById('modalName').value = '';
+  document.getElementById('modalPhone').value = '';
   document.getElementById('modalPw').value = '';
   document.getElementById('modalRole').value = 'admin';
   document.getElementById('modalErr').classList.remove('show');
@@ -230,6 +270,7 @@ function submitAddUser() {
   const tenantId = _addUserTenantId;
   const email = document.getElementById('modalEmail').value.trim();
   const name = document.getElementById('modalName').value.trim() || email;
+  const phone = document.getElementById('modalPhone').value.trim();
   const pw = document.getElementById('modalPw').value;
   const role = document.getElementById('modalRole').value;
   const errEl = document.getElementById('modalErr');
@@ -240,9 +281,10 @@ function submitAddUser() {
 
   secondaryAuth.createUserWithEmailAndPassword(email, pw).then(function (cred) {
     const uid = cred.user.uid;
+    const now = Date.now();
     const updates = {};
-    updates['users/' + uid] = { tenantId: tenantId, email: email, name: name, role: role, createdAt: Date.now() };
-    updates['tenant_meta/' + tenantId + '/members/' + uid] = { email: email, name: name, role: role };
+    updates['users/' + uid] = { tenantId: tenantId, email: email, name: name, phone: phone, role: role, createdAt: now, active: true };
+    updates['tenant_meta/' + tenantId + '/members/' + uid] = { email: email, name: name, phone: phone, role: role, createdAt: now, active: true };
     return db.ref().update(updates).then(function () { return secondaryAuth.signOut(); });
   }).then(function () {
     closeAddUserModal();
@@ -251,6 +293,106 @@ function submitAddUser() {
   }).catch(function (e) {
     errEl.textContent = '계정 생성 실패: ' + e.message;
     errEl.classList.add('show');
+  });
+}
+
+// ── 계정 상세보기 / 관리 ──
+let _detailTenantId = null;
+let _detailUid = null;
+let _detailEmail = null;
+
+function fmtDate(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  return d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0') +
+    ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+function openMemberDetail(tenantId, uid, tenantName) {
+  _detailTenantId = tenantId;
+  _detailUid = uid;
+  document.getElementById('detailMsg').classList.remove('show');
+  document.getElementById('detailTenantName').textContent = tenantName || tenantId;
+
+  db.ref('users/' + uid).once('value').then(function (snap) {
+    const u = snap.val() || {};
+    _detailEmail = u.email || '';
+    document.getElementById('detailName').textContent = u.name || u.email || '계정 상세';
+    document.getElementById('detailEmail').textContent = u.email || '-';
+    document.getElementById('detailCreatedAt').textContent = fmtDate(u.createdAt);
+    document.getElementById('detailLastLogin').textContent = fmtDate(u.lastLogin);
+    document.getElementById('detailNameInput').value = u.name || '';
+    document.getElementById('detailPhone').value = u.phone || '';
+    document.getElementById('detailRole').value = u.role || 'staff';
+    const isActive = u.active !== false;
+    document.getElementById('detailStatus').textContent = isActive ? '활성' : '비활성';
+    document.getElementById('detailToggleBtn').textContent = isActive ? '비활성화' : '활성화';
+    document.getElementById('memberDetailModal').style.display = 'flex';
+  }).catch(function (e) {
+    showMsg('계정 정보를 불러올 수 없습니다: ' + e.message, false);
+  });
+}
+
+function closeMemberDetailModal() {
+  document.getElementById('memberDetailModal').style.display = 'none';
+}
+
+function saveMemberDetail() {
+  const role = document.getElementById('detailRole').value;
+  const name = document.getElementById('detailNameInput').value.trim();
+  const phone = document.getElementById('detailPhone').value.trim();
+  if (!name) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '성명을 입력해주세요';
+    el.className = 'msg show err';
+    return;
+  }
+  const updates = {};
+  updates['users/' + _detailUid + '/role'] = role;
+  updates['users/' + _detailUid + '/name'] = name;
+  updates['users/' + _detailUid + '/phone'] = phone;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/role'] = role;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/name'] = name;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/phone'] = phone;
+  db.ref().update(updates).then(function () {
+    closeMemberDetailModal();
+    showMsg('계정 정보가 저장되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '저장 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+
+function toggleMemberActive() {
+  db.ref('users/' + _detailUid + '/active').once('value').then(function (snap) {
+    const newActive = snap.val() === false ? true : false;
+    const updates = {};
+    updates['users/' + _detailUid + '/active'] = newActive;
+    updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/active'] = newActive;
+    return db.ref().update(updates);
+  }).then(function () {
+    closeMemberDetailModal();
+    showMsg(_detailEmail + ' 계정이 ' + '상태 변경되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '상태 변경 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+
+function sendMemberPasswordReset() {
+  if (!_detailEmail) return;
+  auth.sendPasswordResetEmail(_detailEmail).then(function () {
+    const el = document.getElementById('detailMsg');
+    el.textContent = _detailEmail + ' 으로 비밀번호 재설정 메일을 보냈습니다';
+    el.className = 'msg show ok';
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '메일 발송 실패: ' + e.message;
+    el.className = 'msg show err';
   });
 }
 </script>
