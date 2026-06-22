@@ -53,6 +53,26 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
+// ══════════════════════════════════════════
+// 운영 모니터링: 클라이언트 오류 자동 기록 (슈퍼어드민 알림용)
+// ══════════════════════════════════════════
+function logSystemError(err, source) {
+  try {
+    const msg = (err && (err.message || err.reason)) || String(err) || '알 수 없는 오류';
+    db.ref('system_logs/errors').push({
+      ts: Date.now(),
+      message: String(msg).slice(0, 300),
+      stack: (err && err.stack) ? String(err.stack).slice(0, 500) : '',
+      source: source || 'login',
+      tenantId: null,
+      url: location.href.slice(0, 200),
+      ua: navigator.userAgent.slice(0, 150)
+    }).catch(function () {});
+  } catch (e) {}
+}
+window.addEventListener('error', function (e) { logSystemError(e.error || e.message, 'login'); });
+window.addEventListener('unhandledrejection', function (e) { logSystemError(e.reason, 'login'); });
+
 // 이미 로그인 돼있고 유효한 세션이면 자동 이동
 auth.onAuthStateChanged(function (user) {
   if (!user) return;

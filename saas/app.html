@@ -542,10 +542,22 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 #ob-finish-btn{background:#ff7a3d;color:#fff}
 #ob-finish-btn:disabled{background:#ddd;color:#999;cursor:default}
 #ob-skip-btn{background:#f0f0f0;color:#666}
+/* 사용량 한도 경고 배너 */
+.usage-limit-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:9000;
+  background:#fff4e0;color:#a3650f;font-size:13px;font-weight:600;padding:10px 16px;text-align:center}
+.usage-limit-banner.show{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.usage-limit-banner.exceeded{background:#fff0ee;color:#d23c2f}
+.usage-limit-banner .ulb-close{cursor:pointer;font-weight:700;opacity:.6;padding:0 4px}
 </style>
 <!-- 카카오맵 SDK -->
 </head>
 <body>
+
+<!-- ══ 사용량 한도 경고 배너 ══ -->
+<div class="usage-limit-banner" id="usage-limit-banner">
+  <span class="ulb-text"></span>
+  <span class="ulb-close" onclick="dismissUsageLimitBanner()">✕</span>
+</div>
 
 <!-- ══ OMS 로그인 오버레이 ══ -->
 <div id="oms-login-overlay">
@@ -1723,6 +1735,26 @@ const db = firebase.database();
 const _fbAuth = firebase.auth();
 
 // ══════════════════════════════════════════
+// 운영 모니터링: 클라이언트 오류 자동 기록 (슈퍼어드민 알림용)
+// ══════════════════════════════════════════
+function logSystemError(err, source) {
+  try {
+    const msg = (err && (err.message || err.reason)) || String(err) || '알 수 없는 오류';
+    db.ref('system_logs/errors').push({
+      ts: Date.now(),
+      message: String(msg).slice(0, 300),
+      stack: (err && err.stack) ? String(err.stack).slice(0, 500) : '',
+      source: source || 'app',
+      tenantId: (typeof TENANT_ID !== 'undefined' && TENANT_ID) || null,
+      url: location.href.slice(0, 200),
+      ua: navigator.userAgent.slice(0, 150)
+    }).catch(function () {});
+  } catch (e) {}
+}
+window.addEventListener('error', function (e) { logSystemError(e.error || e.message, 'app'); });
+window.addEventListener('unhandledrejection', function (e) { logSystemError(e.reason, 'app'); });
+
+// ══════════════════════════════════════════
 // 테넌트 컨텍스트 (멀티테넌트 핵심 로직)
 // ══════════════════════════════════════════
 let TENANT_ID = localStorage.getItem('hd_tenant_id') || '';
@@ -1762,6 +1794,7 @@ _fbAuth.onAuthStateChanged(function (user) {
         }
         db.ref('users/' + user.uid + '/lastLogin').set(Date.now()).catch(function () {});
         checkOnboarding(info.role);
+        checkUsageLimit(info.role, meta.plan || 'free');
       });
     });
   }).catch(function (e) { console.warn('[테넌트 검증 실패]', e.message); });
@@ -1802,6 +1835,40 @@ function refreshOnboardingSteps() {
     const finishBtn = document.getElementById('ob-finish-btn');
     if (finishBtn) finishBtn.disabled = !(martDone && driverDone);
   }).catch(() => {});
+}
+
+// ══════════════════════════════════════════
+// 사용량 한도 경고 (플랜별 월간 주문 건수, 경고만 표시 — 차단 없음)
+// ══════════════════════════════════════════
+const PLAN_LIMITS = { free: 50, basic: 300, pro: 1000, enterprise: Infinity };
+
+function checkUsageLimit(role, plan) {
+  if (role !== 'admin' || !TENANT_ID) return;
+  const limit = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+  if (limit === Infinity) return;
+  tref('orders').once('value').then(function (snap) {
+    const orders = snap.val() || {};
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+    const count = Object.keys(orders).reduce(function (acc, k) {
+      const o = orders[k];
+      return acc + ((o && o.createdAt >= monthStart) ? 1 : 0);
+    }, 0);
+    const pct = count / limit;
+    if (pct >= 0.8) showUsageLimitBanner(count, limit, pct >= 1);
+  }).catch(function () {});
+}
+
+function showUsageLimitBanner(count, limit, exceeded) {
+  const el = document.getElementById('usage-limit-banner');
+  if (!el) return;
+  el.querySelector('.ulb-text').textContent = exceeded
+    ? '⚠️ 이번달 주문이 플랜 한도(' + limit + '건)를 초과했습니다. 현재 ' + count + '건 — 플랜 업그레이드를 검토해주세요.'
+    : '이번달 주문이 플랜 한도의 ' + Math.round(count / limit * 100) + '%에 도달했습니다 (' + count + '/' + limit + '건).';
+  el.className = 'usage-limit-banner show' + (exceeded ? ' exceeded' : '');
+}
+
+function dismissUsageLimitBanner() {
+  document.getElementById('usage-limit-banner').classList.remove('show');
 }
 
 function onboardingStepMart() { openOmsMartSettings(); }

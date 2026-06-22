@@ -35,6 +35,8 @@ input:focus,select:focus{border-color:#ff7a3d}
 .plan-badge.plan-enterprise{background:#f0e8ff;color:#7a3dd8}
 .plan-badge.expired{background:#fff0ee;color:#d23c2f}
 .usage-badge{font-size:11px;color:#777}
+.usage-badge.usage-warn{color:#c9791a;font-weight:700}
+.usage-badge.usage-over{color:#d23c2f;font-weight:700}
 .tenant-actions2{margin-left:auto;display:flex;gap:6px}
 .btn.ghost.danger{color:#d23c2f}
 .member{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;padding:8px 0;border-top:1px solid #f4f4f4;cursor:pointer}
@@ -57,6 +59,17 @@ input:focus,select:focus{border-color:#ff7a3d}
 .modal input,.modal select{width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:inherit}
 .modal .actions{display:flex;gap:8px;margin-top:18px}
 .modal .actions .btn{flex:1}
+.card h2{display:flex;align-items:center;gap:8px}
+.err-badge{background:#d23c2f;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px}
+.alert-item{font-size:12.5px;color:#a3650f;background:#fff8ec;border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.err-item{border-bottom:1px solid #f4f4f4;padding:8px 0;font-size:12px}
+.err-item:last-child{border-bottom:none}
+.err-item.unread{background:#fff8f6}
+.err-top{display:flex;gap:8px;align-items:center;color:#999;font-size:11px;margin-bottom:3px}
+.err-source{background:#eef2ff;color:#4a5fd8;border-radius:6px;padding:1px 7px;font-weight:700}
+.err-tenant{background:#f4f6f9;border-radius:6px;padding:1px 7px}
+.err-time{margin-left:auto}
+.err-msg{color:#333}
 </style>
 </head>
 <body>
@@ -70,6 +83,11 @@ input:focus,select:focus{border-color:#ff7a3d}
 
 <div class="wrap">
   <div class="card">
+    <h2>⚠️ 운영 알림</h2>
+    <div id="opsAlerts"><div class="empty">불러오는 중...</div></div>
+  </div>
+
+  <div class="card">
     <h2>새 테넌트(마트) 추가</h2>
     <div class="msg" id="tenantMsg"></div>
     <div class="row">
@@ -82,6 +100,13 @@ input:focus,select:focus{border-color:#ff7a3d}
   <div class="card">
     <h2>테넌트 목록</h2>
     <div id="tenantList"><div class="empty">불러오는 중...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>🛠 시스템 오류 로그 <span class="err-badge" id="errBadge" style="display:none"></span>
+      <button class="btn sm ghost" style="margin-left:auto" onclick="markErrorsRead()">모두 확인</button>
+    </h2>
+    <div id="errorLogList"><div class="empty">불러오는 중...</div></div>
   </div>
 </div>
 
@@ -142,12 +167,12 @@ input:focus,select:focus{border-color:#ff7a3d}
   <div class="modal">
     <h3><span id="planModalTenantName"></span> 플랜 관리</h3>
     <div class="msg" id="planMsg"></div>
-    <label>플랜</label>
+    <label>플랜 (월 주문 한도: Free 50 / Basic 300 / Pro 1000 / Enterprise 무제한)</label>
     <select id="planSelect">
-      <option value="free">Free (무료)</option>
-      <option value="basic">Basic</option>
-      <option value="pro">Pro</option>
-      <option value="enterprise">Enterprise</option>
+      <option value="free">Free (무료, 월 50건)</option>
+      <option value="basic">Basic (월 300건)</option>
+      <option value="pro">Pro (월 1000건)</option>
+      <option value="enterprise">Enterprise (무제한)</option>
     </select>
     <label>구독 만료일 (비워두면 무제한)</label>
     <input id="planExpiryInput" type="date">
@@ -176,6 +201,26 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
+// ══════════════════════════════════════════
+// 운영 모니터링: 클라이언트 오류 자동 기록 (자기 자신도 기록)
+// ══════════════════════════════════════════
+function logSystemError(err, source) {
+  try {
+    const msg = (err && (err.message || err.reason)) || String(err) || '알 수 없는 오류';
+    db.ref('system_logs/errors').push({
+      ts: Date.now(),
+      message: String(msg).slice(0, 300),
+      stack: (err && err.stack) ? String(err.stack).slice(0, 500) : '',
+      source: source || 'superadmin',
+      tenantId: null,
+      url: location.href.slice(0, 200),
+      ua: navigator.userAgent.slice(0, 150)
+    }).catch(function () {});
+  } catch (e) {}
+}
+window.addEventListener('error', function (e) { logSystemError(e.error || e.message, 'superadmin'); });
+window.addEventListener('unhandledrejection', function (e) { logSystemError(e.reason, 'superadmin'); });
+
 // 두 번째 보조 앱 인스턴스: 신규 사용자 생성 시 슈퍼어드민의 로그인 세션이 바뀌지 않도록 분리
 const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
 const secondaryAuth = secondaryApp.auth();
@@ -193,6 +238,7 @@ auth.onAuthStateChanged(function (user) {
     currentUid = user.uid;
     document.getElementById('who').textContent = user.email;
     loadTenants();
+    startErrorLogListener();
   });
 });
 
@@ -246,11 +292,42 @@ function fmtDateOnly(ts) {
   return d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
 }
 
+let _expiryAlerts = [];
+let _usageAlerts = [];
+
+function renderAlertPanel() {
+  const el = document.getElementById('opsAlerts');
+  if (!el) return;
+  const items = [];
+  _expiryAlerts.forEach(function (a) {
+    items.push('⏰ <b>' + escapeHtml(a.name) + '</b> 구독이 ' + fmtDateOnly(a.expiry) + ' 만료됩니다');
+  });
+  _usageAlerts.forEach(function (a) {
+    items.push('📦 <b>' + escapeHtml(a.name) + '</b> 이번달 주문 ' + a.count + '/' + a.limit + '건으로 플랜 한도를 초과했습니다');
+  });
+  if (!items.length) { el.innerHTML = '<div class="empty">현재 주의가 필요한 항목이 없습니다 ✅</div>'; return; }
+  el.innerHTML = items.map(function (t) { return '<div class="alert-item">' + t + '</div>'; }).join('');
+}
+
 function loadTenants() {
   db.ref('tenant_meta').once('value').then(function (snap) {
     const data = snap.val() || {};
     const ids = Object.keys(data).sort(function (a, b) { return (data[b].createdAt||0) - (data[a].createdAt||0); });
     const listEl = document.getElementById('tenantList');
+
+    _expiryAlerts = [];
+    _usageAlerts = [];
+    const nowTs = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    ids.forEach(function (id) {
+      const t = data[id];
+      if (t.active === false) return;
+      if (t.planExpiry && t.planExpiry > nowTs && (t.planExpiry - nowTs) <= sevenDaysMs) {
+        _expiryAlerts.push({ id: id, name: t.name, expiry: t.planExpiry });
+      }
+    });
+    renderAlertPanel();
+
     if (!ids.length) { listEl.innerHTML = '<div class="empty">아직 테넌트가 없습니다</div>'; return; }
 
     listEl.innerHTML = ids.map(function (id) {
@@ -295,23 +372,90 @@ function loadTenants() {
       '</div>';
     }).join('');
 
-    ids.forEach(loadTenantUsage);
+    ids.forEach(function (id) { loadTenantUsage(id, data[id].name, data[id].plan || 'free'); });
   });
 }
 
-function loadTenantUsage(id) {
+const PLAN_LIMITS = { free: 50, basic: 300, pro: 1000, enterprise: Infinity };
+
+function loadTenantUsage(id, name, plan) {
   Promise.all([
     db.ref('tenants/' + id + '/orders').once('value'),
     db.ref('tenants/' + id + '/driverAccounts').once('value')
   ]).then(function (results) {
-    const orderCount = Object.keys(results[0].val() || {}).length;
+    const ordersData = results[0].val() || {};
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+    const monthlyCount = Object.keys(ordersData).reduce(function (acc, k) {
+      const o = ordersData[k];
+      return acc + ((o && o.createdAt >= monthStart) ? 1 : 0);
+    }, 0);
     const driverCount = Object.keys(results[1].val() || {}).length;
+    const limit = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+    const limitText = limit === Infinity ? (monthlyCount + '건') : (monthlyCount + '/' + limit + '건');
+    const pct = limit === Infinity ? 0 : (monthlyCount / limit);
+    let cls = 'usage-badge';
+    if (pct >= 1) cls += ' usage-over';
+    else if (pct >= 0.8) cls += ' usage-warn';
     const el = document.getElementById('usage-' + id);
-    if (el) el.textContent = '📦 주문 ' + orderCount + '건 · 🚗 기사 ' + driverCount + '명';
+    if (el) {
+      el.className = cls;
+      el.textContent = '📦 이번달 주문 ' + limitText + (pct >= 1 ? ' (한도초과)' : '') + ' · 🚗 기사 ' + driverCount + '명';
+    }
+    if (pct >= 1 && !_usageAlerts.some(function (a) { return a.id === id; })) {
+      _usageAlerts.push({ id: id, name: name, count: monthlyCount, limit: limit });
+      renderAlertPanel();
+    }
   }).catch(function () {
     const el = document.getElementById('usage-' + id);
     if (el) el.textContent = '사용량 조회 실패';
   });
+}
+
+// ── 시스템 오류 로그 ──
+const ERR_SEEN_KEY = 'sa_err_last_seen_ts';
+let _lastErrorSnapVal = {};
+
+function getLastSeenErrTs() { return parseInt(localStorage.getItem(ERR_SEEN_KEY) || '0', 10); }
+
+function markErrorsRead() {
+  localStorage.setItem(ERR_SEEN_KEY, String(Date.now()));
+  renderErrorLog(_lastErrorSnapVal);
+}
+
+function startErrorLogListener() {
+  db.ref('system_logs/errors').orderByChild('ts').limitToLast(50).on('value', function (snap) {
+    _lastErrorSnapVal = snap.val() || {};
+    renderErrorLog(_lastErrorSnapVal);
+  });
+}
+
+function renderErrorLog(val) {
+  const items = Object.keys(val).map(function (k) {
+    const v = val[k] || {};
+    return { _key: k, ts: v.ts, message: v.message, source: v.source, tenantId: v.tenantId };
+  });
+  items.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+  const lastSeen = getLastSeenErrTs();
+  const unread = items.filter(function (i) { return (i.ts || 0) > lastSeen; }).length;
+  const badge = document.getElementById('errBadge');
+  if (badge) {
+    if (unread > 0) { badge.textContent = unread + '건 신규'; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+  }
+  const listEl = document.getElementById('errorLogList');
+  if (!listEl) return;
+  if (!items.length) { listEl.innerHTML = '<div class="empty">기록된 오류가 없습니다 ✅</div>'; return; }
+  listEl.innerHTML = items.slice(0, 30).map(function (i) {
+    const d = new Date(i.ts || 0);
+    const timeStr = d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0') +
+      ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    return '<div class="err-item' + ((i.ts || 0) > lastSeen ? ' unread' : '') + '">' +
+      '<div class="err-top"><span class="err-source">' + escapeHtml(i.source || '') + '</span>' +
+      (i.tenantId ? '<span class="err-tenant">' + escapeHtml(i.tenantId) + '</span>' : '') +
+      '<span class="err-time">' + timeStr + '</span></div>' +
+      '<div class="err-msg">' + escapeHtml(i.message || '') + '</div>' +
+    '</div>';
+  }).join('');
 }
 
 // ── 플랜/구독 관리 ──

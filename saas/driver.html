@@ -985,6 +985,27 @@ try {
   _fbStorage = firebase.storage();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
+// ══════════════════════════════════════════
+// 운영 모니터링: 클라이언트 오류 자동 기록 (슈퍼어드민 알림용)
+// ══════════════════════════════════════════
+function logSystemError(err, source) {
+  try {
+    if (!_fbDb) return;
+    const msg = (err && (err.message || err.reason)) || String(err) || '알 수 없는 오류';
+    _fbDb.ref('system_logs/errors').push({
+      ts: Date.now(),
+      message: String(msg).slice(0, 300),
+      stack: (err && err.stack) ? String(err.stack).slice(0, 500) : '',
+      source: source || 'driver',
+      tenantId: (typeof TENANT_ID !== 'undefined' && TENANT_ID) || null,
+      url: location.href.slice(0, 200),
+      ua: navigator.userAgent.slice(0, 150)
+    }).catch(function () {});
+  } catch (e) {}
+}
+window.addEventListener('error', function (e) { logSystemError(e.error || e.message, 'driver'); });
+window.addEventListener('unhandledrejection', function (e) { logSystemError(e.reason, 'driver'); });
+
 // 테넌트(마트)별 데이터 경로로 변환
 function tref(path) {
   return _fbDb.ref('tenants/' + TENANT_ID + '/' + (path || ''));
