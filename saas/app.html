@@ -563,6 +563,21 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   </div>
 </div>
 
+<!-- ══ OMS 비밀번호 강제 변경 오버레이 ══ -->
+<div id="oms-force-pw-overlay" style="display:none;position:fixed;inset:0;z-index:10001;background:linear-gradient(135deg,#0d1b6e 0%,#1a237e 50%,#283593 100%);align-items:center;justify-content:center;padding:20px">
+  <div class="login-box">
+    <div class="login-logo">🔒</div>
+    <div class="login-title">비밀번호 변경 필요</div>
+    <div class="login-sub">기본 비밀번호를 그대로 사용 중입니다.<br>계속 진행하려면 새 비밀번호로 변경해주세요.</div>
+    <input class="login-inp" id="force-pw-new" type="password" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password"
+      onkeydown="if(event.key==='Enter')document.getElementById('force-pw-confirm').focus()">
+    <input class="login-inp" id="force-pw-confirm" type="password" placeholder="새 비밀번호 확인" autocomplete="new-password"
+      onkeydown="if(event.key==='Enter')submitForcePasswordChange()">
+    <button class="login-btn" onclick="submitForcePasswordChange()">비밀번호 변경하고 시작하기</button>
+    <div class="login-err" id="force-pw-err"></div>
+  </div>
+</div>
+
 <!-- ══ 온보딩 마법사 ══ -->
 <div id="onboarding-wizard">
   <h4>🚀 초기 설정을 시작해보세요</h4>
@@ -1856,7 +1871,7 @@ async function omsLogin() {
 
     // 계정이 하나도 없으면 기본 admin 생성
     if (!Object.keys(accts).length) {
-      const defaultAcct = { name: '관리자', password: 'wellbing1234', role: 'admin', createdAt: Date.now() };
+      const defaultAcct = { name: '관리자', password: 'wellbing1234', role: 'admin', createdAt: Date.now(), mustChangePassword: true };
       await tref('settings/omsAccounts/admin').set(defaultAcct);
       accts = { admin: defaultAcct };
     }
@@ -1872,6 +1887,14 @@ async function omsLogin() {
       return;
     }
 
+    // 기본 비밀번호(wellbing1234)를 그대로 쓰고 있으면 변경 전까지 진입 차단
+    if (acct.mustChangePassword === true || acct.password === 'wellbing1234') {
+      loadEl.classList.remove('show');
+      document.querySelector('.login-btn').disabled = false;
+      showForcePasswordChangeModal(id, acct);
+      return;
+    }
+
     setOmsSession({ id, name: acct.name, role: acct.role || 'manager' });
 
     showOmsApp();
@@ -1882,6 +1905,51 @@ async function omsLogin() {
     loadEl.classList.remove('show');
     document.querySelector('.login-btn').disabled = false;
   }
+}
+
+// ── 기본 비밀번호 강제 변경 ──
+let _forcePwPendingId = null;
+let _forcePwPendingAcct = null;
+
+function showForcePasswordChangeModal(id, acct) {
+  _forcePwPendingId = id;
+  _forcePwPendingAcct = acct;
+  document.getElementById('force-pw-new').value = '';
+  document.getElementById('force-pw-confirm').value = '';
+  document.getElementById('force-pw-err').classList.remove('show');
+  document.getElementById('oms-force-pw-overlay').style.display = 'flex';
+}
+
+function submitForcePasswordChange() {
+  const newPw = document.getElementById('force-pw-new').value;
+  const confirmPw = document.getElementById('force-pw-confirm').value;
+  const errEl = document.getElementById('force-pw-err');
+  errEl.classList.remove('show');
+
+  if (!newPw || newPw.length < 4) {
+    errEl.textContent = '비밀번호는 4자 이상이어야 합니다';
+    errEl.classList.add('show');
+    return;
+  }
+  if (newPw === 'wellbing1234') {
+    errEl.textContent = '기본 비밀번호와 다른 비밀번호를 입력해주세요';
+    errEl.classList.add('show');
+    return;
+  }
+  if (newPw !== confirmPw) {
+    errEl.textContent = '비밀번호가 일치하지 않습니다';
+    errEl.classList.add('show');
+    return;
+  }
+
+  tref('settings/omsAccounts/' + _forcePwPendingId).update({ password: newPw, mustChangePassword: false }).then(() => {
+    document.getElementById('oms-force-pw-overlay').style.display = 'none';
+    setOmsSession({ id: _forcePwPendingId, name: _forcePwPendingAcct.name, role: _forcePwPendingAcct.role || 'manager' });
+    showOmsApp();
+  }).catch(() => {
+    errEl.textContent = '변경 중 오류가 발생했습니다. 다시 시도해주세요';
+    errEl.classList.add('show');
+  });
 }
 
 function showOmsApp() {
