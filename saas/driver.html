@@ -940,8 +940,16 @@ function checkSession() {
     TENANT_ID = s.tenantId;
     TENANT_NAME = s.tenantName || '';
 
-    // 세션 있으면 driverAccounts에서 계정 유효성 재확인 (Auth 상태 복원 완료 후 호출됨)
-    tref('driverAccounts/' + s.id).once('value').then(snap => {
+    // 세션 있으면 마트 상태 + driverAccounts에서 계정 유효성 재확인 (Auth 상태 복원 완료 후 호출됨)
+    Promise.all([
+      _fbDb.ref('tenant_meta/' + TENANT_ID).once('value'),
+      tref('driverAccounts/' + s.id).once('value')
+    ]).then(([metaSnap, snap]) => {
+      const meta = metaSnap.val() || {};
+      if (meta.active === false || (meta.planExpiry && meta.planExpiry < Date.now())) {
+        clearSession();
+        return;
+      }
       const driver = snap.val();
       if (driver && driver.active !== false) {
         currentDriver = { id: s.id, name: driver.name || s.name, tenantId: TENANT_ID, tenantName: TENANT_NAME };
@@ -3262,13 +3270,4 @@ const mapZone = (() => {
 
 <script>
 // ── PWA 서비스워커 등록 ──
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/hat-delivery/sw.js')
-      .then(() => console.log('SW 등록 완료'))
-      .catch(e => console.warn('SW 등록 실패:', e));
-  });
-}
-</script>
-</body>
-</html>
+if ('serviceW

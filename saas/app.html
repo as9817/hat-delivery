@@ -524,6 +524,24 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
   display:none;align-items:center;gap:4px;white-space:nowrap;
 }
 #oms-user-badge.show{display:inline-flex}
+/* 온보딩 마법사 */
+#onboarding-wizard{display:none;position:fixed;bottom:20px;right:20px;z-index:550;width:300px;
+  background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.2);padding:18px;font-family:inherit}
+#onboarding-wizard h4{font-size:14px;margin-bottom:4px;color:#1a1a2e}
+#onboarding-wizard .ob-sub{font-size:12px;color:#888;margin-bottom:14px}
+.ob-step{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:#f8f8fa;margin-bottom:8px}
+.ob-step.done{background:#eafbf0}
+.ob-step .ob-check{width:20px;height:20px;border-radius:50%;border:2px solid #ddd;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.ob-step.done .ob-check{background:#1a9d56;border-color:#1a9d56}
+.ob-step .ob-text{flex:1;font-size:12.5px;color:#333;font-weight:600}
+.ob-step button{background:#ff7a3d;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+.ob-step.done button{display:none}
+.ob-actions{display:flex;gap:8px;margin-top:10px}
+.ob-actions button{flex:1;border:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+#ob-finish-btn{background:#ff7a3d;color:#fff}
+#ob-finish-btn:disabled{background:#ddd;color:#999;cursor:default}
+#ob-skip-btn{background:#f0f0f0;color:#666}
 </style>
 <!-- 카카오맵 SDK -->
 </head>
@@ -542,6 +560,26 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
     <button class="login-btn" onclick="omsLogin()">로그인</button>
     <div class="login-err" id="login-err"></div>
     <div class="login-loading" id="login-loading">⏳ 확인 중...</div>
+  </div>
+</div>
+
+<!-- ══ 온보딩 마법사 ══ -->
+<div id="onboarding-wizard">
+  <h4>🚀 초기 설정을 시작해보세요</h4>
+  <div class="ob-sub">두 단계만 완료하면 바로 배송 관리를 시작할 수 있어요</div>
+  <div class="ob-step" id="ob-step-mart">
+    <div class="ob-check">✓</div>
+    <div class="ob-text">① 마트 위치 등록</div>
+    <button onclick="onboardingStepMart()">설정</button>
+  </div>
+  <div class="ob-step" id="ob-step-driver">
+    <div class="ob-check">✓</div>
+    <div class="ob-text">② 기사 계정 등록</div>
+    <button onclick="onboardingStepDriver()">설정</button>
+  </div>
+  <div class="ob-actions">
+    <button id="ob-skip-btn" onclick="skipOnboarding()">나중에 하기</button>
+    <button id="ob-finish-btn" onclick="finishOnboarding()" disabled>시작하기</button>
   </div>
 </div>
 
@@ -1698,7 +1736,18 @@ _fbAuth.onAuthStateChanged(function (user) {
         location.href = 'login.html';
         return;
       }
-      db.ref('users/' + user.uid + '/lastLogin').set(Date.now()).catch(function () {});
+      return db.ref('tenant_meta/' + TENANT_ID).once('value').then(function (metaSnap) {
+        const meta = metaSnap.val() || {};
+        if (meta.active === false || (meta.planExpiry && meta.planExpiry < Date.now())) {
+          localStorage.removeItem('hd_tenant_id');
+          localStorage.removeItem('hd_tenant_name');
+          alert(meta.active === false ? '마트 서비스가 비활성화되었습니다. 관리자에게 문의하세요.' : '구독이 만료되었습니다. 관리자에게 문의하세요.');
+          location.href = 'login.html';
+          return;
+        }
+        db.ref('users/' + user.uid + '/lastLogin').set(Date.now()).catch(function () {});
+        checkOnboarding(info.role);
+      });
     });
   }).catch(function (e) { console.warn('[테넌트 검증 실패]', e.message); });
 });
@@ -1708,6 +1757,50 @@ function hdLogout() {
   localStorage.removeItem('hd_tenant_name');
   localStorage.removeItem('hd_role');
   _fbAuth.signOut().then(function () { location.href = 'login.html'; });
+}
+
+// ══════════════════════════════════════════
+// 온보딩 마법사 (신규 테넌트 첫 설정 안내)
+// ══════════════════════════════════════════
+function checkOnboarding(role) {
+  if (role !== 'admin' || !TENANT_ID) return;
+  db.ref('tenant_meta/' + TENANT_ID + '/onboarded').once('value').then(snap => {
+    if (snap.val() === true) return;
+    document.getElementById('onboarding-wizard').style.display = 'block';
+    refreshOnboardingSteps();
+    tref('settings/martLocation').on('value', refreshOnboardingSteps);
+    tref('driverAccounts').on('value', refreshOnboardingSteps);
+  }).catch(e => console.warn('[온보딩 확인 실패]', e.message));
+}
+
+function refreshOnboardingSteps() {
+  Promise.all([
+    tref('settings/martLocation').once('value'),
+    tref('driverAccounts').once('value')
+  ]).then(([martSnap, driverSnap]) => {
+    const martDone = !!(martSnap.val() && martSnap.val().lat);
+    const driverDone = Object.keys(driverSnap.val() || {}).length > 0;
+    const martStepEl = document.getElementById('ob-step-mart');
+    const driverStepEl = document.getElementById('ob-step-driver');
+    if (martStepEl) martStepEl.className = 'ob-step' + (martDone ? ' done' : '');
+    if (driverStepEl) driverStepEl.className = 'ob-step' + (driverDone ? ' done' : '');
+    const finishBtn = document.getElementById('ob-finish-btn');
+    if (finishBtn) finishBtn.disabled = !(martDone && driverDone);
+  }).catch(() => {});
+}
+
+function onboardingStepMart() { openOmsMartSettings(); }
+function onboardingStepDriver() { showDriversModal(); }
+
+function finishOnboarding() {
+  db.ref('tenant_meta/' + TENANT_ID + '/onboarded').set(true).catch(() => {});
+  document.getElementById('onboarding-wizard').style.display = 'none';
+}
+
+function skipOnboarding() {
+  if (!confirm('온보딩을 건너뛰시겠습니까?\n설정 메뉴의 "마트위치"와 "기사관리"에서 언제든 직접 등록할 수 있습니다.')) return;
+  db.ref('tenant_meta/' + TENANT_ID + '/onboarded').set(true).catch(() => {});
+  document.getElementById('onboarding-wizard').style.display = 'none';
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -6170,133 +6263,4 @@ function renderBatchQueue() {
     const icon = item.status === 'queued' ? '🕐' : item.status === 'processing' ? '🔄' : item.status === 'done' ? '✅' : '❌';
     const label = item.status === 'done' && item.parsed ? `${item.parsed.name||'?'} · ${item.parsed.address||'주소없음'}` : item.error || item.file.name;
     return `<div style="display:flex;align-items:center;gap:8px;background:#f8f9ff;border-radius:8px;padding:8px 10px;margin-bottom:6px">
-      ${item.dataUrl ? `<img src="${item.dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:40px;height:40px;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>`}
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${icon} ${i+1}. ${item.file.name}</div>
-        <div style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
-      </div>
-    </div>`;
-  }).join('');
-  document.getElementById('batch-queue').innerHTML = html;
-}
-
-async function startBatchOcr() {
-  const key = localStorage.getItem(VISION_KEY_STORAGE);
-  if (!key) { showToast('Vision API 키를 먼저 설정해주세요'); showApiKeyModal(); return; }
-
-  document.getElementById('batch-start-btn').style.display = 'none';
-  document.getElementById('batch-progress-wrap').style.display = 'block';
-  document.getElementById('batch-summary').style.display = 'none';
-
-  let successCount = 0, failCount = 0;
-
-  for (let i = 0; i < batchQueue.length; i++) {
-    const item = batchQueue[i];
-    batchQueue[i].status = 'processing';
-    renderBatchQueue();
-
-    // 진행률 업데이트
-    document.getElementById('batch-progress-text').textContent = `${item.file.name} 처리 중...`;
-    document.getElementById('batch-progress-count').textContent = `${i+1} / ${batchQueue.length}`;
-    document.getElementById('batch-progress-bar').style.width = `${((i+1)/batchQueue.length)*100}%`;
-
-    try {
-      // dataUrl에서 base64 추출
-      const base64 = item.dataUrl ? item.dataUrl.split(',')[1] : await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result.split(',')[1]);
-        reader.readAsDataURL(item.file);
-      });
-
-      // Vision API 호출
-      const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${key}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ requests: [{ image: { content: base64 }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }] })
-      });
-      const data = await res.json();
-      const annotation = data.responses?.[0]?.fullTextAnnotation || data.responses?.[0]?.textAnnotations?.[0];
-      const text = annotation?.text || annotation?.description || '';
-
-      if (!text.trim()) throw new Error('텍스트 인식 실패');
-
-      const parsed = parseReceiptText(text, null);
-
-      // 주소 도로명 변환
-      if (parsed.address) {
-        try { parsed.address = await omsGeocodeToRoad(parsed.address); } catch(e) {}
-      }
-
-      // 좌표 획득
-      let lat = null, lng = null;
-      if (parsed.address) {
-        try {
-          const coords = await new Promise((resolve, reject) => {
-            kakao.maps.load(() => {
-              const geocoder = new kakao.maps.services.Geocoder();
-              geocoder.addressSearch(parsed.address, (result, status) => {
-                if (status === kakao.maps.services.Status.OK && result.length > 0) {
-                  resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
-                } else reject(new Error('좌표 없음'));
-              });
-            });
-          });
-          lat = coords.lat; lng = coords.lng;
-        } catch(e) {}
-      }
-
-      // 주문 등록
-      const order = {
-        id: uid(), createdAt: Date.now(), updatedAt: Date.now(),
-        status: 'pending', channel: 'ocr',
-        customerName: parsed.name || '이름미확인',
-        phone: parsed.phone || '',
-        address: parsed.address || '',
-        lat, lng,
-        items: parsed.items || [],
-        totalAmount: (parsed.items||[]).reduce((s,it)=>s+(it.price*it.qty||0),0) || 0,
-        note: '', paymentMethod: currentPay,
-        assignedDriverId: '', assignedDriverName: ''
-      };
-
-      orders.push(order);
-      orders.sort((a, b) => a.createdAt - b.createdAt);
-      saveOrders();
-      if (firebaseActive) tref('orders/' + order.id).set(order);
-
-      batchQueue[i].status = 'done';
-      batchQueue[i].parsed = { name: order.customerName, address: order.address };
-      successCount++;
-    } catch(e) {
-      batchQueue[i].status = 'error';
-      batchQueue[i].error = e.message;
-      failCount++;
-    }
-    renderBatchQueue();
-  }
-
-  // 완료 후 자동 배정 제안
-  document.getElementById('batch-progress-text').textContent = '처리 완료!';
-  renderOrderList();
-  renderStats();
-  updateHeader();
-
-  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
-  const canAutoAssign = activeDrivers.length > 0;
-
-  document.getElementById('batch-summary').style.display = 'block';
-  document.getElementById('batch-summary').innerHTML =
-    `✅ ${successCount}건 등록 완료${failCount?` · ❌ ${failCount}건 실패`:''}` +
-    (canAutoAssign ? `<br><button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="closeBatchOcr();toggleAutoAssignBar();runAutoAssign()">🤖 지금 바로 자동 배정</button>` : '');
-}
-
-// ══════════════════════════════════════════
-// 초기화
-// ══════════════════════════════════════════
-loadOrders();
-updateHeader();
-addItemRow();
-
-</script>
-</body>
-</html>
+      ${item.dataUrl ? `<img src="${item.dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:40px;height:40px;border-radius:6px;background:#f0f0
