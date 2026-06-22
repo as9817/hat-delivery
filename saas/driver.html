@@ -940,8 +940,8 @@ function checkSession() {
     TENANT_ID = s.tenantId;
     TENANT_NAME = s.tenantName || '';
 
-    // 세션 있으면 driverAccounts에서 계정 유효성 재확인 (Firebase Auth 준비 후)
-    const doCheck = () => tref('driverAccounts/' + s.id).once('value').then(snap => {
+    // 세션 있으면 driverAccounts에서 계정 유효성 재확인 (Auth 상태 복원 완료 후 호출됨)
+    tref('driverAccounts/' + s.id).once('value').then(snap => {
       const driver = snap.val();
       if (driver && driver.active !== false) {
         currentDriver = { id: s.id, name: driver.name || s.name, tenantId: TENANT_ID, tenantName: TENANT_NAME };
@@ -952,14 +952,6 @@ function checkSession() {
     }).catch(() => {
       clearSession();
     });
-
-    // 커스텀 토큰 로그인은 기본적으로 세션이 유지됨
-    if (firebase.auth().currentUser) {
-      doCheck();
-    } else {
-      // 자동 로그인 정보가 만료된 경우 재로그인 필요
-      clearSession();
-    }
   }
   // 세션 없으면 로그인 화면 표시 (기본 상태)
 }
@@ -1102,9 +1094,16 @@ async function uploadPhotoToStorage(deliveryId, dataUrl) {
   }
 }
 
-// Firebase 초기화 후 세션 확인
+// Firebase 초기화 후 세션 확인 (Auth 상태 복원은 비동기라 onAuthStateChanged로 대기)
 if (_fbDb) {
-  checkSession();
+  firebase.auth().onAuthStateChanged(function (user) {
+    if (user) {
+      checkSession();
+    } else {
+      const s = getSession();
+      if (s) clearSession();
+    }
+  });
 } else {
   // Firebase 없으면 로그인 불가 안내
   document.getElementById('login-err').textContent = '서버 연결 실패. 잠시 후 다시 시도하세요';
