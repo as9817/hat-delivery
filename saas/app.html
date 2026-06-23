@@ -481,6 +481,10 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 /* ══════════════════════════════════════
    OMS 로그인 시스템
 ══════════════════════════════════════ */
+#impersonate-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:200;background:#7c3aed;color:#fff;font-size:13px;font-weight:600;padding:8px 16px;text-align:center;gap:12px;align-items:center;justify-content:center}
+#impersonate-banner.show{display:flex}
+#impersonate-banner button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:600}
+#impersonate-banner button:hover{background:rgba(255,255,255,.35)}
 #oms-login-overlay{
   position:fixed;inset:0;z-index:10000;
   background:linear-gradient(135deg,#0d1b6e 0%,#1a237e 50%,#283593 100%);
@@ -557,6 +561,11 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <div class="usage-limit-banner" id="usage-limit-banner">
   <span class="ulb-text"></span>
   <span class="ulb-close" onclick="dismissUsageLimitBanner()">✕</span>
+</div>
+
+<div id="impersonate-banner">
+  🔍 슈퍼어드민 대리 접속 중: <strong id="impersonate-tenant-name"></strong>
+  <button onclick="impersonateBack()">← 슈퍼어드민으로 돌아가기</button>
 </div>
 
 <!-- ══ OMS 로그인 오버레이 ══ -->
@@ -1777,7 +1786,19 @@ function tref(path) {
 _fbAuth.onAuthStateChanged(function (user) {
   if (!user) { location.href = 'login.html'; return; }
   db.ref('superadmins/' + user.uid).once('value').then(function (saSnap) {
-    if (saSnap.val() === true) return;
+    if (saSnap.val() === true) {
+      if (!TENANT_ID) { location.href = 'superadmin.html'; return; }
+      return db.ref('tenant_meta/' + TENANT_ID).once('value').then(function (metaSnap) {
+        const meta = metaSnap.val() || {};
+        setOmsSession({ id: '__superadmin__', name: '슈퍼어드민', role: 'admin' });
+        showOmsApp();
+        const banner = document.getElementById('impersonate-banner');
+        const nameEl = document.getElementById('impersonate-tenant-name');
+        if (banner) banner.classList.add('show');
+        if (nameEl) nameEl.textContent = meta.name || TENANT_ID;
+        applyBranding(meta.branding || null);
+      });
+    }
     return db.ref('users/' + user.uid).once('value').then(function (snap) {
       const info = snap.val();
       if (!info || info.tenantId !== TENANT_ID || info.active === false) {
@@ -1804,6 +1825,13 @@ _fbAuth.onAuthStateChanged(function (user) {
     });
   }).catch(function (e) { console.warn('[테넌트 검증 실패]', e.message); });
 });
+
+function impersonateBack() {
+  localStorage.removeItem('hd_tenant_id');
+  localStorage.removeItem('hd_tenant_name');
+  localStorage.removeItem('hd_role');
+  location.href = 'superadmin.html';
+}
 
 function hdLogout() {
   localStorage.removeItem('hd_tenant_id');
