@@ -613,7 +613,8 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 <!-- 헤더 -->
 <div class="header">
   <div class="header-top">
-    <div class="header-logo">🛒</div>
+    <div class="header-logo" id="hd-logo-emoji">🛒</div>
+    <img id="hd-brand-logo" src="" alt="로고" style="display:none;height:34px;border-radius:6px;object-fit:contain;flex-shrink:0">
     <div>
       <div class="header-title" id="hd-header-title">주문관리</div>
       <div class="header-sub" id="today-date"></div>
@@ -1795,6 +1796,7 @@ _fbAuth.onAuthStateChanged(function (user) {
         db.ref('users/' + user.uid + '/lastLogin').set(Date.now()).catch(function () {});
         checkOnboarding(info.role);
         checkUsageLimit(info.role, meta.plan || 'free');
+        applyBranding(meta.branding || null);
       });
     });
   }).catch(function (e) { console.warn('[테넌트 검증 실패]', e.message); });
@@ -1869,6 +1871,38 @@ function showUsageLimitBanner(count, limit, exceeded) {
 
 function dismissUsageLimitBanner() {
   document.getElementById('usage-limit-banner').classList.remove('show');
+}
+
+// ══════════════════════════════════════════
+// 테넌트 브랜딩 적용
+// ══════════════════════════════════════════
+function applyBranding(branding) {
+  if (!branding) return;
+  const color = branding.primaryColor;
+  if (color && /^#[0-9a-fA-F]{3,8}$/.test(color)) {
+    let s = document.getElementById('__brand_style');
+    if (!s) { s = document.createElement('style'); s.id = '__brand_style'; document.head.appendChild(s); }
+    s.textContent =
+      '.header{background:linear-gradient(135deg,' + color + ' 0%,' + color + 'cc 100%) !important}' +
+      '.tab.active{color:' + color + ' !important;border-color:' + color + ' !important}' +
+      '.filter-chip.active{background:' + color + ' !important;border-color:' + color + ' !important}' +
+      '.btn-primary{background:' + color + ' !important}' +
+      '.btn-outline{color:' + color + ' !important;border-color:' + color + ' !important}' +
+      '.form-input:focus,.item-name:focus,.item-qty:focus,.item-price:focus{border-color:' + color + ' !important;box-shadow:0 0 0 3px ' + color + '22 !important}' +
+      '.oc-num{background:' + color + ' !important}' +
+      '.oc-amount{color:' + color + ' !important}';
+  }
+  if (branding.logoUrl) {
+    const img = document.getElementById('hd-brand-logo');
+    const emoji = document.getElementById('hd-logo-emoji');
+    if (img) { img.src = branding.logoUrl; img.style.display = 'block'; }
+    if (emoji) emoji.style.display = 'none';
+  }
+  if (branding.appTitle) {
+    document.title = branding.appTitle;
+    const t = document.getElementById('hd-header-title');
+    if (t) t.textContent = branding.appTitle;
+  }
 }
 
 function onboardingStepMart() { openOmsMartSettings(); }
