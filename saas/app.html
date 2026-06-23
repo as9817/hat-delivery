@@ -483,6 +483,7 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 ══════════════════════════════════════ */
 #impersonate-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:200;background:#7c3aed;color:#fff;font-size:13px;font-weight:600;padding:8px 16px;text-align:center;gap:12px;align-items:center;justify-content:center}
 #impersonate-banner.show{display:flex}
+body.impersonating{padding-top:38px}
 #impersonate-banner button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:600}
 #impersonate-banner button:hover{background:rgba(255,255,255,.35)}
 #oms-login-overlay{
@@ -1794,7 +1795,7 @@ _fbAuth.onAuthStateChanged(function (user) {
         showOmsApp();
         const banner = document.getElementById('impersonate-banner');
         const nameEl = document.getElementById('impersonate-tenant-name');
-        if (banner) banner.classList.add('show');
+        if (banner) { banner.classList.add('show'); document.body.classList.add('impersonating'); }
         if (nameEl) nameEl.textContent = meta.name || TENANT_ID;
         applyBranding(meta.branding || null);
       });
