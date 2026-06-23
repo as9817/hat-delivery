@@ -385,6 +385,7 @@ function loadTenants() {
           '<span class="plan-badge plan-' + plan + (isExpired ? ' expired' : '') + '">' + planBadgeText + '</span>' +
           '<span class="usage-badge" id="usage-' + id + '">사용량 불러오는 중...</span>' +
           '<div class="tenant-actions2">' +
+            '<button class="btn sm ghost" onclick="copyOnboarding(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">📋 안내 복사</button>' +
             '<button class="btn sm ghost" onclick="openBrandingModal(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">브랜딩</button>' +
             '<button class="btn sm ghost" onclick="openPlanModal(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">플랜 관리</button>' +
             '<button class="btn sm ghost" onclick="toggleTenantActive(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">' + (isInactive ? '활성화' : '비활성화') + '</button>' +
@@ -517,6 +518,42 @@ function savePlan() {
     const el = document.getElementById('planMsg');
     el.textContent = '저장 실패: ' + e.message;
     el.className = 'msg show err';
+  });
+}
+
+// ── 온보딩 안내 복사 ──
+function copyOnboarding(tenantId, tenantName) {
+  const BASE = 'https://as9817.github.io/hat-delivery/saas/';
+  db.ref('tenant_meta/' + tenantId + '/members').once('value').then(function(snap) {
+    const members = snap.val() || {};
+    const adminList = Object.values(members).filter(function(m) { return m.role === 'admin' && m.active !== false; });
+    const emailLine = adminList.length > 0
+      ? adminList.map(function(m) { return m.email; }).join(', ')
+      : '(계정을 먼저 추가해주세요)';
+
+    const text =
+      '═══════════════════════════════\n' +
+      '  ' + tenantName + ' 햇배달 OMS/TMS 접속 안내\n' +
+      '═══════════════════════════════\n\n' +
+      '【 OMS (주문관리 시스템) 】\n' +
+      '  주소: ' + BASE + 'login.html?tenant=' + tenantId + '\n' +
+      '  로그인 이메일: ' + emailLine + '\n' +
+      '  임시 비밀번호: (발급 시 전달한 비밀번호 입력)\n\n' +
+      '  ※ OMS 내부 2차 로그인\n' +
+      '  아이디: admin\n' +
+      '  비밀번호: wellbing1234 → 첫 로그인 시 변경 필수\n\n' +
+      '【 TMS (기사용 배송 앱) 】\n' +
+      '  주소: ' + BASE + 'driver.html?tenant=' + tenantId + '\n' +
+      '  아이디/비밀번호: OMS 기사관리에서 생성 후 기사에게 별도 전달\n\n' +
+      '═══════════════════════════════\n' +
+      '문의: as9817@aswemake.com\n' +
+      '═══════════════════════════════';
+
+    navigator.clipboard.writeText(text).then(function() {
+      showMsg('📋 ' + tenantName + ' 온보딩 안내가 복사되었습니다', true);
+    }).catch(function() {
+      prompt('아래 내용을 복사하세요 (Ctrl+C):', text);
+    });
   });
 }
 
