@@ -71,6 +71,15 @@ input:focus,select:focus{border-color:#ff7a3d}
 .err-time{margin-left:auto}
 .err-msg{color:#333}
 .brand-logo-preview{max-height:40px;max-width:130px;border-radius:6px;margin-top:6px;display:none}
+.notice-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f4f4f4}
+.notice-item:last-child{border-bottom:none}
+.notice-target{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef2ff;color:#4a5fd8;white-space:nowrap}
+.notice-target.all{background:#f0ffe8;color:#1a9d56}
+.notice-title{font-size:13px;font-weight:600;margin-bottom:3px}
+.notice-body{font-size:12px;color:#666;white-space:pre-wrap}
+.notice-meta{font-size:11px;color:#aaa;margin-top:4px}
+.modal textarea{width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:inherit;resize:vertical;min-height:80px}
+.modal textarea:focus{border-color:#ff7a3d}
 </style>
 </head>
 <body>
@@ -104,10 +113,38 @@ input:focus,select:focus{border-color:#ff7a3d}
   </div>
 
   <div class="card">
+    <h2>📢 공지사항 관리
+      <button class="btn sm" style="margin-left:auto" onclick="openNoticeModal()">+ 공지 작성</button>
+    </h2>
+    <div id="noticeList"><div class="empty">불러오는 중...</div></div>
+  </div>
+
+  <div class="card">
     <h2>🛠 시스템 오류 로그 <span class="err-badge" id="errBadge" style="display:none"></span>
       <button class="btn sm ghost" style="margin-left:auto" onclick="markErrorsRead()">모두 확인</button>
     </h2>
     <div id="errorLogList"><div class="empty">불러오는 중...</div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="noticeModal">
+  <div class="modal" style="max-width:420px">
+    <h3>📢 공지사항 작성</h3>
+    <div class="msg" id="noticeMsg"></div>
+    <label>제목</label>
+    <input id="noticeTitle" placeholder="공지 제목을 입력하세요">
+    <label>내용</label>
+    <textarea id="noticeContent" placeholder="공지 내용을 입력하세요"></textarea>
+    <label>대상</label>
+    <select id="noticeTarget">
+      <option value="all">전체 테넌트</option>
+    </select>
+    <label>만료일 (선택 — 비워두면 상시 표시)</label>
+    <input type="date" id="noticeExpiry">
+    <div class="actions">
+      <button class="btn ghost" onclick="closeNoticeModal()">취소</button>
+      <button class="btn" onclick="submitNotice()">등록</button>
+    </div>
   </div>
 </div>
 
@@ -190,9 +227,14 @@ input:focus,select:focus{border-color:#ff7a3d}
     <div class="msg" id="brandingMsg"></div>
     <label>앱 타이틀 (비워두면 마트명 사용)</label>
     <input id="brandingTitle" type="text" placeholder="예: 행복마트 주문관리">
-    <label>로고 이미지 URL</label>
-    <input id="brandingLogoUrl" type="url" placeholder="https://..." oninput="previewBrandLogo()">
+    <label>로고 이미지</label>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <button type="button" class="btn sm ghost" onclick="document.getElementById('brandingLogoFile').click()">📁 파일 선택</button>
+      <span id="brandingLogoFileName" style="font-size:12px;color:#888">선택된 파일 없음</span>
+    </div>
+    <input id="brandingLogoFile" type="file" accept="image/*" style="display:none" onchange="onLogoFileChange(this)">
     <img id="brandLogoPreview" class="brand-logo-preview" alt="로고 미리보기">
+    <input id="brandingLogoUrl" type="hidden">
     <label>메인 컬러</label>
     <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
       <input id="brandingColor" type="color" value="#1a237e" oninput="document.getElementById('brandingColorHex').value=this.value" style="width:44px;height:36px;padding:2px;border-radius:6px;border:1.5px solid #e0e0e0;cursor:pointer;flex:none">
@@ -208,6 +250,7 @@ input:focus,select:focus{border-color:#ff7a3d}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyA_QC1p052HO3TEv0SnTjgS3LL9pY5Xfww",
@@ -222,6 +265,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
+const storage = firebase.storage();
 
 // ══════════════════════════════════════════
 // 운영 모니터링: 클라이언트 오류 자동 기록 (자기 자신도 기록)
@@ -260,6 +304,7 @@ auth.onAuthStateChanged(function (user) {
     currentUid = user.uid;
     document.getElementById('who').textContent = user.email;
     loadTenants();
+    loadNotices();
     startErrorLogListener();
   });
 });
@@ -521,6 +566,76 @@ function savePlan() {
   });
 }
 
+// ── 공지사항 ──
+function loadNotices() {
+  db.ref('notices').orderByChild('createdAt').limitToLast(30).once('value').then(function(snap) {
+    const list = document.getElementById('noticeList');
+    if (!snap.exists()) { list.innerHTML = '<div class="empty">등록된 공지사항 없음</div>'; return; }
+    const items = [];
+    snap.forEach(function(c) { items.unshift(Object.assign({id: c.key}, c.val())); });
+    const now = Date.now();
+    list.innerHTML = items.map(function(n) {
+      const expired = n.expiresAt && n.expiresAt < now;
+      const targetClass = n.target === 'all' ? 'all' : '';
+      const targetLabel = n.target === 'all' ? '전체' : n.target;
+      const expiryText = n.expiresAt ? new Date(n.expiresAt).toLocaleDateString('ko-KR') + ' 까지' : '상시';
+      return '<div class="notice-item" style="' + (expired ? 'opacity:.5' : '') + '">' +
+        '<span class="notice-target ' + targetClass + '">' + targetLabel + '</span>' +
+        '<div style="flex:1">' +
+          '<div class="notice-title">' + escapeHtml(n.title) + (expired ? ' <span style="color:#d23c2f;font-size:11px">[만료]</span>' : '') + '</div>' +
+          '<div class="notice-body">' + escapeHtml(n.content) + '</div>' +
+          '<div class="notice-meta">' + new Date(n.createdAt).toLocaleDateString('ko-KR') + ' 등록 · ' + expiryText + '</div>' +
+        '</div>' +
+        '<button class="btn sm ghost danger" onclick="deleteNotice(\'' + n.id + '\')">삭제</button>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function openNoticeModal() {
+  db.ref('tenant_meta').once('value').then(function(snap) {
+    const sel = document.getElementById('noticeTarget');
+    sel.innerHTML = '<option value="all">전체 테넌트</option>';
+    snap.forEach(function(c) {
+      const opt = document.createElement('option');
+      opt.value = c.key;
+      opt.textContent = (c.val().name || c.key) + ' (' + c.key + ')';
+      sel.appendChild(opt);
+    });
+  });
+  document.getElementById('noticeTitle').value = '';
+  document.getElementById('noticeContent').value = '';
+  document.getElementById('noticeExpiry').value = '';
+  document.getElementById('noticeMsg').className = 'msg';
+  document.getElementById('noticeModal').style.display = 'flex';
+}
+
+function closeNoticeModal() { document.getElementById('noticeModal').style.display = 'none'; }
+
+function submitNotice() {
+  const title = document.getElementById('noticeTitle').value.trim();
+  const content = document.getElementById('noticeContent').value.trim();
+  const target = document.getElementById('noticeTarget').value;
+  const expiry = document.getElementById('noticeExpiry').value;
+  const msgEl = document.getElementById('noticeMsg');
+  if (!title || !content) { msgEl.textContent = '제목과 내용을 입력해주세요'; msgEl.className = 'msg show err'; return; }
+  const notice = { title: title, content: content, target: target, createdAt: Date.now(), active: true };
+  if (expiry) notice.expiresAt = new Date(expiry).getTime() + 86399999;
+  db.ref('notices').push(notice).then(function() {
+    closeNoticeModal();
+    showMsg('공지사항이 등록되었습니다', true);
+    loadNotices();
+  });
+}
+
+function deleteNotice(noticeId) {
+  if (!confirm('공지사항을 삭제할까요?')) return;
+  db.ref('notices/' + noticeId).remove().then(function() {
+    showMsg('공지사항이 삭제되었습니다', true);
+    loadNotices();
+  });
+}
+
 // ── 온보딩 안내 복사 ──
 function copyOnboarding(tenantId, tenantName) {
   const BASE = 'https://as9817.github.io/hat-delivery/saas/';
@@ -570,6 +685,8 @@ function openBrandingModal(id, name) {
     const b = snap.val() || {};
     document.getElementById('brandingTitle').value = b.appTitle || '';
     document.getElementById('brandingLogoUrl').value = b.logoUrl || '';
+    document.getElementById('brandingLogoFile').value = '';
+    document.getElementById('brandingLogoFileName').textContent = b.logoUrl ? '(기존 로고 사용 중)' : '선택된 파일 없음';
     const color = b.primaryColor || '#1a237e';
     document.getElementById('brandingColor').value = color;
     document.getElementById('brandingColorHex').value = color;
@@ -583,11 +700,24 @@ function closeBrandingModal() {
   _brandingTenantId = null;
 }
 
+function onLogoFileChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('brandingLogoFileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = document.getElementById('brandLogoPreview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
 function previewBrandLogo() {
   const url = document.getElementById('brandingLogoUrl').value.trim();
   const img = document.getElementById('brandLogoPreview');
-  img.src = url;
-  img.style.display = url ? 'block' : 'none';
+  if (url) { img.src = url; img.style.display = 'block'; }
+  else { img.src = ''; img.style.display = 'none'; }
 }
 
 function syncBrandColorFromHex() {
@@ -600,22 +730,42 @@ function syncBrandColorFromHex() {
 function saveBranding() {
   if (!_brandingTenantId) return;
   const appTitle = document.getElementById('brandingTitle').value.trim() || null;
-  const logoUrl = document.getElementById('brandingLogoUrl').value.trim() || null;
   const primaryColor = document.getElementById('brandingColor').value || '#1a237e';
-  const branding = {};
-  if (appTitle) branding.appTitle = appTitle;
-  if (logoUrl) branding.logoUrl = logoUrl;
-  branding.primaryColor = primaryColor;
-  db.ref('tenant_meta/' + _brandingTenantId + '/branding').set(branding).then(function () {
-    const el = document.getElementById('brandingMsg');
-    el.textContent = '브랜딩 설정이 저장되었습니다';
-    el.className = 'msg show ok';
-    setTimeout(closeBrandingModal, 1200);
-  }).catch(function (e) {
-    const el = document.getElementById('brandingMsg');
-    el.textContent = '저장 오류: ' + e.message;
-    el.className = 'msg show err';
-  });
+  const existingUrl = document.getElementById('brandingLogoUrl').value.trim() || null;
+  const fileInput = document.getElementById('brandingLogoFile');
+  const file = fileInput.files[0];
+  const msgEl = document.getElementById('brandingMsg');
+
+  function doSave(logoUrl) {
+    const branding = { primaryColor: primaryColor };
+    if (appTitle) branding.appTitle = appTitle;
+    if (logoUrl) branding.logoUrl = logoUrl;
+    db.ref('tenant_meta/' + _brandingTenantId + '/branding').set(branding).then(function () {
+      msgEl.textContent = '브랜딩 설정이 저장되었습니다';
+      msgEl.className = 'msg show ok';
+      setTimeout(closeBrandingModal, 1200);
+    }).catch(function (e) {
+      msgEl.textContent = '저장 오류: ' + e.message;
+      msgEl.className = 'msg show err';
+    });
+  }
+
+  if (file) {
+    msgEl.textContent = '로고 업로드 중...';
+    msgEl.className = 'msg show ok';
+    const ext = file.name.split('.').pop();
+    const ref = storage.ref('logos/' + _brandingTenantId + '/logo.' + ext);
+    ref.put(file).then(function() {
+      return ref.getDownloadURL();
+    }).then(function(url) {
+      doSave(url);
+    }).catch(function(e) {
+      msgEl.textContent = '업로드 오류: ' + e.message;
+      msgEl.className = 'msg show err';
+    });
+  } else {
+    doSave(existingUrl);
+  }
 }
 
 // ── 테넌트 비활성화 / 영구 삭제 ──

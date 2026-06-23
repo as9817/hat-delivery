@@ -486,6 +486,12 @@ body{font-family:-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-h
 body.impersonating{padding-top:38px}
 #impersonate-banner button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:600}
 #impersonate-banner button:hover{background:rgba(255,255,255,.35)}
+#notice-banner{display:none;background:#1a237e;color:#fff;font-size:13px;padding:10px 16px 10px 20px;position:relative}
+#notice-banner.show{display:block}
+#notice-banner-title{font-weight:700;margin-bottom:2px;padding-right:28px}
+#notice-banner-body{font-size:12px;opacity:.88;white-space:pre-wrap;padding-right:28px}
+#notice-banner-close{position:absolute;top:50%;right:14px;transform:translateY(-50%);cursor:pointer;font-size:18px;opacity:.7;line-height:1}
+#notice-banner-close:hover{opacity:1}
 #oms-login-overlay{
   position:fixed;inset:0;z-index:10000;
   background:linear-gradient(135deg,#0d1b6e 0%,#1a237e 50%,#283593 100%);
@@ -567,6 +573,11 @@ body.impersonating{padding-top:38px}
 <div id="impersonate-banner">
   🔍 슈퍼어드민 대리 접속 중: <strong id="impersonate-tenant-name"></strong>
   <button onclick="impersonateBack()">← 슈퍼어드민으로 돌아가기</button>
+</div>
+<div id="notice-banner">
+  <span id="notice-banner-close" onclick="dismissNoticeBanner()">✕</span>
+  <div id="notice-banner-title"></div>
+  <div id="notice-banner-body"></div>
 </div>
 
 <!-- ══ OMS 로그인 오버레이 ══ -->
@@ -1822,10 +1833,45 @@ _fbAuth.onAuthStateChanged(function (user) {
         checkOnboarding(info.role);
         checkUsageLimit(info.role, meta.plan || 'free');
         applyBranding(meta.branding || null);
+        loadNoticeBanner();
       });
     });
   }).catch(function (e) { console.warn('[테넌트 검증 실패]', e.message); });
 });
+
+function loadNoticeBanner() {
+  const now = Date.now();
+  db.ref('notices').once('value').then(function(snap) {
+    if (!snap.exists()) return;
+    const dismissed = JSON.parse(localStorage.getItem('hd_dismissed_notices') || '[]');
+    const active = [];
+    snap.forEach(function(c) {
+      const n = c.val();
+      if (!n.active) return;
+      if (n.expiresAt && n.expiresAt < now) return;
+      if (n.target !== 'all' && n.target !== TENANT_ID) return;
+      if (dismissed.indexOf(c.key) !== -1) return;
+      active.push(Object.assign({id: c.key}, n));
+    });
+    if (active.length === 0) return;
+    const notice = active[active.length - 1];
+    document.getElementById('notice-banner-title').textContent = '📢 ' + notice.title;
+    document.getElementById('notice-banner-body').textContent = notice.content;
+    document.getElementById('notice-banner')._noticeId = notice.id;
+    document.getElementById('notice-banner').classList.add('show');
+  }).catch(function() {});
+}
+
+function dismissNoticeBanner() {
+  const banner = document.getElementById('notice-banner');
+  const id = banner._noticeId;
+  if (id) {
+    const dismissed = JSON.parse(localStorage.getItem('hd_dismissed_notices') || '[]');
+    if (dismissed.indexOf(id) === -1) { dismissed.push(id); }
+    localStorage.setItem('hd_dismissed_notices', JSON.stringify(dismissed));
+  }
+  banner.classList.remove('show');
+}
 
 function impersonateBack() {
   localStorage.removeItem('hd_tenant_id');
