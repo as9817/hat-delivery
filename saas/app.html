@@ -1533,7 +1533,12 @@ body.impersonating{padding-top:38px}
         <input id="oms-dong-add-input" type="text" placeholder="동 이름 직접 추가" style="flex:1;border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 12px;font-size:13px;font-family:inherit;outline:none">
         <button onclick="omsAddDong()" style="background:#1a237e;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">추가</button>
       </div>
-      <button onclick="omsAutoCollectDongs()" id="oms-auto-collect-btn" style="width:100%;background:#e8eaf6;color:#1a237e;border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">🔍 마트 3km 주변 동 자동 수집</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:13px;color:#555;white-space:nowrap">수집 반경</span>
+        <input id="oms-collect-radius" type="number" min="1" max="20" value="3" style="width:64px;border:1.5px solid #e0e0e0;border-radius:8px;padding:6px 10px;font-size:13px;text-align:center;outline:none;font-family:inherit">
+        <span style="font-size:13px;color:#555">km</span>
+      </div>
+      <button onclick="omsAutoCollectDongs()" id="oms-auto-collect-btn" style="width:100%;background:#e8eaf6;color:#1a237e;border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">🔍 주변 동 자동 수집</button>
     </div>
     <div style="font-size:11px;color:#f57c00;margin-bottom:16px;padding:8px 12px;background:#fff8e1;border-radius:8px">
       ⚠️ 저장하면 모든 기사 앱과 OMS에 즉시 반영됩니다
@@ -5585,27 +5590,32 @@ async function omsAutoCollectDongs() {
   const lat = _martLocation?.lat;
   const lng = _martLocation?.lng;
   if (!lat || !lng) { showToast('마트 주소를 먼저 저장하세요'); return; }
+  const maxRadius = parseFloat(document.getElementById('oms-collect-radius')?.value) || 3;
+  if (maxRadius < 1 || maxRadius > 20) { showToast('반경은 1~20km 사이로 입력하세요'); return; }
   btn.textContent = '🔄 수집 중...';
   btn.disabled = true;
   try {
-    const dongs = await collectNearbyDongs(lat, lng);
+    const dongs = await collectNearbyDongs(lat, lng, maxRadius);
     dongs.forEach(d => { if (!_omsDongList.includes(d)) _omsDongList.push(d); });
     renderOmsDongList();
-    showToast(`✅ ${dongs.length}개 동 수집 완료`);
+    showToast(`✅ ${dongs.length}개 동 수집 완료 (${maxRadius}km 반경)`);
   } catch(e) {
     showToast('수집 실패: ' + e.message);
   } finally {
-    btn.textContent = '🔍 마트 3km 주변 동 자동 수집';
+    btn.textContent = '🔍 주변 동 자동 수집';
     btn.disabled = false;
   }
 }
 
-async function collectNearbyDongs(lat, lng, limit = 5) {
+async function collectNearbyDongs(lat, lng, maxRadius = 3) {
   const KAKAO_KEY = '81ed53400272ae3a6bdf85b65e64eaff';
   if (!KAKAO_KEY) return [];
   const dongMinRadius = new Map(); // dong → 처음 발견된 반경 (가까운 순 정렬용)
   const angles = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5];
-  const radii = [0, 0.3, 0.6, 1.0, 1.5, 2.0, 2.5, 3.0]; // 0 = 마트 중심점
+  // maxRadius에 맞게 반경 스텝 동적 생성 (0.3km 간격)
+  const radii = [0];
+  for (let r = 0.3; r < maxRadius; r = Math.round((r + 0.3) * 10) / 10) radii.push(r);
+  radii.push(maxRadius);
 
   for (const radiusKm of radii) {
     const samples = radiusKm === 0
@@ -5632,10 +5642,9 @@ async function collectNearbyDongs(lat, lng, limit = 5) {
     }));
   }
 
-  // 가까운 순 정렬 후 상위 limit개만 반환
+  // 가까운 순 정렬 후 전체 반환
   return [...dongMinRadius.entries()]
     .sort((a, b) => a[1] - b[1])
-    .slice(0, limit)
     .map(([dong]) => dong);
 }
 
