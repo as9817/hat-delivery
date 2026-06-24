@@ -6632,4 +6632,22 @@ async function startBatchOcr() {
   renderStats();
   updateHeader();
 
-  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active
+  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
+  const canAutoAssign = activeDrivers.length > 0;
+
+  document.getElementById('batch-summary').style.display = 'block';
+  document.getElementById('batch-summary').innerHTML =
+    `✅ ${successCount}건 등록 완료${failCount?` · ❌ ${failCount}건 실패`:''}` +
+    (canAutoAssign ? `<br><button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="closeBatchOcr();toggleAutoAssignBar();runAutoAssign()">🤖 지금 바로 자동 배정</button>` : '');
+}
+
+// ══════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════
+loadOrders();
+updateHeader();
+addItemRow();
+
+</script>
+</body>
+</html>
