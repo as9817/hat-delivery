@@ -2420,7 +2420,7 @@ async function confirmAdd() {
   const item = {
     id: uid(), customerName: name,
     address: addr,
-    jibunAddress: ocr?.jibunAddress || '',
+    jibunAddress: ocrData.jibunAddress || '',
     detailAddress: detailAddr,
     phone: phone || '-', lat, lng, status: 'pending',
     paymentMethod: getSelectedPay(),
