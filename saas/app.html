@@ -5642,9 +5642,11 @@ async function collectNearbyDongs(lat, lng, maxRadius = 3) {
     }));
   }
 
-  // 가까운 순 정렬 후 전체 반환
+  // 반경 비례 동 개수 제한 (3km→8개, 5km→12개, 10km→20개)
+  const maxDongs = Math.round(6 + maxRadius * 1.4);
   return [...dongMinRadius.entries()]
     .sort((a, b) => a[1] - b[1])
+    .slice(0, maxDongs)
     .map(([dong]) => dong);
 }
 

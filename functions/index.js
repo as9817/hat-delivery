@@ -358,11 +358,14 @@ async function parseOrderWithGemini(message, apiKey) {
 }
 
 async function kakaoAddrSearch(query, kakaoKey) {
-  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=1`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
+  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=5`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
   if (!res.ok) return null;
   const data = await res.json();
-  const doc = data.documents?.[0];
-  if (!doc) return null;
+  const docs = data.documents || [];
+  if (!docs.length) return null;
+  // 신주소(road_address)가 있는 결과 중 마지막(가장 최신) 선택
+  const withRoad = docs.filter(d => d.road_address?.address_name);
+  const doc = withRoad.length ? withRoad[withRoad.length - 1] : docs[0];
   return { road_address: doc.road_address?.address_name || doc.address?.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
 }
 
@@ -390,10 +393,14 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     return { road_address: '', detail_address: '', lat: null, lng: null };
   }
 
+  // Gemini가 동 이름을 주소 앞에 포함한 경우 제거 ("이태원동 258-116" → "258-116")
+  const dongPrefixMatch = rawAddress.match(/^([가-힣]+(?:동|가|로|길))\s+(\d.*)$/);
+  const rawAddressClean = dongPrefixMatch ? dongPrefixMatch[2] : rawAddress;
+
   // 지하/지중/지층 등 위치 설명어 제거 (검색 전)
-  const locDescMatch = rawAddress.match(/\s*(지하|지중|지층|옥상|B\d+)$/);
+  const locDescMatch = rawAddressClean.match(/\s*(지하|지중|지층|옥상|B\d+)$/);
   const locDesc = locDescMatch ? locDescMatch[0].trim() : '';
-  const addrClean = locDesc ? rawAddress.slice(0, rawAddress.lastIndexOf(locDescMatch[0])).trim() : rawAddress;
+  const addrClean = locDesc ? rawAddressClean.slice(0, rawAddressClean.lastIndexOf(locDescMatch[0])).trim() : rawAddressClean;
 
   // 상세주소 패턴: 101호, 3층, 나-516, 가동 101호 등
   const dm = addrClean.match(/[가-힣]?-?\d+호|\d+층|\d+동\s*\d*호?|[가나다라마바사아자차카타파하]-\d+/);
@@ -411,10 +418,16 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     const jibunOnly = jibunMatch ? jibunMatch[1] : q;
     const bldgName  = jibunMatch ? jibunMatch[2].trim() : '';
 
-    // 2차: 주변 동 이름 순서대로 시도 (지번만으로)
-    for (const dong of nearbyDongs) {
-      const r2 = await kakaoAddrSearch(dong + ' ' + jibunOnly, kakaoKey);
-      if (r2) { logger.info('주변동 검색 성공:', dong, r2.road_address); return { ...r2, detail_address: [bldgName, da].filter(Boolean).join(' ') }; }
+    // 2차: 주변 동 이름 병렬 시도 (지번만으로) — 거리순 정렬 유지, Promise.all로 동시 요청
+    if (nearbyDongs.length > 0) {
+      const r2Results = await Promise.all(
+        nearbyDongs.map(dong => kakaoAddrSearch(dong + ' ' + jibunOnly, kakaoKey))
+      );
+      const r2Idx = r2Results.findIndex(r => r !== null);
+      if (r2Idx !== -1) {
+        logger.info('주변동 병렬 검색 성공:', nearbyDongs[r2Idx], r2Results[r2Idx].road_address);
+        return { ...r2Results[r2Idx], detail_address: [bldgName, da].filter(Boolean).join(' ') };
+      }
     }
     // 3차: 건물명 있으면 키워드 검색
     if (bldgName) {
@@ -423,11 +436,17 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
       if (rk3) { logger.info('건물명 키워드 검색 성공:', rk3.road_address); return { ...rk3, detail_address: da }; }
     }
   } else {
-    // 건물명/아파트 → 키워드 검색 (괄호 제거 후 검색)
-    const qClean = q.replace(/\(.*?\)/g, '').trim();
+    // 끝에 "숫자-숫자" 패턴(동-호) 분리: "대림APT 113-104" → bldg="대림APT", unit="113-104"
+    const unitMatch = q.match(/^(.+?)\s+(\d+[-]\d+)$/);
+    const searchQ = unitMatch ? unitMatch[1] : q;
+    const unitDetail = unitMatch ? unitMatch[2] : '';
+    const finalDa = [unitDetail, da].filter(Boolean).join(' ') || da;
+
+    // 건물명/아파트 → 키워드 검색 (괄호 제거, APT→아파트 치환 후 검색)
+    const qClean = searchQ.replace(/\(.*?\)/g, '').replace(/\bAPT\b/gi, '아파트').replace(/@/g, '아파트').trim();
     logger.info('건물명 키워드 검색:', qClean);
     const rk = await kakaoKeywordSearch(qClean, kakaoKey, martLat, martLng);
-    if (rk) { logger.info('키워드 검색 성공:', rk.road_address); return { ...rk, detail_address: da }; }
+    if (rk) { logger.info('키워드 검색 성공:', rk.road_address); return { ...rk, detail_address: finalDa }; }
 
     // 주소 검색 실패 시 고객명(상호명)으로 2차 시도
     // 지하/층 등 위치 설명어 제거 후 순수 상호명만 사용
