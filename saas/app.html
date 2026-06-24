@@ -1925,7 +1925,7 @@ function refreshOnboardingSteps() {
 // ══════════════════════════════════════════
 // 사용량 한도 경고 (플랜별 월간 주문 건수, 경고만 표시 — 차단 없음)
 // ══════════════════════════════════════════
-const PLAN_LIMITS = { free: 50, basic: 300, pro: 1000, enterprise: Infinity };
+const PLAN_LIMITS = { free: Infinity, basic: 3000, pro: 10000, enterprise: Infinity };
 
 function checkUsageLimit(role, plan) {
   if (role !== 'admin' || !TENANT_ID) return;
