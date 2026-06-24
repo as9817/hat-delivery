@@ -5596,7 +5596,7 @@ async function omsAutoCollectDongs() {
   btn.disabled = true;
   try {
     const dongs = await collectNearbyDongs(lat, lng, maxRadius);
-    dongs.forEach(d => { if (!_omsDongList.includes(d)) _omsDongList.push(d); });
+    _omsDongList = dongs;
     renderOmsDongList();
     showToast(`✅ ${dongs.length}개 동 수집 완료 (${maxRadius}km 반경)`);
   } catch(e) {
