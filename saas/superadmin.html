@@ -196,6 +196,7 @@ input:focus,select:focus{border-color:#ff7a3d}
     </div>
     <div class="actions">
       <button class="btn ghost" id="detailToggleBtn" onclick="toggleMemberActive()">비활성화</button>
+      <button class="btn ghost danger" onclick="deleteMember()">계정 삭제</button>
       <button class="btn ghost" onclick="closeMemberDetailModal()">닫기</button>
     </div>
   </div>
@@ -947,6 +948,23 @@ function toggleMemberActive() {
   }).catch(function (e) {
     const el = document.getElementById('detailMsg');
     el.textContent = '상태 변경 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+
+function deleteMember() {
+  if (!_detailUid || !_detailTenantId) return;
+  if (!confirm('"' + (_detailEmail || _detailUid) + '" 계정을 삭제하시겠습니까?\n삭제하면 복구할 수 없습니다.')) return;
+  const updates = {};
+  updates['users/' + _detailUid] = null;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid] = null;
+  db.ref().update(updates).then(function () {
+    closeMemberDetailModal();
+    showMsg((_detailEmail || _detailUid) + ' 계정이 삭제되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '삭제 실패: ' + e.message;
     el.className = 'msg show err';
   });
 }
