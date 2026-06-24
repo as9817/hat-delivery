@@ -2230,6 +2230,7 @@ async function startOCR(file) {
     setStep('step-parse', 'active');
     const { customer, location, totalAmount } = result.data;
     const roadAddr   = location?.road_address   || '';
+    const jibunAddr  = location?.jibun_address  || '';
     const detailAddr = location?.detail_address || '';
     // 화면엔 전체 주소 표시 (확인용), 저장은 분리
     document.getElementById('res-name').value  = customer?.name  || '';
@@ -2258,6 +2259,7 @@ async function startOCR(file) {
     window._pendingOCR = {
       lat: location?.lat || null,
       lng: location?.lng || null,
+      jibunAddress: jibunAddr,
       detailAddress: detailAddr,
       totalAmount: totalAmount || '',
       // 학습용: 원본 OCR 결과 보관 (수정 여부 판단에 사용)
@@ -2418,6 +2420,7 @@ async function confirmAdd() {
   const item = {
     id: uid(), customerName: name,
     address: addr,
+    jibunAddress: ocr?.jibunAddress || '',
     detailAddress: detailAddr,
     phone: phone || '-', lat, lng, status: 'pending',
     paymentMethod: getSelectedPay(),
