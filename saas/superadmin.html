@@ -206,10 +206,10 @@ input:focus,select:focus{border-color:#ff7a3d}
   <div class="modal">
     <h3><span id="planModalTenantName"></span> 플랜 관리</h3>
     <div class="msg" id="planMsg"></div>
-    <label>플랜 (월 주문 한도: Free 50 / Basic 300 / Pro 1000 / Enterprise 무제한)</label>
+    <label>플랜 (월 주문 한도: Free 무제한 / Basic 3,000 / Pro 10,000 / Enterprise 무제한)</label>
     <select id="planSelect">
-      <option value="free">Free (무료, 월 50건)</option>
-      <option value="basic">Basic (월 300건)</option>
+      <option value="free">Free (무료, 무제한)</option>
+      <option value="basic">Basic (월 3,000건)</option>
       <option value="pro">Pro (월 1000건)</option>
       <option value="enterprise">Enterprise (무제한)</option>
     </select>
@@ -446,7 +446,7 @@ function loadTenants() {
   });
 }
 
-const PLAN_LIMITS = { free: 50, basic: 300, pro: 1000, enterprise: Infinity };
+const PLAN_LIMITS = { free: Infinity, basic: 3000, pro: 10000, enterprise: Infinity };
 
 function loadTenantUsage(id, name, plan) {
   Promise.all([
