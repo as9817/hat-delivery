@@ -854,7 +854,14 @@ function submitAddUser() {
     const updates = {};
     updates['users/' + uid] = { tenantId: tenantId, email: email, name: name, phone: phone, role: role, createdAt: now, active: true };
     updates['tenant_meta/' + tenantId + '/members/' + uid] = { email: email, name: name, phone: phone, role: role, createdAt: now, active: true };
-    return db.ref().update(updates).then(function () { return secondaryAuth.signOut(); });
+    return db.ref().update(updates).then(function () {
+      return secondaryAuth.signOut();
+    }).catch(function (dbErr) {
+      // RTDB 저장 실패 시 Auth 계정 롤백
+      return cred.user.delete().catch(function () {}).then(function () {
+        return secondaryAuth.signOut().catch(function () {});
+      }).then(function () { throw dbErr; });
+    });
   }).then(function () {
     closeAddUserModal();
     showMsg(email + ' 계정이 생성되었습니다', true);
