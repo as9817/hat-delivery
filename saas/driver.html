@@ -373,6 +373,33 @@
            onkeydown="if(event.key==='Enter') doLogin()" />
     <div class="login-err" id="login-err"></div>
     <button class="btn btn-orange" onclick="doLogin()">로그인</button>
+    <div style="text-align:center;margin-top:12px">
+      <span onclick="openFindPwModal()" style="font-size:13px;color:#888;text-decoration:underline;cursor:pointer">비밀번호를 잊으셨나요?</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ 비밀번호 찾기 모달 ══════════════ -->
+<div id="findpw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:90%;max-width:360px">
+    <div style="font-size:17px;font-weight:700;margin-bottom:16px">🔑 비밀번호 찾기</div>
+    <div style="font-size:13px;color:#666;margin-bottom:14px">마트 코드, 아이디, 등록된 전화번호를 입력하세요</div>
+    <label style="font-size:12px;font-weight:600;color:#555">마트 코드</label>
+    <input id="fp-tenant" type="text" placeholder="마트 코드" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:inherit;margin:4px 0 10px;box-sizing:border-box;outline:none">
+    <label style="font-size:12px;font-weight:600;color:#555">아이디</label>
+    <input id="fp-id" type="text" placeholder="아이디" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:inherit;margin:4px 0 10px;box-sizing:border-box;outline:none">
+    <label style="font-size:12px;font-weight:600;color:#555">전화번호</label>
+    <input id="fp-phone" type="tel" placeholder="010-0000-0000" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:inherit;margin:4px 0 10px;box-sizing:border-box;outline:none">
+    <div id="fp-msg" style="font-size:13px;min-height:18px;margin-bottom:10px"></div>
+    <div id="fp-result" style="display:none;background:#e8f5e9;border-radius:10px;padding:14px;margin-bottom:12px;text-align:center">
+      <div style="font-size:12px;color:#555;margin-bottom:6px">임시 비밀번호</div>
+      <div id="fp-tempw" style="font-size:24px;font-weight:700;color:#1a237e;letter-spacing:4px"></div>
+      <div style="font-size:11px;color:#888;margin-top:6px">로그인 후 반드시 변경하세요</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeFindPwModal()" style="flex:1;padding:11px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-size:14px;cursor:pointer">닫기</button>
+      <button id="fp-btn" onclick="doFindPw()" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1a237e;color:#fff;font-size:14px;font-weight:700;cursor:pointer">확인</button>
+    </div>
   </div>
 </div>
 
@@ -777,6 +804,85 @@ function saveSession(driver) {
 }
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+}
+
+function openFindPwModal() {
+  const tenantVal = document.getElementById('login-tenant').value.trim();
+  const idVal = document.getElementById('login-id').value.trim();
+  if (tenantVal) document.getElementById('fp-tenant').value = tenantVal;
+  if (idVal) document.getElementById('fp-id').value = idVal;
+  document.getElementById('fp-phone').value = '';
+  document.getElementById('fp-msg').textContent = '';
+  document.getElementById('fp-msg').style.color = '#e53935';
+  document.getElementById('fp-result').style.display = 'none';
+  document.getElementById('fp-btn').style.display = '';
+  document.getElementById('findpw-modal').style.display = 'flex';
+}
+
+function closeFindPwModal() {
+  document.getElementById('findpw-modal').style.display = 'none';
+}
+
+async function doFindPw() {
+  const tenantId = document.getElementById('fp-tenant').value.trim().toLowerCase();
+  const driverId = document.getElementById('fp-id').value.trim();
+  const phone    = document.getElementById('fp-phone').value.trim().replace(/\D/g, '');
+  const msg      = document.getElementById('fp-msg');
+  const btn      = document.getElementById('fp-btn');
+
+  if (!tenantId || !driverId || !phone) {
+    msg.textContent = '모든 항목을 입력하세요';
+    msg.style.color = '#e53935';
+    return;
+  }
+
+  btn.textContent = '확인 중...';
+  btn.disabled = true;
+  msg.textContent = '';
+
+  try {
+    const snap = await firebase.database()
+      .ref('tenants/' + tenantId + '/driverAccounts/' + driverId)
+      .once('value');
+    const driver = snap.val();
+
+    if (!driver) {
+      msg.textContent = '아이디를 찾을 수 없습니다';
+      msg.style.color = '#e53935';
+      return;
+    }
+
+    const storedPhone = (driver.phone || '').replace(/\D/g, '');
+    if (storedPhone !== phone) {
+      msg.textContent = '전화번호가 일치하지 않습니다';
+      msg.style.color = '#e53935';
+      return;
+    }
+
+    // 임시 비밀번호 생성 (숫자 6자리)
+    const tempPw = String(Math.floor(100000 + Math.random() * 900000));
+    await firebase.database()
+      .ref('tenants/' + tenantId + '/driverAccounts/' + driverId)
+      .update({ password: tempPw });
+
+    document.getElementById('fp-tempw').textContent = tempPw;
+    document.getElementById('fp-result').style.display = 'block';
+    msg.textContent = '임시 비밀번호가 발급되었습니다';
+    msg.style.color = '#2e7d32';
+    btn.style.display = 'none';
+
+    // 로그인 화면 비밀번호 칸에 자동 입력
+    document.getElementById('login-tenant').value = tenantId;
+    document.getElementById('login-id').value = driverId;
+    document.getElementById('login-pw').value = tempPw;
+
+  } catch (e) {
+    msg.textContent = '오류: ' + e.message;
+    msg.style.color = '#e53935';
+  } finally {
+    btn.textContent = '확인';
+    btn.disabled = false;
+  }
 }
 
 async function doLogin() {
