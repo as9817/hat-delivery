@@ -610,6 +610,7 @@ body.impersonating{padding-top:38px}
     <input class="login-inp" id="force-pw-confirm" type="password" placeholder="새 비밀번호 확인" autocomplete="new-password"
       onkeydown="if(event.key==='Enter')submitForcePasswordChange()">
     <button class="login-btn" onclick="submitForcePasswordChange()">비밀번호 변경하고 시작하기</button>
+    <button class="login-btn" onclick="skipForcePasswordChange()" style="background:#888;margin-top:8px">나중에 변경하기</button>
     <div class="login-err" id="force-pw-err"></div>
   </div>
 </div>
@@ -2134,6 +2135,12 @@ function submitForcePasswordChange() {
     errEl.textContent = '변경 중 오류가 발생했습니다. 다시 시도해주세요';
     errEl.classList.add('show');
   });
+}
+
+function skipForcePasswordChange() {
+  document.getElementById('oms-force-pw-overlay').style.display = 'none';
+  setOmsSession({ id: _forcePwPendingId, name: _forcePwPendingAcct.name, role: _forcePwPendingAcct.role || 'manager' });
+  showOmsApp();
 }
 
 function showOmsApp() {
