@@ -97,7 +97,9 @@ function hdLogin() {
   btn.disabled = true;
   btn.textContent = '로그인 중...';
 
-  auth.signInWithEmailAndPassword(email, pw).then(function (cred) {
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function () {
+    return auth.signInWithEmailAndPassword(email, pw);
+  }).then(function (cred) {
     return routeAfterLogin(cred.user, false);
   }).catch(function (e) {
     btn.disabled = false;
