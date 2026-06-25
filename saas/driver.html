@@ -906,7 +906,7 @@ async function doLogin() {
       err.style.display = 'block';
       return;
     }
-    await firebase.auth().signInWithCustomToken(data.token);
+    await _fbAuth.signInWithCustomToken(data.token);
     TENANT_ID = tenantCode;
     TENANT_NAME = data.tenantName || tenantCode;
     currentDriver = { id, name: data.driverName, tenantId: TENANT_ID, tenantName: TENANT_NAME };
@@ -1085,10 +1085,13 @@ const _fbConfig = {
 };
 let _fbDb = null;
 let _fbStorage = null;
+let _fbAuth = null;
 try {
-  firebase.initializeApp(_fbConfig);
-  _fbDb = firebase.database();
-  _fbStorage = firebase.storage();
+  // named app 'driver' 사용 → OMS/슈퍼어드민 Firebase Auth와 완전 분리
+  const _fbApp = firebase.initializeApp(_fbConfig, 'driver');
+  _fbDb = _fbApp.database();
+  _fbStorage = _fbApp.storage();
+  _fbAuth = _fbApp.auth();
 } catch(e) { console.warn('Firebase 초기화 실패:', e); }
 
 // ══════════════════════════════════════════
@@ -1119,7 +1122,7 @@ function tref(path) {
 
 // ── Firebase Auth 영속성 설정 (커스텀 토큰 로그인 유지) ──
 try {
-  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('[Firebase Auth]', e.message));
+  if (_fbAuth) _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('[Firebase Auth]', e.message));
 } catch(e) { console.warn('[Firebase Auth init]', e.message); }
 
 // ── TMS 접속 중인 기사 실시간 동기화 (자동배분용) ──
@@ -1232,8 +1235,8 @@ async function uploadPhotoToStorage(deliveryId, dataUrl) {
 }
 
 // Firebase 초기화 후 세션 확인 (Auth 상태 복원은 비동기라 onAuthStateChanged로 대기)
-if (_fbDb) {
-  firebase.auth().onAuthStateChanged(function (user) {
+if (_fbDb && _fbAuth) {
+  _fbAuth.onAuthStateChanged(function (user) {
     if (user) {
       checkSession();
     } else {
@@ -2098,19 +2101,12 @@ function loadMartLocationFromFirebase() {
         resolve(getMartLocation());
       }, () => resolve(getMartLocation())); // permission_denied 등 에러 시 로컬 캐시 사용
     };
-    const auth = firebase.auth();
-    if (auth.currentUser) {
-      doRead();
-    } else {
-      auth.signInWithEmailAndPassword('tms@wellbing.com', 'wellbing_tms2026')
-        .catch(() => {})
-        .finally(() => doRead());
-    }
+    doRead();
   });
 }
 
-if (_fbDb) {
-  firebase.auth().onAuthStateChanged(user => {
+if (_fbDb && _fbAuth) {
+  _fbAuth.onAuthStateChanged(user => {
     if (!user) return;
     tref('settings/martLocation').on('value', snap => {
       const data = snap.val();
@@ -3399,14 +3395,3 @@ const mapZone = (() => {
 </script>
 
 <script>
-// ── PWA 서비스워커 등록 ──
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/hat-delivery/sw.js')
-      .then(() => console.log('SW 등록 완료'))
-      .catch(e => console.warn('SW 등록 실패:', e));
-  });
-}
-</script>
-</body>
-</html>
