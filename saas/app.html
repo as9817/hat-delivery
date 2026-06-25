@@ -5108,6 +5108,9 @@ function getGpsAreaInfo() {
 
 // ── 영수증 텍스트 파싱 ──
 function parseReceiptText(text, gpsAddr) {
+  // 영수증 줄바꿈 오분리 보정: 숫자 뒤에서 끊긴 "층/호" 합치기
+  // 예) "737-42 1\n층" → "737-42 1층"
+  text = text.replace(/(\d)\n\s*(층|호|동)/g, '$1$2');
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const result = { name: '', phone: '', address: '', items: [], raw: text };
 

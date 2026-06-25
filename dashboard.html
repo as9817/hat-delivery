@@ -639,6 +639,8 @@ async function handleOCRFile(e) {
 }
 
 function parseOCRText(text) {
+  // 줄바꿈 오분리 보정: 숫자 뒤 끊긴 층/호 합치기 (예: "737-42 1\n층" → "737-42 1층")
+  text = text.replace(/(\d)\n\s*(층|호|동)/g, '$1$2');
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   let name='', addr='', phone='', detail='';
 
@@ -654,12 +656,13 @@ function parseOCRText(text) {
     // 층/호/동 등 상세주소를 번지 뒤에서 분리
     // 예) "만남동 737-42 1층" → addr="만남동 737-42", detail="1층"
     // 예) "한남동 737-42 204동 2401호" → addr="한남동 737-42", detail="204동 2401호"
+    // 공백 뒤에 오는 층/호만 분리 (공백 없이 붙은 경우는 OCR 오인식 → 그대로 유지)
     const detailMatch = addrLine.match(
-      /(\d+동\s*\d+호|\d+호|\bB?\d+층\b|지하\s?\d+층?|지상\s?\d+층?|\d+층)(.*)$/i
+      /\s+(\d+동\s*\d+호|\d+호|B?\d{1,2}층|지하\s?\d{1,2}층?|지상\s?\d{1,2}층?)(.*)$/i
     );
     if (detailMatch) {
       addr   = addrLine.slice(0, detailMatch.index).trim();
-      detail = detailMatch[0].trim();
+      detail = detailMatch[1].trim() + (detailMatch[2] ? ' ' + detailMatch[2].trim() : '');
     } else {
       addr = addrLine;
     }
