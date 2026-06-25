@@ -2013,8 +2013,9 @@ function deleteDelivery() {
       }
     }).then(() => {
       doDelete();
-    }).catch(() => {
-      showToast('❌ 삭제 실패. 다시 시도해주세요.');
+    }).catch((err) => {
+      console.error('[deleteDelivery] 오류:', err);
+      showToast('❌ 삭제 실패: ' + (err && err.message ? err.message : String(err)));
     });
   } else {
     doDelete();
