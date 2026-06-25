@@ -627,9 +627,10 @@ async function handleOCRFile(e) {
 
     // Parse extracted text
     const parsed = parseOCRText(text);
-    if (parsed.name)  document.getElementById('o-name').value  = parsed.name;
-    if (parsed.addr)  document.getElementById('o-addr').value  = parsed.addr;
-    if (parsed.phone) document.getElementById('o-phone').value = parsed.phone;
+    if (parsed.name)   document.getElementById('o-name').value  = parsed.name;
+    if (parsed.addr)   document.getElementById('o-addr').value  = parsed.addr;
+    if (parsed.phone)  document.getElementById('o-phone').value = parsed.phone;
+    if (parsed.detail) document.getElementById('o-note').value  = parsed.detail;
 
   } catch(err) {
     statusTxt.textContent = '❌ OCR 실패 - 직접 입력해주세요';
@@ -639,7 +640,7 @@ async function handleOCRFile(e) {
 
 function parseOCRText(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  let name='', addr='', phone='';
+  let name='', addr='', phone='', detail='';
 
   // 전화번호 패턴
   const phoneMatch = text.match(/0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/);
@@ -649,7 +650,20 @@ function parseOCRText(text) {
   const addrLine = lines.find(l =>
     /시|도|구|군|읍|면|동|로|길|번지|아파트|APT/i.test(l) && l.length > 8
   );
-  if (addrLine) addr = addrLine;
+  if (addrLine) {
+    // 층/호/동 등 상세주소를 번지 뒤에서 분리
+    // 예) "만남동 737-42 1층" → addr="만남동 737-42", detail="1층"
+    // 예) "한남동 737-42 204동 2401호" → addr="한남동 737-42", detail="204동 2401호"
+    const detailMatch = addrLine.match(
+      /(\d+동\s*\d+호|\d+호|\bB?\d+층\b|지하\s?\d+층?|지상\s?\d+층?|\d+층)(.*)$/i
+    );
+    if (detailMatch) {
+      addr   = addrLine.slice(0, detailMatch.index).trim();
+      detail = detailMatch[0].trim();
+    } else {
+      addr = addrLine;
+    }
+  }
 
   // 이름: 2~4글자 한국어, 주소/전화 아닌 줄
   const nameLine = lines.find(l =>
@@ -659,7 +673,7 @@ function parseOCRText(text) {
   );
   if (nameLine) name = nameLine.trim();
 
-  return { name, addr, phone };
+  return { name, addr, phone, detail };
 }
 
 /* ══ Utils ══ */
