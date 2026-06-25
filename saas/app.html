@@ -5529,25 +5529,20 @@ async function saveOmsMartLocation() {
     });
 
     const { lat, lng, roadAddr } = geocoded;
-    el.textContent = `✅ 좌표 확인: ${lat.toFixed(6)}, ${lng.toFixed(6)} — 주변 동 수집 중...`;
+    el.textContent = `✅ 좌표 확인: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
     const oldAddr = document.getElementById('oms-mart-old-addr-input')?.value.trim() || '';
 
-    // 현재 동 목록 (수동 편집 포함)
+    // 현재 동 목록 그대로 저장 (자동 수집 없음 — 수집은 "주변 동 자동 수집" 버튼으로만)
     const manualDongs = _omsDongList.slice();
-
-    // 주변 3km 동 자동 수집
-    const nearbyDongs = await collectNearbyDongs(lat, lng);
-    nearbyDongs.forEach(d => { if (!manualDongs.includes(d)) manualDongs.push(d); });
 
     const martData = { address: roadAddr || addr, oldAddress: oldAddr, name, lat, lng, nearbyDongs: manualDongs, updatedAt: Date.now() };
 
     // Firebase에 저장 → 모든 OMS/TMS 자동 반영
     await tref('settings/martLocation').set(martData);
-    _omsDongList = manualDongs;
     renderOmsDongList();
     console.log('[saveOmsMartLocation] Firebase 저장 완료:', martData);
-    showToast(`✅ 마트 위치 저장 완료! 주변 동 ${manualDongs.length}개 수집`);
+    showToast(`✅ 마트 위치 저장 완료! 동 ${manualDongs.length}개`);
     setTimeout(() => { document.getElementById('oms-mart-modal').style.display = 'none'; }, 1500);
   } catch(e) {
     console.error('[saveOmsMartLocation] 오류:', e);
