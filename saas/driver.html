@@ -1160,10 +1160,12 @@ function startFirebaseOrderSync() {
     let newCount = 0;
     let changed = false;
 
+    console.log('[TMS 동기화] Firebase 주문 수:', Object.keys(data).length, '| currentDriver.id:', currentDriver.id);
     Object.values(data).forEach(fbOrder => {
       const isMyOrder = fbOrder.assignedDriverId === currentDriver.id;
       const isToday = fbOrder.createdAt >= today.getTime();
       const isCancelled = fbOrder.status === 'cancelled';
+      console.log('[TMS 주문]', fbOrder.id, '| assignedDriverId:', fbOrder.assignedDriverId, '| isMyOrder:', isMyOrder, '| isToday:', isToday, '| createdAt:', fbOrder.createdAt);
 
       const local = deliveries.find(d => d.id === fbOrder.id);
 
