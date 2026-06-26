@@ -1677,18 +1677,16 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // ══════════════════════════════════════════
-// Firebase Auth 초기화 (DB 보안용 공유계정)
+// Firebase Auth 초기화 (DB 보안용 익명 인증)
 // ══════════════════════════════════════════
 const _fbAuth = firebase.auth();
-const _FB_OMS_EMAIL = 'admin@wellbing.com';
-const _FB_OMS_PASS  = 'wellbing1234';
 
 (function _fbAutoSignIn() {
   if (localStorage.getItem('oms_fb_signedout') === '1') return;
   _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
     return _fbAuth.currentUser
       ? Promise.resolve()
-      : _fbAuth.signInWithEmailAndPassword(_FB_OMS_EMAIL, _FB_OMS_PASS);
+      : _fbAuth.signInAnonymously();
   }).catch(e => console.warn('[Firebase Auth]', e.message));
 })();
 
@@ -1729,10 +1727,10 @@ async function omsLogin() {
   document.querySelector('.login-btn').disabled = true;
 
   try {
-    // Firebase Auth가 아직 로그인 안 된 경우 먼저 인증
+    // Firebase Auth가 아직 로그인 안 된 경우 먼저 익명 인증
     if (!_fbAuth.currentUser) {
       try {
-        await _fbAuth.signInWithEmailAndPassword(_FB_OMS_EMAIL, _FB_OMS_PASS);
+        await _fbAuth.signInAnonymously();
         localStorage.removeItem('oms_fb_signedout');
       } catch(authErr) {
         errEl.textContent = '[Auth오류] ' + authErr.code + ': ' + authErr.message;
@@ -1749,7 +1747,7 @@ async function omsLogin() {
 
     // 계정이 하나도 없으면 기본 admin 생성
     if (!Object.keys(accts).length) {
-      const defaultAcct = { name: '관리자', password: 'wellbing1234', role: 'admin', createdAt: Date.now() };
+      const defaultAcct = { name: '관리자', password: 'aswemake1234', role: 'admin', mustChangePassword: true, createdAt: Date.now() };
       await db.ref('settings/omsAccounts/admin').set(defaultAcct);
       accts = { admin: defaultAcct };
     }
