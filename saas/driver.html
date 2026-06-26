@@ -841,7 +841,7 @@ async function doFindPw() {
   msg.textContent = '';
 
   try {
-    const snap = await firebase.database()
+    const snap = await _fbDb
       .ref('tenants/' + tenantId + '/driverAccounts/' + driverId)
       .once('value');
     const driver = snap.val();
@@ -861,7 +861,7 @@ async function doFindPw() {
 
     // 임시 비밀번호 생성 (숫자 6자리)
     const tempPw = String(Math.floor(100000 + Math.random() * 900000));
-    await firebase.database()
+    await _fbDb
       .ref('tenants/' + tenantId + '/driverAccounts/' + driverId)
       .update({ password: tempPw });
 
@@ -3395,3 +3395,14 @@ const mapZone = (() => {
 </script>
 
 <script>
+// ── PWA 서비스워커 등록 ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/hat-delivery/sw.js')
+      .then(() => console.log('SW 등록 완료'))
+      .catch(e => console.warn('SW 등록 실패:', e));
+  });
+}
+</script>
+</body>
+</html>
