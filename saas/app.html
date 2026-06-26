@@ -1795,6 +1795,11 @@ window.addEventListener('error', function (e) { logSystemError(e.error || e.mess
 window.addEventListener('unhandledrejection', function (e) { logSystemError(e.reason, 'app'); });
 
 // ══════════════════════════════════════════
+// Cloud Functions
+// ══════════════════════════════════════════
+const FUNCTION_API_KEY = 'd955ba17588f3ec9057caffaa8dd874467efe84852194988c7363ed4cfa732bc';
+const FUNCTIONS_URL = 'https://asia-northeast3-hatdelivery-saas.cloudfunctions.net';
+
 // 테넌트 컨텍스트 (멀티테넌트 핵심 로직)
 // ══════════════════════════════════════════
 let TENANT_ID = localStorage.getItem('hd_tenant_id') || '';
@@ -5680,8 +5685,6 @@ async function omsAutoCollectDongs() {
 }
 
 async function collectNearbyDongs(lat, lng, maxRadius = 3) {
-  const KAKAO_KEY = '81ed53400272ae3a6bdf85b65e64eaff';
-  if (!KAKAO_KEY) return [];
   const dongMinRadius = new Map(); // dong → 처음 발견된 반경 (가까운 순 정렬용)
   const angles = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5];
   // maxRadius에 맞게 반경 스텝 동적 생성 (0.3km 간격)
@@ -5702,13 +5705,14 @@ async function collectNearbyDongs(lat, lng, maxRadius = 3) {
 
     await Promise.all(samples.map(async ({ lat: sLat, lng: sLng }) => {
       try {
-        const res = await fetch(
-          `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${sLng}&y=${sLat}`,
-          { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } }
-        );
+        const res = await fetch(`${FUNCTIONS_URL}/reverseGeocode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+          body: JSON.stringify({ lat: sLat, lng: sLng })
+        });
         if (!res.ok) return;
-        const data = await res.json();
-        const dong = data.documents?.[0]?.region_3depth_name;
+        const json = await res.json();
+        const dong = json.documents?.[0]?.region_3depth_name;
         if (dong && !dongMinRadius.has(dong)) dongMinRadius.set(dong, radiusKm);
       } catch(e) {}
     }));
@@ -5813,13 +5817,16 @@ async function saveLearnedLocation(key) {
   const detail = document.getElementById('learned-edit-detail-' + k).value.trim();
   if (!newName) { showToast('성명을 입력하세요'); return; }
 
-  // Kakao로 좌표 재검색
+  // Cloud Function으로 좌표 재검색
   let lat = null, lng = null;
   try {
-    const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(addr)}&size=1`, { headers: { Authorization: 'KakaoAK 39fb0580f590466411a2e2239b082414' } });
-    const data = await res.json();
-    const doc = data.documents?.[0];
-    if (doc) { lat = parseFloat(doc.y); lng = parseFloat(doc.x); }
+    const res = await fetch(`${FUNCTIONS_URL}/geocodeAddress`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+      body: JSON.stringify({ address: addr })
+    });
+    const json = await res.json();
+    if (json.status === 'success' && json.data) { lat = json.data.lat; lng = json.data.lng; }
   } catch(e) {}
 
   const updated = { road_address: addr, detail_address: detail, phone, lat, lng, updatedAt: Date.now(), note: '수동 수정' };
