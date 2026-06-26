@@ -2067,6 +2067,13 @@ async function omsLogin() {
     return;
   }
 
+  // bcryptjs CDN 로드 실패 방어
+  if (typeof dcodeIO === 'undefined' || !dcodeIO.bcrypt) {
+    errEl.textContent = '보안 모듈 로드 실패. 페이지를 새로고침 후 다시 시도해주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+
   loadEl.classList.add('show');
   document.querySelector('.login-btn').disabled = true;
 
@@ -2354,7 +2361,17 @@ function saveOrders() {
   localStorage.setItem(STORAGE_KEY(), JSON.stringify(orders));
 }
 function loadOrders() {
-  try { orders = JSON.parse(localStorage.getItem(STORAGE_KEY()) || '[]'); } catch(e) { orders = []; }
+  // 기존 키('oms_orders_v1') → 테넌트 키로 1회 마이그레이션
+  const OLD_KEY = 'oms_orders_v1';
+  const newKey = STORAGE_KEY();
+  if (TENANT_ID && !localStorage.getItem(newKey)) {
+    const old = localStorage.getItem(OLD_KEY);
+    if (old) {
+      localStorage.setItem(newKey, old);
+      localStorage.removeItem(OLD_KEY);
+    }
+  }
+  try { orders = JSON.parse(localStorage.getItem(newKey) || '[]'); } catch(e) { orders = []; }
 }
 
 // ══════════════════════════════════════════
@@ -6623,79 +6640,4 @@ async function startBatchOcr() {
 
       // 주소 도로명 변환
       if (parsed.address) {
-        try { parsed.address = await omsGeocodeToRoad(parsed.address); } catch(e) {}
-      }
-
-      // 좌표 획득
-      let lat = null, lng = null;
-      if (parsed.address) {
-        try {
-          const coords = await new Promise((resolve, reject) => {
-            kakao.maps.load(() => {
-              const geocoder = new kakao.maps.services.Geocoder();
-              geocoder.addressSearch(parsed.address, (result, status) => {
-                if (status === kakao.maps.services.Status.OK && result.length > 0) {
-                  resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
-                } else reject(new Error('좌표 없음'));
-              });
-            });
-          });
-          lat = coords.lat; lng = coords.lng;
-        } catch(e) {}
-      }
-
-      // 주문 등록
-      const order = {
-        id: uid(), createdAt: Date.now(), updatedAt: Date.now(),
-        status: 'pending', channel: 'ocr',
-        customerName: parsed.name || '이름미확인',
-        phone: parsed.phone || '',
-        address: parsed.address || '',
-        lat, lng,
-        items: parsed.items || [],
-        totalAmount: (parsed.items||[]).reduce((s,it)=>s+(it.price*it.qty||0),0) || 0,
-        note: '', paymentMethod: currentPay,
-        assignedDriverId: '', assignedDriverName: ''
-      };
-
-      orders.push(order);
-      orders.sort((a, b) => a.createdAt - b.createdAt);
-      saveOrders();
-      if (firebaseActive) tref('orders/' + order.id).set(order);
-
-      batchQueue[i].status = 'done';
-      batchQueue[i].parsed = { name: order.customerName, address: order.address };
-      successCount++;
-    } catch(e) {
-      batchQueue[i].status = 'error';
-      batchQueue[i].error = e.message;
-      failCount++;
-    }
-    renderBatchQueue();
-  }
-
-  // 완료 후 자동 배정 제안
-  document.getElementById('batch-progress-text').textContent = '처리 완료!';
-  renderOrderList();
-  renderStats();
-  updateHeader();
-
-  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
-  const canAutoAssign = activeDrivers.length > 0;
-
-  document.getElementById('batch-summary').style.display = 'block';
-  document.getElementById('batch-summary').innerHTML =
-    `✅ ${successCount}건 등록 완료${failCount?` · ❌ ${failCount}건 실패`:''}` +
-    (canAutoAssign ? `<br><button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="closeBatchOcr();toggleAutoAssignBar();runAutoAssign()">🤖 지금 바로 자동 배정</button>` : '');
-}
-
-// ══════════════════════════════════════════
-// 초기화
-// ══════════════════════════════════════════
-loadOrders();
-updateHeader();
-addItemRow();
-
-</script>
-</body>
-</html>
+        try { parsed.address 
