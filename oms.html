@@ -2670,12 +2670,14 @@ function updateStatus(id, status) {
   o.status = status;
   o.updatedAt = Date.now();
   if (status === 'done') o.completedAt = Date.now();
+  if (status === 'confirmed') delete o.completedAt; // 완료취소 시 completedAt 초기화
   if (status === 'cancelled') o.cancelledAt = Date.now();
   saveOrders();
   renderOrderList();
   if (firebaseActive) {
     const update = { status, updatedAt: o.updatedAt };
     if (status === 'done') update.completedAt = o.completedAt;
+    if (status === 'confirmed') update.completedAt = null; // Firebase에서도 삭제
     if (status === 'cancelled') update.cancelledAt = o.cancelledAt;
     db.ref('orders/' + id).update(update);
     // 취소 시 deliveries 레코드도 cancelled로 업데이트 (기사 앱에서 즉시 사라지도록)
@@ -2736,7 +2738,17 @@ function sendToDelivery(orderId) {
   };
 
   if (firebaseActive) {
-    Promise.all([
+    // 취소된 기존 delivery 레코드 먼저 정리 후 새로 push
+    const cleanupOldDeliveries = new Promise(resolve => {
+      db.ref('deliveries').orderByChild('orderId').equalTo(orderId).once('value', snap => {
+        const removes = [];
+        snap.forEach(child => {
+          if (child.val().status === 'cancelled') removes.push(child.ref.remove());
+        });
+        Promise.all(removes).then(resolve).catch(resolve);
+      });
+    });
+    cleanupOldDeliveries.then(() => Promise.all([
       db.ref('orders/' + orderId).update({
         status: 'delivering',
         assignedDriverId:   o.assignedDriverId,
@@ -2744,7 +2756,7 @@ function sendToDelivery(orderId) {
         updatedAt: Date.now()
       }),
       db.ref('deliveries').push(delivery)
-    ]).then(() => {
+    ])).then(() => {
       doLocalUpdate();
       showToast(`🚀 ${o.assignedDriverName} 기사에게 배달 전송 완료!`);
     }).catch(() => showToast('❌ 전송 실패. 다시 시도해주세요.'));
