@@ -5276,19 +5276,20 @@ async function collectNearbyDongs(lat, lng, limit = 5) {
           };
         });
 
-    await Promise.all(samples.map(async ({ lat: sLat, lng: sLng }) => {
-      try {
-        const res = await fetch(`${FUNCTIONS_URL}/reverseGeocode`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
-          body: JSON.stringify({ lat: sLat, lng: sLng })
-        });
-        if (!res.ok) return;
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/reverseGeocode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+        body: JSON.stringify({ coords: samples.map(s => ({ lat: s.lat, lng: s.lng })) })
+      });
+      if (res.ok) {
         const json = await res.json();
-        const dong = json.documents?.[0]?.region_3depth_name;
-        if (dong && !dongMinRadius.has(dong)) dongMinRadius.set(dong, radiusKm);
-      } catch(e) {}
-    }));
+        (json.results || []).forEach(documents => {
+          const dong = documents?.[0]?.region_3depth_name;
+          if (dong && !dongMinRadius.has(dong)) dongMinRadius.set(dong, radiusKm);
+        });
+      }
+    } catch(e) {}
   }
 
   // 가까운 순 정렬 후 상위 limit개만 반환
