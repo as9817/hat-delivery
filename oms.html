@@ -2658,14 +2658,21 @@ function updateStatus(id, status) {
 
   o.status = status;
   o.updatedAt = Date.now();
-  // 취소 시 취소 시각 기록 (TMS 팝업 트리거용)
+  if (status === 'done') o.completedAt = Date.now();
   if (status === 'cancelled') o.cancelledAt = Date.now();
   saveOrders();
   renderOrderList();
   if (firebaseActive) {
     const update = { status, updatedAt: o.updatedAt };
+    if (status === 'done') update.completedAt = o.completedAt;
     if (status === 'cancelled') update.cancelledAt = o.cancelledAt;
     db.ref('orders/' + id).update(update);
+    // 취소 시 deliveries 레코드도 cancelled로 업데이트 (기사 앱에서 즉시 사라지도록)
+    if (status === 'cancelled') {
+      db.ref('deliveries').orderByChild('orderId').equalTo(id).once('value', snap => {
+        snap.forEach(child => child.ref.update({ status: 'cancelled' }));
+      });
+    }
   }
   showToast(`${o.customerName} → ${STATUS_LABELS[status]}`);
   // 팝업이 열려있으면 내용 갱신
