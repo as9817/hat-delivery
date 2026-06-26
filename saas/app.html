@@ -3140,11 +3140,13 @@ function sendToDelivery(orderId) {
   };
 
   if (firebaseActive) {
-    // 기존 delivery 레코드 정리 (취소→복원→재발송 시 중복 방지)
+    // 기존 cancelled delivery 레코드 정리 (취소→복원→재발송 시 중복 방지)
     const cleanupOldDeliveries = new Promise(resolve => {
       tref('deliveries').orderByChild('orderId').equalTo(orderId).once('value', snap => {
         const removes = [];
-        snap.forEach(child => removes.push(child.ref.remove()));
+        snap.forEach(child => {
+          if (child.val().status === 'cancelled') removes.push(child.ref.remove());
+        });
         Promise.all(removes).then(resolve).catch(resolve);
       });
     });
