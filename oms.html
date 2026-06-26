@@ -3249,7 +3249,7 @@ function getStatsPeriodRange() {
     return { from: s.getTime(), to: now.getTime(), days: 1 };
   } else if (_statsPeriod === 'week') {
     const s = new Date(now); s.setDate(now.getDate() - ((now.getDay() || 7) - 1)); s.setHours(0,0,0,0);
-    return { from: s.getTime(), to: now.getTime(), days: now.getDay() + 1 };
+    return { from: s.getTime(), to: now.getTime(), days: (now.getDay() || 7) };
   } else {
     const s = new Date(now.getFullYear(), now.getMonth(), 1);
     return { from: s.getTime(), to: now.getTime(), days: now.getDate() };

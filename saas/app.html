@@ -3073,12 +3073,14 @@ function updateStatus(id, status) {
   o.updatedAt = Date.now();
   if (status === 'done') o.completedAt = Date.now();
   if (status === 'cancelled') o.cancelledAt = Date.now();
+  if (status === 'confirmed') delete o.completedAt; // 완료취소 시 completedAt 초기화
   saveOrders();
   renderOrderList();
   if (firebaseActive) {
     const update = { status, updatedAt: o.updatedAt };
     if (status === 'done') update.completedAt = o.completedAt;
     if (status === 'cancelled') update.cancelledAt = o.cancelledAt;
+    if (status === 'confirmed') update.completedAt = null; // Firebase에서도 삭제
     tref('orders/' + id).update(update);
     // 취소 시 deliveries 레코드도 cancelled로 업데이트 (기사 앱에서 즉시 사라지도록)
     if (status === 'cancelled') {
@@ -3138,7 +3140,15 @@ function sendToDelivery(orderId) {
   };
 
   if (firebaseActive) {
-    Promise.all([
+    // 기존 delivery 레코드 정리 (취소→복원→재발송 시 중복 방지)
+    const cleanupOldDeliveries = new Promise(resolve => {
+      tref('deliveries').orderByChild('orderId').equalTo(orderId).once('value', snap => {
+        const removes = [];
+        snap.forEach(child => removes.push(child.ref.remove()));
+        Promise.all(removes).then(resolve).catch(resolve);
+      });
+    });
+    cleanupOldDeliveries.then(() => Promise.all([
       tref('orders/' + orderId).update({
         status: 'delivering',
         assignedDriverId:   o.assignedDriverId,
@@ -3146,7 +3156,7 @@ function sendToDelivery(orderId) {
         updatedAt: Date.now()
       }),
       tref('deliveries').push(delivery)
-    ]).then(() => {
+    ])).then(() => {
       doLocalUpdate();
       showToast(`🚀 ${o.assignedDriverName} 기사에게 배달 전송 완료!`);
     }).catch(() => showToast('❌ 전송 실패. 다시 시도해주세요.'));
@@ -3654,7 +3664,7 @@ function getStatsPeriodRange() {
     return { from: s.getTime(), to: now.getTime(), days: 1 };
   } else if (_statsPeriod === 'week') {
     const s = new Date(now); s.setDate(now.getDate() - ((now.getDay() || 7) - 1)); s.setHours(0,0,0,0);
-    return { from: s.getTime(), to: now.getTime(), days: now.getDay() + 1 };
+    return { from: s.getTime(), to: now.getTime(), days: (now.getDay() || 7) };
   } else {
     const s = new Date(now.getFullYear(), now.getMonth(), 1);
     return { from: s.getTime(), to: now.getTime(), days: now.getDate() };
@@ -6640,4 +6650,79 @@ async function startBatchOcr() {
 
       // 주소 도로명 변환
       if (parsed.address) {
-        try { parsed.address 
+        try { parsed.address = await omsGeocodeToRoad(parsed.address); } catch(e) {}
+      }
+
+      // 좌표 획득
+      let lat = null, lng = null;
+      if (parsed.address) {
+        try {
+          const coords = await new Promise((resolve, reject) => {
+            kakao.maps.load(() => {
+              const geocoder = new kakao.maps.services.Geocoder();
+              geocoder.addressSearch(parsed.address, (result, status) => {
+                if (status === kakao.maps.services.Status.OK && result.length > 0) {
+                  resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+                } else reject(new Error('좌표 없음'));
+              });
+            });
+          });
+          lat = coords.lat; lng = coords.lng;
+        } catch(e) {}
+      }
+
+      // 주문 등록
+      const order = {
+        id: uid(), createdAt: Date.now(), updatedAt: Date.now(),
+        status: 'pending', channel: 'ocr',
+        customerName: parsed.name || '이름미확인',
+        phone: parsed.phone || '',
+        address: parsed.address || '',
+        lat, lng,
+        items: parsed.items || [],
+        totalAmount: (parsed.items||[]).reduce((s,it)=>s+(it.price*it.qty||0),0) || 0,
+        note: '', paymentMethod: currentPay,
+        assignedDriverId: '', assignedDriverName: ''
+      };
+
+      orders.push(order);
+      orders.sort((a, b) => a.createdAt - b.createdAt);
+      saveOrders();
+      if (firebaseActive) tref('orders/' + order.id).set(order);
+
+      batchQueue[i].status = 'done';
+      batchQueue[i].parsed = { name: order.customerName, address: order.address };
+      successCount++;
+    } catch(e) {
+      batchQueue[i].status = 'error';
+      batchQueue[i].error = e.message;
+      failCount++;
+    }
+    renderBatchQueue();
+  }
+
+  // 완료 후 자동 배정 제안
+  document.getElementById('batch-progress-text').textContent = '처리 완료!';
+  renderOrderList();
+  renderStats();
+  updateHeader();
+
+  const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
+  const canAutoAssign = activeDrivers.length > 0;
+
+  document.getElementById('batch-summary').style.display = 'block';
+  document.getElementById('batch-summary').innerHTML =
+    `✅ ${successCount}건 등록 완료${failCount?` · ❌ ${failCount}건 실패`:''}` +
+    (canAutoAssign ? `<br><button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="closeBatchOcr();toggleAutoAssignBar();runAutoAssign()">🤖 지금 바로 자동 배정</button>` : '');
+}
+
+// ══════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════
+loadOrders();
+updateHeader();
+addItemRow();
+
+</script>
+</body>
+</html>
