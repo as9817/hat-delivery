@@ -561,6 +561,7 @@ body.impersonating{padding-top:38px}
 .usage-limit-banner .ulb-close{cursor:pointer;font-weight:700;opacity:.6;padding:0 4px}
 </style>
 <!-- 카카오맵 SDK -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bcrypt.js/2.4.3/bcrypt.min.js"></script>
 </head>
 <body>
 
@@ -2037,6 +2038,20 @@ function clearOmsSession() {
   omsCurrentUser = null;
 }
 
+// 비밀번호 검증 (평문 호환 + 자동 해시 마이그레이션)
+async function verifyAndMigratePassword(storedPw, inputPw, updateRef) {
+  const isHashed = storedPw && storedPw.startsWith('$2');
+  if (isHashed) {
+    return await dcodeIO.bcrypt.compare(inputPw, storedPw);
+  } else {
+    if (storedPw !== inputPw) return false;
+    // 자동 마이그레이션: 평문 → 해시로 교체
+    const hash = await dcodeIO.bcrypt.hash(inputPw, 10);
+    if (updateRef) await updateRef.update({ password: hash });
+    return true;
+  }
+}
+
 async function omsLogin() {
   const idEl = document.getElementById('login-id');
   const pwEl = document.getElementById('login-pw');
@@ -2070,7 +2085,9 @@ async function omsLogin() {
     }
 
     const acct = accts[id];
-    if (!acct || acct.password !== pw) {
+    const acctRef = tref('settings/omsAccounts/' + id);
+    const pwOk = acct ? await verifyAndMigratePassword(acct.password, pw, acctRef) : false;
+    if (!acct || !pwOk) {
       errEl.textContent = '아이디 또는 비밀번호가 올바르지 않습니다';
       errEl.classList.add('show');
       loadEl.classList.remove('show');
@@ -2135,7 +2152,9 @@ function submitForcePasswordChange() {
     return;
   }
 
-  tref('settings/omsAccounts/' + _forcePwPendingId).update({ password: newPw, mustChangePassword: false }).then(() => {
+  dcodeIO.bcrypt.hash(newPw, 10).then(hash => {
+    return tref('settings/omsAccounts/' + _forcePwPendingId).update({ password: hash, mustChangePassword: false });
+  }).then(() => {
     document.getElementById('oms-force-pw-overlay').style.display = 'none';
     setOmsSession({ id: _forcePwPendingId, name: _forcePwPendingAcct.name, role: _forcePwPendingAcct.role || 'manager' });
     showOmsApp();
@@ -2248,7 +2267,9 @@ function addOmsAccount() {
 
   tref('settings/omsAccounts/' + id).once('value').then(snap => {
     if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return null; }
-    return tref('settings/omsAccounts/' + id).set({ name, password: pw, role, createdAt: Date.now() });
+    return dcodeIO.bcrypt.hash(pw, 10).then(hash => {
+      return tref('settings/omsAccounts/' + id).set({ name, password: hash, role, createdAt: Date.now() });
+    });
   }).then(res => {
     if (res === null) return;
     showToast('✅ ' + name + ' 계정이 추가됐습니다');
@@ -2263,7 +2284,9 @@ function changeOmsPassword(uid, name) {
   const newPw = prompt(`${name}(${uid})의 새 비밀번호를 입력하세요:`);
   if (!newPw || !newPw.trim()) return;
   if (newPw.trim().length < 4) { showToast('비밀번호는 4자 이상'); return; }
-  tref('settings/omsAccounts/' + uid + '/password').set(newPw.trim()).then(() => {
+  dcodeIO.bcrypt.hash(newPw.trim(), 10).then(hash => {
+    return tref('settings/omsAccounts/' + uid + '/password').set(hash);
+  }).then(() => {
     showToast('✅ 비밀번호가 변경됐습니다');
     renderAccountsList();
   }).catch(() => showToast('오류가 발생했습니다'));
@@ -6235,11 +6258,13 @@ function registerDriver(src) {
 
   tref('driverAccounts/' + id).once('value').then(snap => {
     if (snap.exists()) { showToast('이미 사용 중인 아이디입니다'); return null; }
-    const data = { name, password: pw, active: true, createdAt: Date.now() };
-    if (phone) data.phone = phone;
-    if (vehicleNum) data.vehicleNum = vehicleNum;
-    if (vehicleType) data.vehicleType = vehicleType;
-    return tref('driverAccounts/' + id).set(data);
+    return dcodeIO.bcrypt.hash(pw, 10).then(hash => {
+      const data = { name, password: hash, active: true, createdAt: Date.now() };
+      if (phone) data.phone = phone;
+      if (vehicleNum) data.vehicleNum = vehicleNum;
+      if (vehicleType) data.vehicleType = vehicleType;
+      return tref('driverAccounts/' + id).set(data);
+    });
   }).then(result => {
     if (result === null) return;
     showToast('✅ ' + name + ' 기사 등록 완료');
@@ -6280,13 +6305,16 @@ function saveDriverEdit() {
   if (!name) { showToast('이름을 입력하세요'); return; }
 
   const updates = { name };
-  if (pw) updates.password = pw;
   if (phone) updates.phone = phone; else updates.phone = null;
   if (vehicleNum) updates.vehicleNum = vehicleNum; else updates.vehicleNum = null;
   if (vehicleType) updates.vehicleType = vehicleType; else updates.vehicleType = null;
   if (address) updates.address = address; else updates.address = null;
 
-  tref('driverAccounts/' + id).update(updates)
+  const doUpdate = pw
+    ? dcodeIO.bcrypt.hash(pw, 10).then(hash => { updates.password = hash; return updates; })
+    : Promise.resolve(updates);
+
+  doUpdate.then(u => tref('driverAccounts/' + id).update(u))
     .then(() => {
       showToast('✅ ' + name + ' 정보 수정 완료');
       closeDriverEditModal();
