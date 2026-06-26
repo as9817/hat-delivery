@@ -2239,7 +2239,7 @@ function getDateFilterRange() {
     const e = new Date(now); e.setDate(now.getDate()-1); e.setHours(23,59,59,999);
     return { from: s.getTime(), to: e.getTime() };
   } else if (_dateFilter === 'week') {
-    const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
+    const s = new Date(now); s.setDate(now.getDate() - ((now.getDay() || 7) - 1)); s.setHours(0,0,0,0);
     const e = new Date(now); e.setHours(23,59,59,999);
     return { from: s.getTime(), to: e.getTime() };
   } else if (_dateFilter === 'month') {
@@ -3248,7 +3248,7 @@ function getStatsPeriodRange() {
     const s = new Date(now); s.setHours(0,0,0,0);
     return { from: s.getTime(), to: now.getTime(), days: 1 };
   } else if (_statsPeriod === 'week') {
-    const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
+    const s = new Date(now); s.setDate(now.getDate() - ((now.getDay() || 7) - 1)); s.setHours(0,0,0,0);
     return { from: s.getTime(), to: now.getTime(), days: now.getDay() + 1 };
   } else {
     const s = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -3430,7 +3430,7 @@ function getStatsPeriodRangeModal() {
     const e = new Date(now); e.setHours(23,59,59,999);
     return { from: s.getTime(), to: e.getTime() };
   } else {
-    const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
+    const s = new Date(now); s.setDate(now.getDate() - ((now.getDay() || 7) - 1)); s.setHours(0,0,0,0);
     const e = new Date(now); e.setHours(23,59,59,999);
     return { from: s.getTime(), to: e.getTime() };
   }
