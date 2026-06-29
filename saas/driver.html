@@ -978,6 +978,7 @@ function showApp() {
 // ══════════════════════════════════════════════════════
 let _gpsWatchId = null;
 let _gpsLastSent = 0;
+let _lastGpsPos = null; // 최근 기사 위치
 const GPS_INTERVAL_MS = 5000; // 5초마다 Firebase 전송
 
 function startGpsTracking() {
@@ -993,6 +994,7 @@ function startGpsTracking() {
   _gpsWatchId = navigator.geolocation.watchPosition(
     pos => {
       const { latitude: lat, longitude: lng, heading, speed, accuracy } = pos.coords;
+      _lastGpsPos = { lat, lng }; // 최근 위치 저장 (ETA 계산용)
       const now = Date.now();
 
       // 5초 간격으로 Firebase 전송 (너무 자주 쓰지 않도록)
@@ -1818,6 +1820,22 @@ function launchNav(app) {
   const d = deliveries.find(x => x.id === currentNavId);
   if (!d) return;
   closeNavModal();
+
+  // 길찾기 시작 → ETA 계산 후 Firebase deliveries 업데이트
+  if (_fbDb && d.lat && d.lng) {
+    const SPEED_KMH = 35, STOP_MIN = 8;
+    let distKm = 0;
+    if (_lastGpsPos) {
+      distKm = haversine(_lastGpsPos, { lat: d.lat, lng: d.lng });
+    }
+    const etaTs = Date.now() + Math.round((distKm / SPEED_KMH) * 60 + STOP_MIN) * 60 * 1000;
+    // orderId로 deliveries 레코드 찾아 eta 업데이트
+    tref('deliveries').orderByChild('orderId').equalTo(d.id).once('value', snap => {
+      snap.forEach(child => {
+        if (child.val().status !== 'cancelled') child.ref.update({ eta: etaTs });
+      });
+    });
+  }
 
   // 길찾기 시작 → 자동으로 배달중 상태 변경
   if (d.status === 'pending') {
