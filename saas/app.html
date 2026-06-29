@@ -3482,8 +3482,8 @@ function parseOrderText(text) {
     if (labelM) { result.name = labelM[1]; break; }
     const nameM = line.match(/^[가-힣]{2,4}$/);
     if (nameM) { result.name = nameM[0]; break; }
-    // 한 줄 간략: "홍길동 010-..." 또는 "홍길동 강남구..."
-    const inlineM = line.match(/^([가-힣]{2,4})\s+(?:0\d|[가-힣])/);
+    // 한 줄 간략: "홍길동 010-..." 또는 "홍길동 강남구..." 또는 "홍길동 251-20..."
+    const inlineM = line.match(/^([가-힣]{2,4})\s+(?:0\d|[가-힣]|\d)/);
     if (inlineM) { result.name = inlineM[1]; break; }
   }
 
