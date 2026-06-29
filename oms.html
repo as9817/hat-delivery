@@ -5606,9 +5606,9 @@ function _calcRouteKm(orderIds, allPts) {
 }
 
 // ── 예상 소요시간 계산 → 분 반환 ──
-// 이동시간(경로km ÷ 평균속도 25km/h) + 건당 정지시간(초인종·전달·이동준비 4분)
-const ROUTE_AVG_SPEED_KMH = 25;
-const STOP_MINUTES_PER_ORDER = 4;
+// 이동시간(경로km ÷ 평균속도 35km/h) + 건당 정지시간(주정차·전달·이동준비 8분)
+const ROUTE_AVG_SPEED_KMH = 35;
+const STOP_MINUTES_PER_ORDER = 8;
 function _calcEstimatedMinutes(orderIds, allPts) {
   const km = _calcRouteKm(orderIds, allPts);
   const travelMin = (km / ROUTE_AVG_SPEED_KMH) * 60;
