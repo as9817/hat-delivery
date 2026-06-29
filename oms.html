@@ -6073,7 +6073,7 @@ function renderTmsTable() {
     const driverId   = o.assignedDriverId   || '';
     const fmtTime = ts => ts ? new Date(ts).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'}) : '-';
     const orderTime  = fmtTime(o.createdAt);
-    const etaTime    = fmtTime(delivery.eta);
+    const etaTime    = fmtTime(delivery.eta || o.eta);
     const arriveTime = o.completedAt ? fmtTime(o.completedAt) : '-';
     const statusClass = `tms-tr-${o.status || 'pending'}`;
 

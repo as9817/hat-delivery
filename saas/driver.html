@@ -1821,20 +1821,15 @@ function launchNav(app) {
   if (!d) return;
   closeNavModal();
 
-  // 길찾기 시작 → ETA 계산 후 Firebase deliveries 업데이트
-  if (_fbDb && d.lat && d.lng) {
+  // 길찾기 시작 → ETA 계산 후 Firebase orders에 저장
+  if (_fbDb) {
     const SPEED_KMH = 35, STOP_MIN = 8;
     let distKm = 0;
-    if (_lastGpsPos) {
+    if (_lastGpsPos && d.lat && d.lng) {
       distKm = haversine(_lastGpsPos, { lat: d.lat, lng: d.lng });
     }
     const etaTs = Date.now() + Math.round((distKm / SPEED_KMH) * 60 + STOP_MIN) * 60 * 1000;
-    // orderId로 deliveries 레코드 찾아 eta 업데이트
-    tref('deliveries').orderByChild('orderId').equalTo(d.id).once('value', snap => {
-      snap.forEach(child => {
-        if (child.val().status !== 'cancelled') child.ref.update({ eta: etaTs });
-      });
-    });
+    tref('orders/' + d.id).update({ eta: etaTs }).catch(() => {});
   }
 
   // 길찾기 시작 → 자동으로 배달중 상태 변경
