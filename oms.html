@@ -6009,7 +6009,10 @@ db.ref('drivers').on('value', snap => {
 
 // ── Firebase: 배달 정보 구독 ──
 db.ref('deliveries').on('value', snap => {
-  tmsDeliveryData = snap.val() || {};
+  // push key → orderId 기준으로 재인덱싱
+  tmsDeliveryData = {};
+  const raw = snap.val() || {};
+  Object.values(raw).forEach(d => { if (d && d.orderId) tmsDeliveryData[d.orderId] = d; });
   renderTmsTable();
 });
 
