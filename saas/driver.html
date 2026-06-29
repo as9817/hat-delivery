@@ -266,6 +266,7 @@
     .map-btn.red    { background: #C62828; animation: pulse 1s infinite; }
     .map-btn.grey   { background: #616161; }
     @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.7} }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .map-result {
       position: absolute; bottom: 70px; left: 10px; right: 10px;
       z-index: 1000; background: #fff; border-radius: 14px;
@@ -373,7 +374,11 @@
     <input id="login-pw" type="password" placeholder="비밀번호 입력" autocomplete="current-password"
            onkeydown="if(event.key==='Enter') doLogin()" />
     <div class="login-err" id="login-err"></div>
-    <button class="btn btn-orange" onclick="doLogin()">로그인</button>
+    <button class="btn btn-orange" id="login-btn" onclick="doLogin()">로그인</button>
+    <div id="login-loading" style="display:none;text-align:center;margin-top:14px;color:#888;font-size:13px">
+      <div style="display:inline-block;width:20px;height:20px;border:3px solid #e0e0e0;border-top-color:#FF6B00;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px"></div>
+      서버 연결 중...
+    </div>
     <div style="text-align:center;margin-top:12px">
       <span onclick="openFindPwModal()" style="font-size:13px;color:#888;text-decoration:underline;cursor:pointer">비밀번호를 잊으셨나요?</span>
     </div>
@@ -893,9 +898,15 @@ async function doLogin() {
   const id = document.getElementById('login-id').value.trim();
   const pw = document.getElementById('login-pw').value.trim();
   const err = document.getElementById('login-err');
+  const btn = document.getElementById('login-btn');
+  const loading = document.getElementById('login-loading');
   err.style.display = 'none';
 
   if (!tenantCode || !id || !pw) { err.textContent = '마트 코드, 아이디, 비밀번호를 모두 입력하세요'; err.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  loading.style.display = 'block';
 
   try {
     const res = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/issueDriverToken', {
@@ -919,6 +930,10 @@ async function doLogin() {
   } catch(e) {
     err.textContent = '로그인 중 오류가 발생했습니다: ' + e.message;
     err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    loading.style.display = 'none';
   }
 }
 
