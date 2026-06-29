@@ -778,7 +778,7 @@ body.impersonating{padding-top:38px}
           <th style="width:36px;text-align:center">#</th>
           <th style="min-width:150px">고객명 / 주소</th>
           <th style="min-width:110px">배정기사 / 상태</th>
-          <th style="min-width:120px">주문시간 / 예상도착</th>
+          <th style="min-width:120px">접수 / 예상도착 / 도착</th>
           <th style="min-width:130px">연락처 / 메모</th>
           <th style="min-width:130px">액션</th>
         </tr>
@@ -3116,6 +3116,14 @@ function sendToDelivery(orderId) {
   const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
   const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
 
+  // ETA 계산 (마트→배달지 거리 기반)
+  let etaTs = null;
+  const distKm = calcOrderDistance(o);
+  if (distKm >= 0) {
+    const travelMin = (distKm / ROUTE_AVG_SPEED_KMH) * 60;
+    etaTs = Date.now() + Math.round(travelMin + STOP_MINUTES_PER_ORDER) * 60 * 1000;
+  }
+
   const delivery = {
     customerName: o.customerName,
     address: o.address,
@@ -3131,7 +3139,8 @@ function sendToDelivery(orderId) {
     totalAmount: totalAmt,
     channel: o.channel || 'call',
     source: o.source || 'oms',
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    eta: etaTs
   };
 
   // 로컬 상태 업데이트 (Firebase 중복 호출 없이)
@@ -6480,12 +6489,10 @@ function renderTmsTable() {
     // TMS 기사 자동 배정 또는 OMS 수동 배정
     const driverName = o.assignedDriverName || delivery.driverName || delivery.assignedDriver || '';
     const driverId   = o.assignedDriverId   || '';
-    const eta = o.completedAt
-      ? '✅ ' + new Date(o.completedAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
-      : (delivery.eta
-        ? new Date(delivery.eta).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'})
-        : '-');
-    const orderTime = new Date(o.createdAt).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'});
+    const fmtTime = ts => ts ? new Date(ts).toLocaleTimeString('ko', {hour:'2-digit',minute:'2-digit'}) : '-';
+    const orderTime  = fmtTime(o.createdAt);
+    const etaTime    = fmtTime(delivery.eta);
+    const arriveTime = o.completedAt ? fmtTime(o.completedAt) : '-';
     const statusClass = `tms-tr-${o.status || 'pending'}`;
 
     let actionHtml = '';
@@ -6531,8 +6538,9 @@ function renderTmsTable() {
         <div style="margin-top:4px"><span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span></div>
       </td>
       <td>
-        <div style="font-size:12px;font-weight:600">${orderTime}</div>
-        <div style="font-size:11px;color:#888;margin-top:3px">예상 → ${eta}</div>
+        <div style="font-size:11px;color:#888">접수 ${orderTime}</div>
+        <div style="font-size:11px;color:#e65100;margin-top:2px">예상 ${etaTime}</div>
+        <div style="font-size:11px;color:#2E7D32;margin-top:2px">도착 ${arriveTime}</div>
       </td>
       <td>
         <div style="font-size:12px">${esc(o.phone || '-')}</div>
