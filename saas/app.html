@@ -3446,7 +3446,9 @@ function parseOrderText(text) {
     const m = text.match(pat);
     // 지번 단독 패턴은 전화번호(010-xxxx 등)와 구분
     if (m && m[0].length >= 3 && !/^0\d{1,2}/.test(m[0].trim())) {
-      result.address = m[0].trim(); break;
+      // 주소에 품목 패턴이 붙은 경우 제거 ("녹사평대로 26 계란 2개" → "녹사평대로 26")
+      result.address = m[0].trim().replace(/\s+[가-힣a-zA-Z]+\s*\d+\s*(개|봉|팩|박스|묶음|병|캔|kg|g|L|ml).*/g, '').trim();
+      break;
     }
   }
 
