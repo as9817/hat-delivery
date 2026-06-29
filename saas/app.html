@@ -1151,6 +1151,21 @@ body.impersonating{padding-top:38px}
 </div>
 
 <!-- ═══════════════════════════════════════
+     중복 주문 확인 모달
+     ═══════════════════════════════════════ -->
+<div id="dup-order-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;max-width:360px;width:90%;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,.35);text-align:center">
+    <div style="font-size:36px;margin-bottom:10px">⚠️</div>
+    <div style="font-size:17px;font-weight:800;color:#1a237e;margin-bottom:8px">중복 주문 가능성</div>
+    <div id="dup-order-desc" style="font-size:13px;color:#555;line-height:1.6;margin-bottom:20px"></div>
+    <div style="display:flex;gap:10px">
+      <button id="dup-btn-add" onclick="resolveDupOrder('add')" style="flex:1;padding:12px;border:none;border-radius:12px;background:#1a237e;color:#fff;font-size:14px;font-weight:700;cursor:pointer">➕ 추가 주문</button>
+      <button id="dup-btn-del" onclick="resolveDupOrder('delete')" style="flex:1;padding:12px;border:none;border-radius:12px;background:#e53e3e;color:#fff;font-size:14px;font-weight:700;cursor:pointer">🗑️ 중복 삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
      일괄 OCR 배치 모달
      ═══════════════════════════════════════ -->
 <div id="batch-ocr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2100;overflow-y:auto;padding:16px">
@@ -2411,11 +2426,29 @@ function playOrderSound() {
   } catch(e) {}
 }
 
+let _dupOrderId = null;    // 새로 접수된 중복 의심 주문 ID
+let _dupRelatedId = null;  // 기존 진행 중인 주문 ID
+
 function showOrderAlert(order) {
   const CH = { sms:'📱 문자', kakao:'💬 카카오', call:'📞 전화', ocr:'📷 영수증' };
   const ch = CH[order.channel] || '새 주문';
   const name = order.customerName || '고객';
   const items = (order.items||[]).map(i=>`${i.name} ${i.qty}개`).join(', ') || '';
+
+  // 중복 주문 감지 시 확인 팝업 표시
+  if (order.possibleDuplicate) {
+    _dupOrderId = order.id;
+    _dupRelatedId = order.relatedOrderId || null;
+    const desc = `<b>${name}</b> 고객의 진행 중인 주문이 이미 있습니다.<br><br>` +
+      `새 주문: ${items || order.address || '-'}<br><br>` +
+      `추가 주문인가요, 아니면 중복 접수인가요?`;
+    document.getElementById('dup-order-desc').innerHTML = desc;
+    const modal = document.getElementById('dup-order-modal');
+    modal.style.display = 'flex';
+    playOrderSound();
+    return; // 일반 배너는 띄우지 않음
+  }
+
   document.getElementById('order-alert-title').textContent = `${ch} 주문 — ${name}`;
   document.getElementById('order-alert-sub').textContent = items || order.address || '';
   const banner = document.getElementById('order-alert-banner');
@@ -2428,6 +2461,20 @@ function showOrderAlert(order) {
   // 8초 후 자동 닫힘
   clearTimeout(_alertTimer);
   _alertTimer = setTimeout(closeOrderAlert, 8000);
+}
+
+function resolveDupOrder(action) {
+  document.getElementById('dup-order-modal').style.display = 'none';
+  if (!_dupOrderId) return;
+  if (action === 'delete') {
+    // 새로 들어온 중복 주문을 취소 처리
+    tref('orders/' + _dupOrderId).update({ status: 'cancelled', cancelReason: '중복 주문 삭제' })
+      .then(() => { renderOrderList(); renderStats(); })
+      .catch(e => console.error('중복 주문 삭제 실패:', e));
+  }
+  // 'add'이면 그냥 닫고 정상 주문으로 유지
+  _dupOrderId = null;
+  _dupRelatedId = null;
 }
 
 function closeOrderAlert() {
