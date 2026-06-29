@@ -1825,8 +1825,12 @@ function launchNav(app) {
   if (_fbDb) {
     const SPEED_KMH = 35, STOP_MIN = 8;
     let distKm = 0;
-    if (_lastGpsPos && d.lat && d.lng) {
-      distKm = haversine(_lastGpsPos, { lat: d.lat, lng: d.lng });
+    // GPS 위치: watchPosition 최신값 우선, 없으면 Firebase에 저장된 최근 위치 사용
+    const driverLoc = _lastGpsPos
+      || (_tmsOnlineDrivers[currentDriver.id]?.location)
+      || null;
+    if (driverLoc && d.lat && d.lng) {
+      distKm = haversine(driverLoc, { lat: d.lat, lng: d.lng });
     }
     const etaTs = Date.now() + Math.round((distKm / SPEED_KMH) * 60 + STOP_MIN) * 60 * 1000;
     tref('orders/' + d.id).update({ eta: etaTs }).catch(() => {});
