@@ -3449,6 +3449,14 @@ function parseOrderText(text) {
     if (inlineM) { result.name = inlineM[1]; break; }
   }
 
+  // 품목명에 이름이 접두어로 붙은 경우 제거 (예: "이완철 계란" → "계란")
+  if (result.name) {
+    result.items = result.items.map(item => {
+      const trimmed = item.name.replace(new RegExp('^' + result.name + '\\s*'), '').trim();
+      return trimmed.length >= 1 ? { ...item, name: trimmed } : item;
+    });
+  }
+
   return result;
 }
 
