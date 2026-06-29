@@ -3262,10 +3262,41 @@ async function parsePaste() {
     if (result.address) {
       showToast('🔄 주소 변환 중...');
       try {
-        const roadAddr = await omsGeocodeToRoad(result.address);
-        if (roadAddr && roadAddr !== result.address) {
-          result.address = roadAddr;
-          showToast(`🗺 도로명 변환: ${roadAddr}`);
+        // 지번 단독(숫자-숫자)이면 마트 동/인근 동 순서로 시도
+        const isShortJibun = /^\d{1,4}-\d{1,4}(\s|$)/.test(result.address.trim());
+        let queryAddr = result.address;
+        if (isShortJibun && _martLocation) {
+          const ml = _martLocation;
+          // 마트 자체 동 추출
+          let martDong = '';
+          if (ml.oldAddress) {
+            const dm = ml.oldAddress.match(/^(.+?동)/);
+            martDong = dm ? dm[1].trim() : '';
+          }
+          // 시도할 동 목록: 마트 동 + nearbyDongs
+          const dongs = [];
+          if (martDong) dongs.push(martDong);
+          if (ml.nearbyDongs && ml.nearbyDongs.length) dongs.push(...ml.nearbyDongs);
+
+          for (const dong of dongs) {
+            const candidate = dong + ' ' + result.address;
+            const tried = await omsGeocodeToRoad(candidate);
+            // 원본과 달라졌으면 실제로 찾은 것
+            if (tried && tried !== candidate) {
+              result.address = tried;
+              showToast(`🗺 도로명 변환: ${tried}`);
+              queryAddr = null; // 성공 표시
+              break;
+            }
+          }
+          // 모든 동에서 실패하면 원본 유지
+          if (queryAddr !== null) showToast('⚠️ 주소 자동변환 실패, 직접 확인해주세요');
+        } else {
+          const roadAddr = await omsGeocodeToRoad(queryAddr);
+          if (roadAddr && roadAddr !== queryAddr) {
+            result.address = roadAddr;
+            showToast(`🗺 도로명 변환: ${roadAddr}`);
+          }
         }
       } catch(e) { /* 변환 실패 시 원본 유지 */ }
     }
@@ -3401,15 +3432,22 @@ function parseOrderText(text) {
     result.phone = digits.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
   }
 
-  // 주소 (상세주소 → 광역 → 간략구분 순으로 시도)
+  // 주소 (상세주소 → 광역 → 간략구분 → 지번단독 순으로 시도)
   const addrPatterns = [
     /[서경인대부울세제강충전경][울기천구산남종주북남북][\s\S]{2,50}(?:아파트|빌라|다세대|오피스텔|APT|apt|동|호|번길|대로|로|길)\s*\d*/,
     /(?:서울|경기|인천|부산|대구|대전|광주|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)[^\n,]{3,60}/,
     /[가-힣]{2,6}(?:특별시|광역시|특별자치시|도|시|구|군|동|읍|면|로|길|대로)[가-힣\d\s-]{0,20}/,
+    // 동명+지번: "이태원동 251-20", "한남동 737-42"
+    /[가-힣]{2,5}동\s*\d{1,4}-\d{1,4}/,
+    // 지번 단독: "251-20", "737-42 3층" (전화번호 패턴 제외)
+    /(?<![0-9])(\d{1,4}-\d{1,4})(?:\s*(?:\d+층|\d+호|[가-힣]+동\s*\d+호?))?(?![0-9-])/,
   ];
   for (const pat of addrPatterns) {
     const m = text.match(pat);
-    if (m && m[0].length >= 4) { result.address = m[0].trim(); break; }
+    // 지번 단독 패턴은 전화번호(010-xxxx 등)와 구분
+    if (m && m[0].length >= 3 && !/^0\d{1,2}/.test(m[0].trim())) {
+      result.address = m[0].trim(); break;
+    }
   }
 
   // 결제 방법
