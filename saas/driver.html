@@ -644,6 +644,7 @@
         <span style="font-size:12px;color:#888">상세주소</span>
         <span id="res-detail-badge" style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:3px 10px;border-radius:6px;font-weight:700"></span>
       </div>
+      <button id="regeo-btn" onclick="regeocodeAddr()" style="margin-top:6px;width:100%;background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">🔍 주소 다시 검색하기</button>
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
       <div id="res-amount-wrap" style="display:none;margin:10px 0 4px">
@@ -2448,6 +2449,34 @@ function showResult(parsed) {
   console.log('goTab result 호출');
   goTab('result');
   console.log('goTab result 완료');
+}
+
+async function regeocodeAddr() {
+  const addr = document.getElementById('res-addr').value.trim();
+  if (!addr) { showToast('주소를 입력하세요'); return; }
+  const btn = document.getElementById('regeo-btn');
+  btn.textContent = '변환 중…'; btn.disabled = true;
+  try {
+    const mart = getMartLocation();
+    const geo = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/geocodeAddress', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+      body: JSON.stringify({ address: addr, martLat: mart?.lat || null, martLng: mart?.lng || null })
+    });
+    if (geo.ok) {
+      const d = (await geo.json()).data || {};
+      if (d.road_address) {
+        document.getElementById('res-addr').value = d.road_address;
+        const badge = document.getElementById('res-detail-badge');
+        const wrap  = document.getElementById('res-detail-wrap');
+        if (badge) badge.textContent = d.detail_address || '';
+        if (wrap)  wrap.style.display = d.detail_address ? 'block' : 'none';
+        window._ocrLat = d.lat || null;
+        window._ocrLng = d.lng || null;
+        showToast('✅ 주소 변환 완료');
+      } else { showToast('❌ 주소를 찾을 수 없습니다. 직접 수정해 주세요'); }
+    } else { showToast('변환 실패 (서버 오류)'); }
+  } catch(e) { showToast('변환 실패: ' + e.message); }
+  finally { btn.textContent = '🔍 주소 다시 검색하기'; btn.disabled = false; }
 }
 
 function toggleEdit() {
