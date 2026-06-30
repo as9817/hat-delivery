@@ -6104,36 +6104,96 @@ function toggleAutoAssignBar() {
   }
 }
 
-// ── 경로 총 거리 계산 (Nearest Neighbor, 마트 출발) → km 반환 ──
-function _calcRouteKm(orderIds, allPts) {
+// ── 주문별 정차시간 계산 (금액 + 아파트/빌라 여부) ──
+function _calcStopMinutes(order) {
+  const amount = order.totalAmount || 0;
+  let base = 2;
+  if (amount >= 150000) base = 10;
+  else if (amount >= 100000) base = 6;
+  else if (amount >= 50000) base = 4;
+  // 아파트/빌라 판단: 상세주소에 동호수 또는 주소에 아파트 키워드
+  const detail = (order.detailAddress || order.detail_address || '').toLowerCase();
+  const addr   = (order.address || '').toLowerCase();
+  const isApt  = /\d+동\s*\d+호|apt|아파트|빌라|오피스텔/.test(detail + addr);
+  return base + (isApt ? 5 : 0);
+}
+
+// ── Nearest Neighbor 순서 계산 (카카오 API fallback용) ──
+function _nnOrder(orderIds, allPts) {
   const mart = getMartLocation();
   let curLat = mart?.lat || 37.5391, curLng = mart?.lng || 126.9893;
   const pts = orderIds.map(id => allPts.find(p => p.id === id)).filter(Boolean);
-  if (!pts.length) return 0;
   const remaining = [...pts];
-  let total = 0;
+  const sorted = [];
   while (remaining.length > 0) {
     let bestIdx = 0, bestDist = Infinity;
     remaining.forEach((p, i) => {
       const d = haversineKm(curLat, curLng, p.lat, p.lng);
       if (d < bestDist) { bestDist = d; bestIdx = i; }
     });
-    total += bestDist;
+    const next = remaining.splice(bestIdx, 1)[0];
+    sorted.push(next);
+    curLat = next.lat; curLng = next.lng;
+  }
+  return sorted.map(p => p.id);
+}
+
+// ── 카카오 다중경유지 API로 경로 최적화 → { durationSec, orderedIds } ──
+async function _kakaoRouteOptimize(orderIds, allPts) {
+  const mart = getMartLocation();
+  if (!mart?.lat || !mart?.lng) return null;
+  const pts = orderIds.map(id => allPts.find(p => p.id === id)).filter(Boolean);
+  if (!pts.length) return null;
+
+  // 경유지: 마지막 제외한 나머지, 목적지: 마지막
+  // 단 API는 순서를 입력 순서대로 탐색 → Nearest Neighbor로 순서 잡은 뒤 API로 소요시간만 정확히 계산
+  const orderedIds = _nnOrder(orderIds, allPts);
+  const orderedPts = orderedIds.map(id => allPts.find(p => p.id === id)).filter(Boolean);
+
+  const origin      = { x: String(mart.lng), y: String(mart.lat), name: '마트' };
+  const destination = { x: String(orderedPts[orderedPts.length - 1].lng), y: String(orderedPts[orderedPts.length - 1].lat), name: '목적지' };
+  const waypoints   = orderedPts.slice(0, -1).map((p, i) => ({ x: String(p.lng), y: String(p.lat), name: `경유${i+1}` }));
+
+  try {
+    const r = await fetch(`${FUNCTIONS_URL}/kakaoWaypoints`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+      body: JSON.stringify({ origin, destination, waypoints, priority: 'RECOMMEND' })
+    });
+    if (!r.ok) return null;
+    const json = await r.json();
+    const route = json.data?.routes?.[0];
+    if (!route || route.result_code !== 0) return null;
+    return { durationSec: route.summary.duration, orderedIds };
+  } catch { return null; }
+}
+
+// ── 예상 소요시간 (동기, Swap 최적화용) ──
+function _calcEstimatedMinutes(orderIds, allPts) {
+  const mart = getMartLocation();
+  let curLat = mart?.lat || 37.5391, curLng = mart?.lng || 126.9893;
+  const pts = orderIds.map(id => allPts.find(p => p.id === id)).filter(Boolean);
+  let km = 0;
+  const remaining = [...pts];
+  while (remaining.length > 0) {
+    let bestIdx = 0, bestDist = Infinity;
+    remaining.forEach((p, i) => { const d = haversineKm(curLat, curLng, p.lat, p.lng); if (d < bestDist) { bestDist = d; bestIdx = i; } });
+    km += bestDist;
     const next = remaining.splice(bestIdx, 1)[0];
     curLat = next.lat; curLng = next.lng;
   }
-  return total;
+  const orderObjs = orderIds.map(id => orders.find(o => o.id === id)).filter(Boolean);
+  const stopMin = orderObjs.reduce((s, o) => s + _calcStopMinutes(o), 0);
+  return Math.round((km / 35) * 60) + stopMin;
 }
 
-// ── 예상 소요시간 계산 → 분 반환 ──
-// 이동시간(경로km ÷ 평균속도 35km/h) + 건당 정지시간(주정차·전달·이동준비 8분)
-const ROUTE_AVG_SPEED_KMH = 35;
-const STOP_MINUTES_PER_ORDER = 8;
-function _calcEstimatedMinutes(orderIds, allPts) {
-  const km = _calcRouteKm(orderIds, allPts);
-  const travelMin = (km / ROUTE_AVG_SPEED_KMH) * 60;
-  const stopMin   = orderIds.length * STOP_MINUTES_PER_ORDER;
-  return travelMin + stopMin;
+// ── 예상 소요시간 (비동기, 카카오 API 실시간 교통 반영 - 최종 표시용) ──
+async function _calcEstimatedMinutesAsync(orderIds, allPts) {
+  const orderObjs = orderIds.map(id => orders.find(o => o.id === id)).filter(Boolean);
+  const stopMin = orderObjs.reduce((s, o) => s + _calcStopMinutes(o), 0);
+  const result = await _kakaoRouteOptimize(orderIds, allPts);
+  if (result) return { minutes: Math.round(result.durationSec / 60) + stopMin, orderedIds: result.orderedIds };
+  return { minutes: _calcEstimatedMinutes(orderIds, allPts), orderedIds: _nnOrder(orderIds, allPts) };
 }
 
 // ── Order Swap 최적화: 예상 소요시간 기준, minimax 목표 ──
@@ -6194,15 +6254,7 @@ function _swapOptimizeClusters(clusters, allPts) {
   }
 
   const afterTotal = assignments.reduce((s, ids) => s + _calcEstimatedMinutes(ids, allPts), 0);
-  const perDriver  = assignments.map(ids => {
-    const min = _calcEstimatedMinutes(ids, allPts);
-    const km  = _calcRouteKm(ids, allPts);
-    return `${ids.length}건·${km.toFixed(1)}km·약${Math.round(min)}분`;
-  });
-  console.log(
-    `[자동배정 Swap] ${iterations}회 반복 | 합산 예상시간 ${beforeTotal.toFixed(1)}분 → ${afterTotal.toFixed(1)}분` +
-    ` (절감 ${(beforeTotal - afterTotal).toFixed(1)}분) | ${perDriver.join(' / ')}`
-  );
+  console.log(`[자동배정 Swap] ${iterations}회 반복 | 합산 예상시간 ${beforeTotal.toFixed(1)}분 → ${afterTotal.toFixed(1)}분 (절감 ${(beforeTotal - afterTotal).toFixed(1)}분)`);
 
   return assignments.map(ids => ({ ids }));
 }
@@ -6301,19 +6353,34 @@ async function runAutoAssign() {
     return;
   }
 
+  const resultEl = document.getElementById('auto-assign-result');
+  resultEl.textContent = '🔄 경로 최적화 중...';
+
   const points = unassigned.map(o => ({ lat: parseFloat(o.lat), lng: parseFloat(o.lng), id: o.id }));
   const clusters = kMeansClusters(points, activeDrivers.length);
 
+  // 카카오 API로 기사별 최적 경로 + 소요시간 계산
+  const routeResults = await Promise.all(clusters.map(async (cl, ci) => {
+    const [dId, dInfo] = activeDrivers[ci] || [];
+    if (!dId) return null;
+    const { minutes, orderedIds } = await _calcEstimatedMinutesAsync(cl.ids, points);
+    return { dId, dName: dInfo?.name || dId, orderedIds, minutes };
+  }));
+
   let count = 0;
-  clusters.forEach((cl, ci) => {
-    const [dId] = activeDrivers[ci] || [];
-    if (!dId) return;
-    cl.ids.forEach(orderId => { assignDriver(orderId, dId); count++; });
+  routeResults.forEach(r => {
+    if (!r) return;
+    r.orderedIds.forEach(orderId => { assignDriver(orderId, r.dId); count++; });
   });
 
-  let msg = `✅ ${count}건 자동 배정 완료`;
-  if (farOrders.length) msg += ` (🔴 장거리 ${farOrders.length}건은 수동 배정 필요)`;
-  document.getElementById('auto-assign-result').textContent = msg;
+  // 기사별 예상 소요시간 표시
+  const driverSummary = routeResults.filter(Boolean)
+    .map(r => `${r.dName}: ${r.orderedIds.length}건·약${r.minutes}분`)
+    .join(' / ');
+
+  let msg = `✅ ${count}건 배정 완료`;
+  if (farOrders.length) msg += ` (🔴 장거리 ${farOrders.length}건 수동 배정 필요)`;
+  resultEl.textContent = msg + (driverSummary ? `\n${driverSummary}` : '');
   showToast(msg);
 }
 
