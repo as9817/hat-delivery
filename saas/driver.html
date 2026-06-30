@@ -1754,8 +1754,11 @@ async function optimizeRoute() {
 
     // 카카오 다중경유지 API로 실시간 교통 반영 소요시간 계산
     try {
-      if (martLoc?.lat && martLoc?.lng && ordered.length >= 1) {
-        const origin      = { x: String(martLoc.lng), y: String(martLoc.lat), name: '마트' };
+      // origin: 기사 GPS → 마트 위치 → 첫 번째 배송지 순으로 폴백
+      const originLoc = _lastGpsPos || martLoc || (ordered.length ? { lat: ordered[0].lat, lng: ordered[0].lng } : null);
+      if (originLoc?.lat && originLoc?.lng && ordered.length >= 1) {
+        const originName = _lastGpsPos ? '현재위치' : (martLoc ? '마트' : '출발지');
+        const origin      = { x: String(originLoc.lng), y: String(originLoc.lat), name: originName };
         const destination = { x: String(ordered[ordered.length-1].lng), y: String(ordered[ordered.length-1].lat), name: '목적지' };
         const waypoints   = ordered.slice(0, -1).map((d,i) => ({ x: String(d.lng), y: String(d.lat), name: `경유${i+1}` }));
         const r = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/kakaoWaypoints', {
