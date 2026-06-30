@@ -5320,9 +5320,9 @@ function parseReceiptText(text, gpsAddr) {
     if (shortAddrs) result.address = shortAddrs[0];
   }
 
-  // OCR 지번 번호 오분리 보정: "181-3 5B" → "181-35B" (숫자 사이 잘못된 공백 제거)
+  // OCR 지번 번호 오분리 보정: "181-3 5B" → "181-35B" (영문 suffix 있는 경우만, 순수 숫자는 별동/호수이므로 유지)
   if (result.address) {
-    result.address = result.address.replace(/(\d+-\d+)\s+(\d+[A-Za-z]?)(?!층|호|동)/g, '$1$2');
+    result.address = result.address.replace(/(\d+-\d+)\s+(\d+[A-Za-z]+)/g, '$1$2');
   }
 
   // GPS로 주소 보완: 주소가 없거나 짧은 경우 GPS 지역 정보 앞에 붙임
