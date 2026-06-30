@@ -3036,20 +3036,36 @@ const mapZone = (() => {
       return;
     }
 
-    // Nearest Neighbor 최적화
-    function dist(a, b) {
-      const dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
-      const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
-      return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+    // routeOrder(최적화 완료)가 있으면 그 순서 사용, 없으면 Nearest Neighbor
+    let ordered = [];
+    if (routeOrder && routeOrder.length > 0) {
+      // routeOrder의 id 순서대로 pending 정렬
+      const pendingMap = new Map(pending.map(d => [d.id || d._key, d]));
+      routeOrder.forEach(r => {
+        const key = r.id || r._key;
+        if (pendingMap.has(key)) ordered.push(pendingMap.get(key));
+      });
+      // routeOrder에 없는 pending 항목은 뒤에 추가
+      pending.forEach(d => {
+        const key = d.id || d._key;
+        if (!ordered.find(o => (o.id || o._key) === key)) ordered.push(d);
+      });
+    } else {
+      function dist(a, b) {
+        const dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
+        const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+        return 6371 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+      }
+      const nnStart = getMartLocation();
+      let remain = [...pending];
+      let cur = nnStart || (remain.length ? remain[0] : null);
+      while (remain.length) {
+        remain.sort((a, b) => dist(cur, a) - dist(cur, b));
+        cur = remain.shift();
+        ordered.push(cur);
+      }
     }
     const start = getMartLocation();
-    let remain = [...pending], ordered = [];
-    let cur = start || (remain.length ? remain[0] : null);
-    while (remain.length) {
-      remain.sort((a, b) => dist(cur, a) - dist(cur, b));
-      cur = remain.shift();
-      ordered.push(cur);
-    }
 
     // 출발점 마커 (마트) - 마트 위치 설정된 경우만 표시
     if (start) {
