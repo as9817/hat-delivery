@@ -878,6 +878,7 @@ body.impersonating{padding-top:38px}
         <input type="file" id="ocr-file-input" accept="image/*" capture="environment" style="display:none" onchange="handleOcrImage(this)">
       </div>
       <input class="form-input" id="inp-addr" type="text" placeholder="경기도 남양주시 ···">
+      <input class="form-input" id="inp-detail-addr" type="text" placeholder="상세주소 (동/호수, 층 등)" style="margin-top:6px">
     </div>
   </div>
 
@@ -2766,7 +2767,7 @@ function renderOrderList() {
         <span class="badge badge-${o.channel}">${CH_LABELS[o.channel]||o.channel}</span>
         <div class="oc-time">${time}</div>
       </div>
-      <div class="oc-addr">📍 ${esc(o.address)}</div>
+      <div class="oc-addr">📍 ${esc(o.address)}${o.detailAddress?` <span style="font-size:11px;background:#e8eaf6;color:#1a237e;padding:1px 5px;border-radius:4px;font-weight:700">${esc(o.detailAddress)}</span>`:''}</div>
       ${o.phone?`<div class="oc-addr">📞 ${esc(o.phone)}</div>`:''}
       ${itemStr?`<div class="oc-items">🛍️ ${itemStr}</div>`:''}
       <div class="oc-bottom">
@@ -2847,7 +2848,7 @@ function openOrderDetail(id) {
       <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">고객 정보</div>
       <div style="font-size:15px;font-weight:700;color:#1a237e;margin-bottom:4px">👤 ${esc(o.customerName)}</div>
       ${o.phone?`<div style="font-size:13px;color:#555;margin-bottom:4px">📞 ${esc(o.phone)}</div>`:''}
-      <div style="font-size:13px;color:#555">📍 ${esc(o.address)}</div>
+      <div style="font-size:13px;color:#555">📍 ${esc(o.address)}${o.detailAddress?`<span style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:2px 7px;border-radius:5px;font-weight:700">${esc(o.detailAddress)}</span>`:''}</div>
       ${(o.totalAmount && Number(o.totalAmount) > 0) ? `<div style="font-size:15px;font-weight:800;color:#e65100;margin-top:8px">💰 ${Number(o.totalAmount).toLocaleString()}원</div>` : (totalAmt ? `<div style="font-size:15px;font-weight:800;color:#e65100;margin-top:8px">💰 ${totalAmt.toLocaleString()}원</div>` : '')}
       ${o.note?`<div style="font-size:12px;color:#888;margin-top:6px;padding-top:6px;border-top:1px dashed #ddd">📝 ${esc(o.note)}</div>`:''}
     </div>
@@ -2969,6 +2970,8 @@ function toggleOrderEdit() {
       <div>
         <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">배송주소</div>
         <input id="oe-addr" value="${esc(o.address||'')}"
+          style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+        <input id="oe-detail-addr" value="${esc(o.detailAddress||'')}" placeholder="상세주소 (동/호수, 층 등)"
           style="width:100%;border:1.5px solid #c5cae9;border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
       </div>
 
@@ -3026,12 +3029,13 @@ function saveOrderEdit(orderId) {
   const o = orders.find(x => x.id === orderId);
   if (!o) return;
 
-  const name   = (document.getElementById('oe-name')?.value || '').trim();
-  const phone  = (document.getElementById('oe-phone')?.value || '').trim();
-  const addr   = (document.getElementById('oe-addr')?.value || '').trim();
-  const amount = Number(document.getElementById('oe-amount')?.value) || 0;
-  const pay    = document.getElementById('oe-pay')?.value || o.paymentMethod;
-  const note   = (document.getElementById('oe-note')?.value || '').trim();
+  const name       = (document.getElementById('oe-name')?.value || '').trim();
+  const phone      = (document.getElementById('oe-phone')?.value || '').trim();
+  const addr       = (document.getElementById('oe-addr')?.value || '').trim();
+  const detailAddr = (document.getElementById('oe-detail-addr')?.value || '').trim();
+  const amount     = Number(document.getElementById('oe-amount')?.value) || 0;
+  const pay        = document.getElementById('oe-pay')?.value || o.paymentMethod;
+  const note       = (document.getElementById('oe-note')?.value || '').trim();
 
   // 품목 수집 — row의 data-idx 속성으로 인덱스 매칭
   const wrap = document.getElementById('oe-items-wrap');
@@ -3053,6 +3057,7 @@ function saveOrderEdit(orderId) {
     customerName:  name  || o.customerName,
     phone:         phone || o.phone,
     address:       newAddr,
+    detailAddress: detailAddr,
     totalAmount:   amount > 0 ? amount : (o.totalAmount || 0),
     paymentMethod: pay,
     note:          note,
@@ -3438,6 +3443,7 @@ function submitBatchOrders() {
       customerName: r.name || '미입력',
       phone: r.phone || '',
       address: r.address || '',
+      detailAddress: r.detailAddress || '',
       items: r.items,
       totalAmount: r.items.reduce((s,i)=>s+i.qty*i.price, 0),
       paymentMethod: r.pay || currentPay,
@@ -3607,6 +3613,7 @@ function submitOrder() {
   const name = document.getElementById('inp-cname').value.trim();
   const phone = document.getElementById('inp-phone').value.trim();
   const addr = document.getElementById('inp-addr').value.trim();
+  const detailAddr = document.getElementById('inp-detail-addr').value.trim();
 
   if (!name || !addr) { showToast('⚠️ 고객명과 주소는 필수입니다'); return; }
 
@@ -3618,6 +3625,7 @@ function submitOrder() {
     customerName: name,
     phone,
     address: addr,
+    detailAddress: detailAddr,
     items,
     totalAmount,
     paymentMethod: currentPay,
@@ -3642,7 +3650,7 @@ function submitOrder() {
 }
 
 function resetForm() {
-  ['inp-cname','inp-phone','inp-addr','inp-note'].forEach(id => {
+  ['inp-cname','inp-phone','inp-addr','inp-detail-addr','inp-note'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('item-rows').innerHTML = '';
@@ -3738,6 +3746,7 @@ function fillFromCustomer(jsonStr) {
   document.getElementById('inp-cname').value = o.customerName || '';
   document.getElementById('inp-phone').value = o.phone || '';
   document.getElementById('inp-addr').value = o.address || '';
+  document.getElementById('inp-detail-addr').value = o.detailAddress || '';
   hideCustPanel();
   showToast(`✅ ${o.customerName} 고객 정보 자동입력 완료`);
   // 포커스를 품목 입력으로
@@ -5113,6 +5122,7 @@ async function impStartImport() {
       customerName: String(mapped.customerName||'').trim() || '이름없음',
       phone: phone,
       address: String(mapped.address||'').trim(),
+      detailAddress: String(mapped.detailAddress||'').trim(),
       items: [{ name: itemName, qty: qty, price: price }],
       totalAmount: totalAmount || 0,
       paymentMethod: String(mapped.paymentMethod||'').trim() || '',

@@ -1844,14 +1844,14 @@ function quickNav(id) {
   currentNavId = id;
   const d = deliveries.find(x => x.id === id);
   if (!d) return;
-  document.getElementById('modal-addr').textContent = d.address;
+  document.getElementById('modal-addr').textContent = d.address + (d.detailAddress ? ' ' + d.detailAddress : '');
   document.getElementById('nav-modal').classList.add('open');
 }
 
 function openAllNavModal() {
   if (!routeOrder.length) { showToast('먼저 경로를 최적화하세요'); return; }
   currentNavId = routeOrder[0].id;
-  document.getElementById('modal-addr').textContent = routeOrder[0].address;
+  document.getElementById('modal-addr').textContent = routeOrder[0].address + (routeOrder[0].detailAddress ? ' ' + routeOrder[0].detailAddress : '');
   document.getElementById('nav-modal').classList.add('open');
 }
 
@@ -1863,7 +1863,7 @@ function launchNavSingle(id) {
   currentNavId = id;
   const d = deliveries.find(x => x.id === id);
   if (d) {
-    document.getElementById('modal-addr').textContent = d.address;
+    document.getElementById('modal-addr').textContent = d.address + (d.detailAddress ? ' ' + d.detailAddress : '');
     document.getElementById('nav-modal').classList.add('open');
   }
 }
@@ -1956,7 +1956,7 @@ function openCompleteScreen(id) {
   const d = deliveries.find(x => x.id === id);
   if (!d) return;
   document.getElementById('complete-delivery-id').value = id;
-  document.getElementById('complete-addr').textContent = d.address;
+  document.getElementById('complete-addr').textContent = d.address + (d.detailAddress ? ' ' + d.detailAddress : '');
   document.getElementById('complete-name').textContent = d.customerName + ' · ' + d.phone;
   // 초기화 (기본값: 문 앞 배송, 완납됨)
   document.querySelectorAll('input[name=receive]').forEach(r => r.checked = r.value === 'door');
