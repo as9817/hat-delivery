@@ -452,6 +452,7 @@
     <input class="form-input" id="inp-name" type="text" placeholder="예) 홍길동">
     <label class="form-label">배송 주소</label>
     <input class="form-input" id="inp-addr" type="text" placeholder="예) 경기도 남양주시 화도읍…">
+    <input class="form-input" id="inp-detail-addr" type="text" placeholder="상세주소 (동/호수, 층 등)" style="margin-top:6px">
     <label class="form-label">연락처</label>
     <input class="form-input" id="inp-phone" type="tel" placeholder="예) 010-1234-5678">
     <button class="btn btn-orange" onclick="addManual()">+ 배송 목록에 추가</button>
@@ -1267,13 +1268,15 @@ function toggleDone(id) {
 // 직접 입력으로 추가
 // ══════════════════════════════════════════════════════
 function addManual() {
-  const name  = document.getElementById('inp-name').value.trim();
-  const addr  = document.getElementById('inp-addr').value.trim();
-  const phone = document.getElementById('inp-phone').value.trim();
+  const name       = document.getElementById('inp-name').value.trim();
+  const addr       = document.getElementById('inp-addr').value.trim();
+  const detailAddr = document.getElementById('inp-detail-addr').value.trim();
+  const phone      = document.getElementById('inp-phone').value.trim();
   if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
-  geocodeAndAdd({ customerName: name, address: addr, phone: phone || '-' });
+  geocodeAndAdd({ customerName: name, address: addr, detailAddress: detailAddr, phone: phone || '-' });
   document.getElementById('inp-name').value = '';
   document.getElementById('inp-addr').value = '';
+  document.getElementById('inp-detail-addr').value = '';
   document.getElementById('inp-phone').value = '';
 }
 
