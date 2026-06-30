@@ -1,0 +1,542 @@
+// v4 - token auth
+/**
+ * 햇배달 - 영수증 OCR 파이프라인 + 문자/카톡 주문 자동 접수
+ * Firebase Cloud Functions (2세대 HTTP)
+ * 파이프라인: Vision API → Gemini API → Kakao Local API
+ */
+
+const functions = require('firebase-functions');
+const logger = require('firebase-functions/logger');
+const admin = require('firebase-admin');
+const { GoogleGenAI } = require('@google/genai');
+
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+const db = admin.database();
+
+exports.processReceipt = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 60, memory: '512MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ status: 'error', message: 'POST only' }); return; }
+
+    const { imageBase64 } = req.body;
+    if (!imageBase64) { res.status(400).json({ status: 'error', message: 'imageBase64 없음' }); return; }
+
+    const VISION_KEY = process.env.GOOGLE_VISION_KEY;
+    const GEMINI_KEY  = process.env.GEMINI_KEY;
+    const KAKAO_KEY   = process.env.KAKAO_KEY;
+
+    if (!VISION_KEY || !GEMINI_KEY || !KAKAO_KEY) {
+      res.status(500).json({ status: 'error', message: 'API 키 환경변수 미설정' }); return;
+    }
+
+    try {
+      logger.info('STEP 1: Vision API');
+      const rawText = await extractTextWithVision(imageBase64, VISION_KEY);
+
+      logger.info('STEP 2: Gemini API');
+      const parsed = await parseWithGemini(rawText, GEMINI_KEY);
+
+      logger.info('STEP 3: Kakao API');
+      // 학습주소 먼저 확인
+      if (parsed.name) {
+        const learnedSnap = await db.ref('settings/learnedLocations/' + parsed.name).once('value').catch(() => null);
+        const learned = learnedSnap?.val();
+        if (learned?.road_address) {
+          logger.info('학습주소 적용:', parsed.name, learned.road_address);
+          res.status(200).json({ status: 'success', data: {
+            customer: { name: parsed.name, phone: parsed.phone || '' },
+            location: { road_address: learned.road_address, detail_address: learned.detail_address || '', lat: learned.lat || null, lng: learned.lng || null },
+            totalAmount: parsed.totalAmount || '',
+          }});
+          return;
+        }
+      }
+      const martSnap = await db.ref('settings/martLocation').once('value').catch(() => null);
+      const martData = martSnap?.val() || {};
+      const savedDongs = Array.isArray(martData.nearbyDongs) ? martData.nearbyDongs : [];
+      // 마트 기본 동(이태원동 등)을 항상 맨 앞에
+      const martDongMatch = (martData.oldAddress || '').match(/([가-힣]+동)/);
+      const martDong = martDongMatch ? martDongMatch[1] : '';
+      const nearbyDongs = martDong
+        ? [martDong, ...savedDongs.filter(d => d !== martDong)]
+        : savedDongs;
+      logger.info('주변 동 검색 순서:', nearbyDongs.join(' → '));
+      const location = await standardizeAddress(parsed.address, KAKAO_KEY, nearbyDongs, martData.lat, martData.lng, parsed.name);
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          customer: { name: parsed.name || '', phone: parsed.phone || '' },
+          location: {
+            road_address:   location.road_address   || parsed.address || '',
+            detail_address: location.detail_address || '',
+            lat: location.lat || null,
+            lng: location.lng || null,
+          },
+          totalAmount: parsed.totalAmount || '',
+        },
+      });
+    } catch (err) {
+      logger.error('오류:', err);
+      res.status(500).json({ status: 'error', message: err.message });
+    }
+  }
+);
+
+async function extractTextWithVision(base64Image, apiKey) {
+  const res = await fetch(
+    `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ image: { content: base64Image }, features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }] }] }),
+    }
+  );
+  if (!res.ok) { const e = await res.json(); throw new Error(`Vision: ${e.error?.message || res.status}`); }
+  const data = await res.json();
+  const ann = data.responses?.[0]?.fullTextAnnotation || data.responses?.[0]?.textAnnotations?.[0];
+  if (!ann) throw new Error('Vision: 텍스트 인식 실패');
+  const text = ann.text || ann.description || '';
+  if (!text.trim()) throw new Error('Vision: 텍스트 없음');
+  return text;
+}
+
+async function parseWithGemini(rawText, apiKey) {
+  // OCR 줄바꿈 오분리 보정: 숫자 뒤에서 끊긴 층/호/동 합치기
+  // 예) "737-42 1\n층" → "737-42 1층"
+  logger.info('[DEBUG] Vision rawText:', JSON.stringify(rawText));
+  // ① "숫자\n숫자 층/호" → 줄 끝 숫자가 다음 줄로 넘어간 경우 공백으로 연결
+  //    예) "210-2\n6 1층" → "210-2 6 1층" (숫자를 붙이지 않고 공백 유지 → "45-4\n8 1층" → "45-48 1층" 오합산 방지)
+  rawText = rawText.replace(/(\d)\n(\d+)\s+(층|호[수]?|\d+층|\d+호)/g, '$1 $2 $3');
+  // ② 숫자 뒤 줄바꿈 후 바로 층/호/동으로 시작하는 경우 합치기
+  //    예) "737-42\n1층" → "737-421층" (X) → "737-42 1층" (O)
+  rawText = rawText.replace(/(\d)\n\s*(층|호|동)/g, '$1 $2');
+  logger.info('[DEBUG] preprocessed rawText:', JSON.stringify(rawText));
+  const prompt = `너는 마트 영수증 데이터 파싱 전문가야. 아래 OCR 텍스트에서 다음 4가지를 추출해:
+1. name: 고객명 ('성명:' 옆 텍스트. '합계금액' 키워드 자체는 이름이 아님)
+2. phone: 연락처 (전화번호. 010 없이 국번만 있어도 그대로 추출. 없으면 null)
+3. address: 주소 ('주소:' 키워드 바로 뒤 텍스트만 추출. 영수증 상단 마트/가게 주소는 절대 제외. 고객 배달 주소만. 주소가 여러 줄에 걸쳐 있을 경우(다음 줄이 숫자/층/호/동으로 시작하면) 합쳐서 하나의 address로 만들어. 예1) "녹사평대로210-2\n6 1층" → "녹사평대로210-2 6 1층". 예2) "한남동 737-42\n1층" → "한남동 737-42 1층". ★중요: 숫자 사이 공백은 절대 제거하지 말 것. 예3) "45-4 8 피스릿길1층" → "45-4 8 피스릿길1층" (절대로 "45-48"로 합치면 안 됨). OCR에 있는 공백과 숫자를 그대로 보존할 것)
+4. totalAmount: 합계금액 (영수증에서 '합계', '합 계', '총합계', '결제금액' 키워드 바로 옆/아래 숫자. 쉼표 제거한 순수 숫자만. 상품 바코드나 상품코드가 아닌 최종 결제 금액)
+
+반드시 JSON({name,phone,address,totalAmount})으로만 응답. totalAmount는 숫자 문자열(예: "17300").
+
+[OCR]
+` + rawText;
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 0 }, temperature: 0, maxOutputTokens: 256 }
+  });
+  const raw = response.text || '{}';
+  const m = raw.replace(/```json|```/gi, '').match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Gemini: JSON 없음');
+  const parsed = JSON.parse(m[0]);
+  logger.info('[DEBUG] Gemini parsed:', JSON.stringify(parsed));
+  return parsed;
+}
+
+// ══════════════════════════════════════════════════════
+// 문자/카톡 주문 자동 접수
+// MacroDroid → receiveOrder → Gemini 파싱 → Firebase RTDB → OMS
+// ══════════════════════════════════════════════════════
+exports.receiveOrder = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 30, memory: '256MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Auth-Token, Accept');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
+
+    // 인증 토큰 확인
+    const AUTH_TOKEN = process.env.ORDER_AUTH_TOKEN || 'hatdelivery2026';
+    const token = req.headers['x-auth-token'];
+    if (token !== AUTH_TOKEN) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+    // JSON 또는 form-urlencoded 둘 다 지원
+    const body = req.body || {};
+    const message = (body.message || '').trim();
+    const channel = body.channel || 'sms';
+    const sender  = body.sender  || '';
+    if (!message) { res.status(400).json({ error: 'message 없음' }); return; }
+
+    const GEMINI_KEY = process.env.GEMINI_KEY;
+    const KAKAO_KEY  = process.env.KAKAO_KEY;
+    if (!GEMINI_KEY) { res.status(500).json({ error: 'GEMINI_KEY 미설정' }); return; }
+
+    try {
+      // 1. Gemini로 주문 파싱 (스팸 필터 포함)
+      const parsed = await parseOrderWithGemini(message, GEMINI_KEY);
+
+      const msgType = parsed.type || (parsed.isOrder ? 'order' : 'spam');
+
+      // 스팸 — 저장 없이 리턴
+      if (msgType === 'spam') {
+        logger.info('스팸/비주문 메시지 무시:', message.slice(0, 50));
+        res.status(200).json({ success: false, skipped: true, reason: 'not_an_order' });
+        return;
+      }
+
+      // 취소 요청 — 같은 전화번호 최근 주문 cancelled 처리
+      if (msgType === 'cancel') {
+        const phone = parsed.phone || sender;
+        let cancelled = false;
+        if (phone) {
+          const snap = await db.ref('orders').orderByChild('phone').equalTo(phone).limitToLast(5).once('value');
+          const existing = snap.val();
+          if (existing) {
+            const active = Object.entries(existing)
+              .filter(([,o]) => o.status === 'pending' || o.status === 'confirmed')
+              .sort(([,a],[,b]) => (b.createdAt||0) - (a.createdAt||0));
+            if (active.length > 0) {
+              const [cancelId] = active[0];
+              await db.ref('orders/' + cancelId).update({ status: 'cancelled', cancelledAt: Date.now(), cancelReason: message });
+              logger.info('주문 취소 처리:', cancelId);
+              cancelled = true;
+              res.status(200).json({ success: true, type: 'cancel', cancelledOrderId: cancelId });
+              return;
+            }
+          }
+        }
+        if (!cancelled) {
+          res.status(200).json({ success: false, type: 'cancel', reason: '취소할 주문 없음' });
+          return;
+        }
+      }
+
+      // 추가 요청 — 같은 전화번호 최근 주문에 품목 추가
+      if (msgType === 'add') {
+        const phone = parsed.phone || sender;
+        let added = false;
+        if (phone && parsed.items && parsed.items.length > 0) {
+          const snap = await db.ref('orders').orderByChild('phone').equalTo(phone).limitToLast(5).once('value');
+          const existing = snap.val();
+          if (existing) {
+            const active = Object.entries(existing)
+              .filter(([,o]) => o.status === 'pending' || o.status === 'confirmed')
+              .sort(([,a],[,b]) => (b.createdAt||0) - (a.createdAt||0));
+            if (active.length > 0) {
+              const [addId, addOrder] = active[0];
+              const mergedItems = [...(addOrder.items||[]), ...parsed.items.map(it => ({ name: it.name||'', qty: it.qty||1, price: 0 }))];
+              await db.ref('orders/' + addId).update({ items: mergedItems, updatedAt: Date.now() });
+              logger.info('품목 추가 처리:', addId, parsed.items);
+              added = true;
+              res.status(200).json({ success: true, type: 'add', updatedOrderId: addId, addedItems: parsed.items });
+              return;
+            }
+          }
+        }
+        if (!added) {
+          // 추가할 기존 주문이 없으면 새 주문으로 처리
+          logger.info('추가 요청이지만 기존 주문 없음 → 신규 주문으로 처리');
+        }
+      }
+
+      // 2. 마트 위치 읽기 (주소 보완용)
+      let martDistrict = '';
+      try {
+        const martSnap = await db.ref('settings/martLocation').once('value');
+        const martData = martSnap.val();
+        // 구주소(동 포함)가 있으면 우선 사용, 없으면 신주소에서 구 추출
+        if (martData?.oldAddress) {
+          // "서울 용산구 이태원동 224-3" → "서울 용산구 이태원동" (동까지만)
+          const dm = martData.oldAddress.match(/^(.+?동)/);
+          martDistrict = dm ? dm[1].trim() : martData.oldAddress.trim();
+        } else if (martData?.address) {
+          const m = martData.address.match(/^(.+?(?:구|군))/);
+          if (m) martDistrict = m[1].trim();
+        }
+      } catch(e) { logger.warn('마트 위치 읽기 실패'); }
+
+      // 3. Kakao로 주소 표준화 (KAKAO_KEY 있을 때만)
+      let finalAddress = parsed.address || '미확인';
+      if (parsed.address && KAKAO_KEY) {
+        try {
+          // 짧은 지번(예: 390-71)이면 마트 지역 앞에 붙여서 검색
+          const queryAddr = (martDistrict && parsed.address.match(/^\d+-?\d*$/))
+            ? martDistrict + ' ' + parsed.address
+            : parsed.address;
+          logger.info('STEP Kakao: 주소 검색 쿼리:', queryAddr);
+          const loc = await standardizeAddress(queryAddr, KAKAO_KEY);
+          logger.info('STEP Kakao: 결과:', JSON.stringify(loc));
+          // lat이 있을 때만 실제로 찾은 것 (없으면 Kakao가 원본 쿼리를 그대로 반환한 것)
+          if (loc.road_address && loc.lat !== null) {
+            finalAddress = loc.road_address + (loc.detail_address ? ' ' + loc.detail_address : '');
+            logger.info('STEP Kakao: 변환 완료:', finalAddress);
+          } else {
+            logger.warn('STEP Kakao: 주소 못 찾음, 원본 사용:', parsed.address);
+            finalAddress = (parsed.address || '') + ' ⚠️주소확인필요';
+          }
+        } catch (e) {
+          logger.warn('STEP Kakao: 오류, 원본 사용:', e.message);
+        }
+      } else {
+        logger.info('STEP Kakao: 스킵 (주소없음 또는 키없음)');
+      }
+
+      // 3. 정규식 보조 파서 (Gemini가 ?? 또는 null 반환 시 보완)
+      logger.info('원본 메시지:', message, '/ 길이:', message.length);
+
+      // 이름: 토큰 분리 후 첫 번째 한글 단어 (유니코드 범위 사용)
+      const koreanWord = /^[가-힣]+$/;
+      const tokens = message.trim().split(/\s+/);
+      const nameFromMsg = tokens.find(t => t.length >= 2 && t.length <= 5 && koreanWord.test(t)) || null;
+      const finalName = (parsed.name && parsed.name !== '??' && parsed.name !== '???') ? parsed.name : nameFromMsg;
+
+      // 품목: 단위 앞 한글 단어 추출
+      const itemPattern = /([가-힣a-zA-Z]+)\s*(\d+)\s*(개|판|통|봉|kg|g|L|묶음|세트|팩)/g;
+      const itemsFromMsg = [];
+      let im;
+      while ((im = itemPattern.exec(message)) !== null) {
+        itemsFromMsg.push({ name: im[1], qty: parseInt(im[2]), price: 0 });
+      }
+      const hasValidItems = Array.isArray(parsed.items) && parsed.items.length > 0 &&
+        parsed.items.some(it => it.name && it.name !== '??' && it.name !== '???');
+      const finalItems = hasValidItems
+        ? parsed.items.map(it => ({ name: it.name || '', qty: it.qty || 1, price: 0 }))
+        : (itemsFromMsg.length > 0 ? itemsFromMsg : []);
+
+      logger.info('최종 이름:', finalName, '/ 최종 품목:', JSON.stringify(finalItems));
+
+      // 3-1. 기존 고객 조회: 주소 또는 전화번호 누락 시 과거 주문에서 보완
+      const needAddress = !parsed.address;
+      const needPhone   = !parsed.phone && !sender;
+      let lookedUpAddress = null;
+      let lookedUpPhone   = null;
+
+      if (needAddress || needPhone) {
+        try {
+          let pastOrders = null;
+
+          // 전화번호로 조회 (전화번호 있으면 더 정확)
+          if (parsed.phone || sender) {
+            const phoneKey = parsed.phone || sender;
+            const snap = await db.ref('orders').orderByChild('phone').equalTo(phoneKey).limitToLast(5).once('value');
+            pastOrders = snap.val();
+          }
+
+          // 전화번호 조회 실패 or 전화 없으면 이름으로 조회
+          if (!pastOrders && finalName) {
+            const snap = await db.ref('orders').orderByChild('customerName').equalTo(finalName).limitToLast(10).once('value');
+            pastOrders = snap.val();
+          }
+
+          if (pastOrders) {
+            // 가장 최근 주문 중 주소/전화가 있는 것 선택
+            const sorted = Object.values(pastOrders)
+              .filter(o => o.address && o.address !== '미확인')
+              .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            if (sorted.length > 0) {
+              const best = sorted[0];
+              if (needAddress && best.address) {
+                lookedUpAddress = best.address;
+                logger.info('고객 DB 주소 보완:', finalName, '→', lookedUpAddress);
+              }
+              if (needPhone && best.phone && best.phone !== '-') {
+                lookedUpPhone = best.phone;
+                logger.info('고객 DB 전화 보완:', finalName, '→', lookedUpPhone);
+              }
+            }
+          }
+        } catch(e) {
+          logger.warn('고객 조회 실패:', e.message);
+        }
+      }
+
+      // 주소 최종 결정: 파싱된 주소 > 조회된 주소 > 미확인
+      if (needAddress && lookedUpAddress) {
+        finalAddress = lookedUpAddress;
+      }
+      const finalPhone = parsed.phone || sender || lookedUpPhone || '-';
+
+      logger.info('최종 이름:', finalName, '/ 최종 품목:', JSON.stringify(finalItems));
+
+      // 4. Firebase RTDB에 주문 저장
+      const orderId = 'ext_' + Date.now();
+      const order = {
+        id:           orderId,
+        customerName: finalName   || '미확인',
+        address:      finalAddress,
+        phone:        finalPhone,
+        items:        finalItems,
+        memo:         parsed.memo    || '',
+        status:       'pending',
+        channel:      channel,
+        rawMessage:   message,
+        sender:       sender,
+        createdAt:    Date.now(),
+        source:       'external',
+      };
+
+      await db.ref('orders/' + orderId).set(order);
+
+      logger.info('주문 접수 완료:', orderId, parsed);
+      res.status(200).json({ success: true, orderId, parsed });
+
+    } catch (err) {
+      logger.error('receiveOrder 오류:', err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+async function parseOrderWithGemini(message, apiKey) {
+  const prompt = `마트 배달 주문 문자를 분석해서 JSON으로만 답해. 반드시 JSON({type,name,address,phone,items:[{name,qty}],memo})만 출력.
+- type: 아래 중 하나만
+  "order"  = 새 배달 주문 (상품+주소 포함)
+  "cancel" = 주문 취소 요청 ("취소", "안 시켜요", "취소해주세요" 등)
+  "add"    = 기존 주문에 품목 추가 ("추가", "하나 더", "더 주세요" 등)
+  "spam"   = 광고/인증번호/배송알림/스팸/안부인사 등 주문 무관
+- name: 첫 번째 한글 단어(이름), 없으면 null
+- phone: 010 패턴 전화번호, 없으면 null
+- address: 지번(숫자-숫자) 또는 건물명+동호수, 없으면 null
+- items: 상품명 그대로 + 수량. 예) 감자2개→{"name":"감자","qty":2}, 계란1판→{"name":"계란","qty":1}
+- memo: 특이사항, 없으면 null
+
+[메시지] ${message}`;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      thinkingConfig: { thinkingBudget: 0 },
+      temperature: 0,
+      maxOutputTokens: 512,
+    }
+  });
+
+  const raw = response.text || '{}';
+  logger.info('Gemini 원본 응답:', raw);
+  const m = raw.replace(/```json|```/gi, '').match(/\{[\s\S]*\}/);
+  if (!m) { logger.warn('JSON 추출 실패. raw:', raw); return {}; }
+  try { return JSON.parse(m[0]); } catch (e) { logger.warn('JSON 파싱 실패:', m[0]); return {}; }
+}
+
+async function kakaoAddrSearch(query, kakaoKey) {
+  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=5`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const docs = data.documents || [];
+  if (!docs.length) return null;
+  // 신주소(road_address)가 있는 결과 중 마지막(가장 최신) 선택
+  const withRoad = docs.filter(d => d.road_address?.address_name);
+  const doc = withRoad.length ? withRoad[withRoad.length - 1] : docs[0];
+  return { road_address: doc.road_address?.address_name || doc.address?.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+}
+
+async function kakaoKeywordSearch(query, kakaoKey, martLat, martLng) {
+  if (!query?.trim()) return null;
+  const url = martLat && martLng
+    ? `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&x=${martLng}&y=${martLat}&radius=3000&size=1`
+    : `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=1`;
+  const res = await fetch(url, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const doc = data.documents?.[0];
+  if (!doc) return null;
+  return { road_address: doc.road_address_name || doc.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+}
+
+async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLat, martLng, fallbackName) {
+  if (!rawAddress?.trim()) {
+    // 주소 없으면 상호명/고객명으로 키워드 검색
+    if (fallbackName) {
+      logger.info('주소 없음 → 상호명 키워드 검색:', fallbackName);
+      const rk = await kakaoKeywordSearch(fallbackName, kakaoKey, martLat, martLng);
+      if (rk) { logger.info('상호명 검색 성공:', rk.road_address); return { ...rk, detail_address: '' }; }
+    }
+    return { road_address: '', detail_address: '', lat: null, lng: null };
+  }
+
+  // 아파트 약어 정규화: "용산A" / "대림APT" / "용산@" → "용산아파트" / "대림아파트"
+  rawAddress = rawAddress
+    .replace(/([가-힣]+)\s*[@A]\b/g, '$1아파트')
+    .replace(/([가-힣]+)\s*[Aa][Pp][Tt]\b/g, '$1아파트');
+
+  // Gemini가 동 이름을 주소 앞에 포함한 경우 제거 ("이태원동 258-116" → "258-116")
+  const dongPrefixMatch = rawAddress.match(/^([가-힣]+(?:동|가|로|길))\s+(\d.*)$/);
+  const rawAddressClean = dongPrefixMatch ? dongPrefixMatch[2] : rawAddress;
+
+  // 아파트 동-호 형식 정규화: "109-302호" → "109동 302호"
+  const aptDongHoMatch = rawAddressClean.match(/(\d{2,4})-(\d{2,4}호)/);
+  const aptDongHoDetail = aptDongHoMatch ? `${aptDongHoMatch[1]}동 ${aptDongHoMatch[2]}` : null;
+  const addrBase = aptDongHoDetail
+    ? rawAddressClean.slice(0, rawAddressClean.lastIndexOf(aptDongHoMatch[0])).trim()
+    : rawAddressClean;
+
+  // 지하/지중/지층 등 위치 설명어 제거 (검색 전)
+  const locDescMatch = addrBase.match(/\s*(지하|지중|지층|옥상|B\d+)$/);
+  const locDesc = locDescMatch ? locDescMatch[0].trim() : '';
+  const addrClean = locDesc ? addrBase.slice(0, addrBase.lastIndexOf(locDescMatch[0])).trim() : addrBase;
+
+  // 상세주소 패턴: 101호, 3층, 나-516, 가동 101호 등
+  const dm = aptDongHoDetail ? null : addrClean.match(/[가-힣]?-?\d+호|\d+층|\d+동\s*\d*호?|[가나다라마바사아자차카타파하]-\d+/);
+  const da = aptDongHoDetail
+    ? [aptDongHoDetail, locDesc].filter(Boolean).join(' ')
+    : [dm ? dm[0].replace(/^-/, '') : '', locDesc].filter(Boolean).join(' ');
+  const q  = da && dm ? addrClean.slice(0, addrClean.lastIndexOf(dm[0])).replace(/-\s*$/, '').trim() : addrClean.trim();
+
+  // 1차: 원본 주소 검색
+  const r1 = await kakaoAddrSearch(q, kakaoKey);
+  if (r1) return { ...r1, detail_address: da };
+
+  // 주소가 숫자 시작(지번)이면 주변 동 검색, 아니면 키워드 검색(건물명/아파트)
+  if (/^\d/.test(q)) {
+    // 지번 뒤 건물명 분리: "258-116 새남교회" → jibun="258-116", bldg="새남교회"
+    const jibunMatch = q.match(/^(\d+(?:-\d+)?)\s*(.*)$/);
+    const jibunOnly = jibunMatch ? jibunMatch[1] : q;
+    const bldgName  = jibunMatch ? jibunMatch[2].trim() : '';
+
+    // 2차: 주변 동 이름 병렬 시도 (지번만으로) — 거리순 정렬 유지, Promise.all로 동시 요청
+    if (nearbyDongs.length > 0) {
+      const r2Results = await Promise.all(
+        nearbyDongs.map(dong => kakaoAddrSearch(dong + ' ' + jibunOnly, kakaoKey))
+      );
+      const r2Idx = r2Results.findIndex(r => r !== null);
+      if (r2Idx !== -1) {
+        logger.info('주변동 병렬 검색 성공:', nearbyDongs[r2Idx], r2Results[r2Idx].road_address);
+        return { ...r2Results[r2Idx], detail_address: [bldgName, da].filter(Boolean).join(' ') };
+      }
+    }
+    // 3차: 건물명 있으면 키워드 검색
+    if (bldgName) {
+      logger.info('지번+건물명 키워드 검색:', bldgName);
+      const rk3 = await kakaoKeywordSearch(bldgName, kakaoKey, martLat, martLng);
+      if (rk3) { logger.info('건물명 키워드 검색 성공:', rk3.road_address); return { ...rk3, detail_address: da }; }
+    }
+  } else {
+    // 끝에 "숫자-숫자" 패턴(동-호) 분리: "대림APT 113-104" → bldg="대림APT", unit="113-104"
+    const unitMatch = q.match(/^(.+?)\s+(\d+[-]\d+)$/);
+    const searchQ = unitMatch ? unitMatch[1] : q;
+    const unitDetail = unitMatch ? unitMatch[2] : '';
+    const finalDa = [unitDetail, da].filter(Boolean).join(' ') || da;
+
+    // 건물명/아파트 → 키워드 검색 (괄호 제거, APT→아파트 치환 후 검색)
+    const qClean = searchQ.replace(/\(.*?\)/g, '').replace(/\bAPT\b/gi, '아파트').replace(/@/g, '아파트').trim();
+    logger.info('건물명 키워드 검색:', qClean);
+    const rk = await kakaoKeywordSearch(qClean, kakaoKey, martLat, martLng);
+    if (rk) { logger.info('키워드 검색 성공:', rk.road_address); return { ...rk, detail_address: finalDa }; }
+
+    // 주소 검색 실패 시 고객명(상호명)으로 2차 시도
+    // 지하/층 등 위치 설명어 제거 후 순수 상호명만 사용
+    if (fallbackName && fallbackName !== q) {
+      const pureName = fallbackName.replace(/(지하|[0-9]+층|B[0-9]+|옥상)$/g, '').trim();
+      logger.info('고객명으로 2차 키워드 검색:', pureName);
+      const rk2 = await kakaoKeywordSearch(pureName, kakaoKey, martLat, martLng);
+      if (rk2) { logger.info('고객명 검색 성공:', rk2.road_address); return { ...rk2, detail_address: da }; }
+    }
+  }
+
+  return { road_address: rawAddress, detail_address: '', lat: null, lng: null };
+}
