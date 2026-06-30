@@ -1310,6 +1310,7 @@ let deliveries = [];
 let currentNavId = null;
 let currentPhotoId = null;
 let routeOrder = [];
+let routePath  = [];  // 카카오 API 실도로 좌표 [{lat, lng}, ...]
 
 // 드라이버별 분리 저장 (같은 기기에서 다른 드라이버 로그인 시 데이터 혼용 방지)
 function getStorageKey() {
@@ -1767,6 +1768,16 @@ async function optimizeRoute() {
           const route = json.data?.routes?.[0];
           if (route?.result_code === 0) {
             const totalSec = route.summary.duration;
+            // 실도로 좌표 추출 (vertexes: [lng, lat, lng, lat, ...])
+            routePath = [];
+            (route.sections || []).forEach(sec => {
+              (sec.roads || []).forEach(road => {
+                const v = road.vertexes || [];
+                for (let i = 0; i < v.length - 1; i += 2) {
+                  routePath.push({ lng: v[i], lat: v[i+1] });
+                }
+              });
+            });
             // 정차시간 합산 (금액 기준 + 아파트/빌라 +5분)
             const stopMin = ordered.reduce((s, d) => {
               const amt = d.totalAmount || 0;
@@ -2194,6 +2205,7 @@ function resetAll() {
   deliveries = [];
   saveDeliveries();
   routeOrder = [];
+  routePath  = [];
   renderHome();
   showToast('🗑 초기화 완료');
 }
@@ -3091,20 +3103,23 @@ const mapZone = (() => {
       deliveryMarkers.push(m);
     });
 
-    // 경로 연결선
+    // 경로 연결선 (실도로 좌표 우선, 없으면 직선)
+    const polyPath = (routePath && routePath.length > 1)
+      ? routePath.map(p => new kakao.maps.LatLng(p.lat, p.lng))
+      : pathPoints;
     routePolyline = new kakao.maps.Polyline({
-      path: pathPoints,
-      strokeColor: '#FF6B00', strokeWeight: 3.5, strokeOpacity: 0.85, strokeStyle: 'solid'
+      path: polyPath,
+      strokeColor: '#FF6B00', strokeWeight: 4, strokeOpacity: 0.9, strokeStyle: 'solid'
     });
     routePolyline.setMap(map);
 
-    // 방향 화살표
+    // 방향 화살표 (waypoint 구간 중간에만 표시)
     for (let i = 0; i < pathPoints.length - 1; i++) {
       const a = pathPoints[i], b = pathPoints[i+1];
       const midLat = (a.getLat()+b.getLat())/2, midLng = (a.getLng()+b.getLng())/2;
       const angle = Math.atan2(b.getLng()-a.getLng(), b.getLat()-a.getLat()) * 180/Math.PI;
       const arrowEl = document.createElement('div');
-      arrowEl.style.cssText = `transform:rotate(${angle}deg);color:#FF6B00;font-size:16px;line-height:1;pointer-events:none`;
+      arrowEl.style.cssText = `transform:rotate(${angle}deg);color:#FF6B00;font-size:18px;line-height:1;pointer-events:none;text-shadow:0 0 3px #fff`;
       arrowEl.textContent = '➤';
       const am = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(midLat, midLng), content: arrowEl, anchor: 'center', zIndex: 2 });
       am.setMap(map);
