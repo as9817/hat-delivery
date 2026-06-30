@@ -606,7 +606,10 @@
       <input class="form-input" id="res-name" type="text" placeholder="고객명">
       <label class="form-label">배송 주소</label>
       <input class="form-input" id="res-addr" placeholder="배송 주소">
-      <input class="form-input" id="res-detail-addr" type="text" placeholder="상세주소 (동/호수, 층 등)" style="margin-top:6px">
+      <div id="res-detail-wrap" style="margin-top:6px">
+        <span style="font-size:12px;color:#888">상세주소</span>
+        <span id="res-detail-badge" style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:3px 10px;border-radius:6px;font-weight:700"></span>
+      </div>
       <button id="regeo-btn" onclick="regeocodeAddr()" style="margin-top:6px;width:100%;background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">🔍 주소 다시 검색하기</button>
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
@@ -2081,7 +2084,10 @@ async function startOCR(file) {
     document.getElementById('res-name').value        = customer?.name  || '';
     document.getElementById('res-phone').value       = customer?.phone || '';
     document.getElementById('res-addr').value        = roadAddr;
-    document.getElementById('res-detail-addr').value = detailAddr;
+    const dBadge = document.getElementById('res-detail-badge');
+    const dWrap  = document.getElementById('res-detail-wrap');
+    if (dBadge) dBadge.textContent = detailAddr;
+    if (dWrap)  dWrap.style.display = detailAddr ? 'block' : 'none';
     window._ocrLat = location?.lat || null;
     window._ocrLng = location?.lng || null;
     // 합계금액 표시
@@ -2181,7 +2187,10 @@ function showResult(parsed) {
   console.log('showResult 실행중, parsed:', JSON.stringify(parsed));
   document.getElementById('res-name').value        = parsed.name   || '';
   document.getElementById('res-addr').value        = parsed.addr   || '';
-  document.getElementById('res-detail-addr').value = parsed.detail || '';
+  const sb = document.getElementById('res-detail-badge');
+  const sw = document.getElementById('res-detail-wrap');
+  if (sb) sb.textContent = parsed.detail || '';
+  if (sw) sw.style.display = parsed.detail ? 'block' : 'none';
   document.getElementById('res-phone').value       = parsed.phone  || '';
   // 좌표 임시 저장
   window._ocrLat = parsed.lat  || null;
@@ -2206,8 +2215,11 @@ async function regeocodeAddr() {
     if (geo.ok) {
       const d = (await geo.json()).data || {};
       if (d.road_address) {
-        document.getElementById('res-addr').value        = d.road_address;
-        document.getElementById('res-detail-addr').value = d.detail_address || '';
+        document.getElementById('res-addr').value = d.road_address;
+        const rb = document.getElementById('res-detail-badge');
+        const rw = document.getElementById('res-detail-wrap');
+        if (rb) rb.textContent = d.detail_address || '';
+        if (rw) rw.style.display = d.detail_address ? 'block' : 'none';
         window._ocrLat = d.lat || null;
         window._ocrLng = d.lng || null;
         showToast('✅ 주소 변환 완료');
@@ -2239,8 +2251,7 @@ async function confirmAdd() {
   const ocrData    = window._pendingOCR || {};
   let   lat        = window._ocrLat || ocrData.lat || null;
   let   lng        = window._ocrLng || ocrData.lng || null;
-  // 상세주소: 주소변환 버튼으로 업데이트된 입력 필드 우선
-  const detailAddr = document.getElementById('res-detail-addr').value.trim() || ocrData.detailAddress || '';
+  const detailAddr = (document.getElementById('res-detail-badge')?.textContent || '').trim() || ocrData.detailAddress || '';
   const ocrName    = ocrData.ocrName || '';
   const ocrAddress = ocrData.ocrAddress || '';
   const totalAmount = (document.getElementById('res-amount')?.value || ocrData.totalAmount || '').trim();

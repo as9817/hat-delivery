@@ -2179,16 +2179,27 @@ function getMartLocation() {
 function loadMartLocationFromFirebase() {
   return new Promise(resolve => {
     if (!_fbDb) { resolve(getMartLocation()); return; }
-    const doRead = () => {
+    const read = () => {
       tref('settings/martLocation').once('value', snap => {
         const data = snap.val();
         if (data && data.lat && data.lng) {
           localStorage.setItem('mart_location', JSON.stringify(data));
         }
         resolve(getMartLocation());
-      }, () => resolve(getMartLocation())); // permission_denied 등 에러 시 로컬 캐시 사용
+      }, () => resolve(getMartLocation()));
     };
-    doRead();
+    // 이미 인증된 경우 즉시 읽기, 아직 미인증이면 인증 완료 후 읽기
+    if (_fbAuth && _fbAuth.currentUser) {
+      read();
+    } else if (_fbAuth) {
+      const unsub = _fbAuth.onAuthStateChanged(user => {
+        unsub();
+        if (user) read();
+        else resolve(getMartLocation());
+      });
+    } else {
+      resolve(getMartLocation());
+    }
   });
 }
 
