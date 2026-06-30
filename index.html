@@ -605,11 +605,9 @@
       <label class="form-label">고객명</label>
       <input class="form-input" id="res-name" type="text" placeholder="고객명">
       <label class="form-label">배송 주소</label>
-      <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:4px">
-        <input class="form-input" id="res-addr" placeholder="배송 주소" style="flex:1;margin-bottom:0">
-        <button id="regeo-btn" onclick="regeocodeAddr()" style="white-space:nowrap;background:#1565c0;color:#fff;border:none;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">🔍 주소변환</button>
-      </div>
-      <input class="form-input" id="res-detail-addr" type="text" placeholder="상세주소 (동/호수, 층 등)" style="margin-bottom:0">
+      <input class="form-input" id="res-addr" placeholder="배송 주소">
+      <input class="form-input" id="res-detail-addr" type="text" placeholder="상세주소 (동/호수, 층 등)" style="margin-top:6px">
+      <button id="regeo-btn" onclick="regeocodeAddr()" style="margin-top:6px;width:100%;background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">🔍 주소 다시 검색하기</button>
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
       <div id="res-amount-wrap" style="display:none;margin:10px 0 4px">
