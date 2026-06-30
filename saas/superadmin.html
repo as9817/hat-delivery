@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>햇배달 - 슈퍼어드민</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f6f9;color:#1a1a2e;min-height:100vh}
+.header{background:#1a1a2e;color:#fff;padding:16px 24px;display:flex;align-items:center;gap:12px}
+.header h1{font-size:17px;font-weight:700}
+.header .badge{margin-left:auto;font-size:12px;color:#bbb;display:flex;align-items:center;gap:10px}
+.header button{background:#33344e;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
+.wrap{max-width:920px;margin:0 auto;padding:24px}
+.card{background:#fff;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.card h2{font-size:15px;margin-bottom:14px;color:#333}
+.row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+input,select{border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:inherit;flex:1;min-width:140px}
+input:focus,select:focus{border-color:#ff7a3d}
+.btn{background:#ff7a3d;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn.ghost{background:#f0f0f0;color:#555}
+.tenant{border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:10px}
+.tenant.tenant-inactive{opacity:.55;border-style:dashed;background:#fafafa}
+.tenant-top{display:flex;align-items:center;gap:10px}
+.tenant-name{font-weight:700;font-size:14px}
+.tenant-id{font-size:11px;color:#999;background:#f4f6f9;padding:2px 8px;border-radius:6px}
+.tenant-actions{margin-left:auto;display:flex;gap:6px}
+.badge-inactive{font-size:11px;color:#d23c2f;background:#fff0ee;padding:2px 8px;border-radius:6px;font-weight:700}
+.tenant-meta-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #f4f4f4}
+.plan-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:#eef2ff;color:#4a5fd8}
+.plan-badge.plan-free{background:#f0f0f0;color:#777}
+.plan-badge.plan-basic{background:#eef2ff;color:#4a5fd8}
+.plan-badge.plan-pro{background:#fff4e0;color:#c9791a}
+.plan-badge.plan-enterprise{background:#f0e8ff;color:#7a3dd8}
+.plan-badge.expired{background:#fff0ee;color:#d23c2f}
+.usage-badge{font-size:11px;color:#777}
+.usage-badge.usage-warn{color:#c9791a;font-weight:700}
+.usage-badge.usage-over{color:#d23c2f;font-weight:700}
+.tenant-actions2{margin-left:auto;display:flex;gap:6px}
+.btn.ghost.danger{color:#d23c2f}
+.member{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;padding:8px 0;border-top:1px solid #f4f4f4;cursor:pointer}
+.member:hover{background:#fafafa}
+.member .role{background:#eef2ff;color:#4a5fd8;border-radius:6px;padding:1px 7px;font-size:11px}
+.member .inactive{background:#fff0ee;color:#d23c2f;border-radius:6px;padding:1px 7px;font-size:11px}
+.member .arrow{margin-left:auto;color:#ccc;font-size:12px}
+.detail-row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #f4f4f4}
+.detail-row span:first-child{color:#888}
+.empty{color:#aaa;font-size:13px;padding:10px 0}
+.msg{font-size:12px;border-radius:8px;padding:8px 10px;margin-bottom:10px;display:none}
+.msg.show{display:block}
+.msg.ok{background:#eafbf0;color:#1a9d56}
+.msg.err{background:#fff0ee;color:#d23c2f}
+.applink{font-size:12px;color:#ff7a3d;text-decoration:none}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;z-index:100}
+.modal{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:360px}
+.modal h3{font-size:15px;margin-bottom:14px}
+.modal label{font-size:12px;color:#555;font-weight:600;display:block;margin:10px 0 5px}
+.modal input,.modal select{width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:inherit}
+.modal .actions{display:flex;gap:8px;margin-top:18px}
+.modal .actions .btn{flex:1}
+.card h2{display:flex;align-items:center;gap:8px}
+.err-badge{background:#d23c2f;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px}
+.alert-item{font-size:12.5px;color:#a3650f;background:#fff8ec;border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.err-item{border-bottom:1px solid #f4f4f4;padding:8px 0;font-size:12px}
+.err-item:last-child{border-bottom:none}
+.err-item.unread{background:#fff8f6}
+.err-top{display:flex;gap:8px;align-items:center;color:#999;font-size:11px;margin-bottom:3px}
+.err-source{background:#eef2ff;color:#4a5fd8;border-radius:6px;padding:1px 7px;font-weight:700}
+.err-tenant{background:#f4f6f9;border-radius:6px;padding:1px 7px}
+.err-time{margin-left:auto}
+.err-msg{color:#333}
+.brand-logo-preview{max-height:40px;max-width:130px;border-radius:6px;margin-top:6px;display:none}
+.notice-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f4f4f4}
+.notice-item:last-child{border-bottom:none}
+.notice-target{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef2ff;color:#4a5fd8;white-space:nowrap}
+.notice-target.all{background:#f0ffe8;color:#1a9d56}
+.notice-title{font-size:13px;font-weight:600;margin-bottom:3px}
+.notice-body{font-size:12px;color:#666;white-space:pre-wrap}
+.notice-meta{font-size:11px;color:#aaa;margin-top:4px}
+.modal textarea{width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;font-family:inherit;resize:vertical;min-height:80px}
+.modal textarea:focus{border-color:#ff7a3d}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🛠 햇배달 슈퍼어드민</h1>
+  <div class="badge">
+    <span id="who"></span>
+    <button onclick="saLogout()">로그아웃</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h2>⚠️ 운영 알림</h2>
+    <div id="opsAlerts"><div class="empty">불러오는 중...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>새 테넌트(마트) 추가</h2>
+    <div class="msg" id="tenantMsg"></div>
+    <div class="row">
+      <input id="newTenantName" placeholder="마트명 (예: 행복마트)">
+      <input id="newTenantId" placeholder="테넌트 ID (영문/숫자, 예: happymart)">
+      <button class="btn" onclick="createTenant()">테넌트 생성</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>테넌트 목록</h2>
+    <div id="tenantList"><div class="empty">불러오는 중...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>📢 공지사항 관리
+      <button class="btn sm" style="margin-left:auto" onclick="openNoticeModal()">+ 공지 작성</button>
+    </h2>
+    <div id="noticeList"><div class="empty">불러오는 중...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>🛠 시스템 오류 로그 <span class="err-badge" id="errBadge" style="display:none"></span>
+      <button class="btn sm ghost" style="margin-left:auto" onclick="markErrorsRead()">모두 확인</button>
+    </h2>
+    <div id="errorLogList"><div class="empty">불러오는 중...</div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="noticeModal">
+  <div class="modal" style="max-width:420px">
+    <h3>📢 공지사항 작성</h3>
+    <div class="msg" id="noticeMsg"></div>
+    <label>제목</label>
+    <input id="noticeTitle" placeholder="공지 제목을 입력하세요">
+    <label>내용</label>
+    <textarea id="noticeContent" placeholder="공지 내용을 입력하세요"></textarea>
+    <label>대상</label>
+    <select id="noticeTarget">
+      <option value="all">전체 테넌트</option>
+    </select>
+    <label>만료일 (선택 — 비워두면 상시 표시)</label>
+    <input type="date" id="noticeExpiry">
+    <div class="actions">
+      <button class="btn ghost" onclick="closeNoticeModal()">취소</button>
+      <button class="btn" onclick="submitNotice()">등록</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal">
+    <h3><span id="modalTenantName"></span> 계정 추가</h3>
+    <div class="msg" id="modalErr"></div>
+    <label>이메일</label>
+    <input id="modalEmail" type="email" placeholder="user@company.com">
+    <label>담당자 이름</label>
+    <input id="modalName" type="text" placeholder="홍길동">
+    <label>연락처</label>
+    <input id="modalPhone" type="tel" placeholder="010-1234-5678">
+    <label>초기 비밀번호 (8자 이상)</label>
+    <input id="modalPw" type="text" placeholder="••••••••">
+    <label>역할</label>
+    <select id="modalRole">
+      <option value="admin">admin</option>
+      <option value="staff">staff</option>
+    </select>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeAddUserModal()">취소</button>
+      <button class="btn" onclick="submitAddUser()">생성</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="memberDetailModal">
+  <div class="modal">
+    <h3 id="detailName"></h3>
+    <div class="msg" id="detailMsg"></div>
+    <div class="detail-row"><span>소속 마트</span><span id="detailTenantName"></span></div>
+    <div class="detail-row"><span>이메일</span><span id="detailEmail"></span></div>
+    <div class="detail-row"><span>가입일</span><span id="detailCreatedAt"></span></div>
+    <div class="detail-row"><span>마지막 로그인</span><span id="detailLastLogin"></span></div>
+    <div class="detail-row"><span>상태</span><span id="detailStatus"></span></div>
+    <label>성명</label>
+    <input id="detailNameInput" type="text" placeholder="홍길동">
+    <label>연락처</label>
+    <input id="detailPhone" type="tel" placeholder="010-1234-5678">
+    <label>역할</label>
+    <select id="detailRole">
+      <option value="admin">admin</option>
+      <option value="staff">staff</option>
+    </select>
+    <div class="actions">
+      <button class="btn ghost" onclick="sendMemberPasswordReset()">비밀번호 재설정 메일</button>
+      <button class="btn" onclick="saveMemberDetail()">저장</button>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="detailToggleBtn" onclick="toggleMemberActive()">비활성화</button>
+      <button class="btn ghost danger" onclick="deleteMember()">계정 삭제</button>
+      <button class="btn ghost" onclick="closeMemberDetailModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="planModal">
+  <div class="modal">
+    <h3><span id="planModalTenantName"></span> 플랜 관리</h3>
+    <div class="msg" id="planMsg"></div>
+    <label>플랜 (월 주문 한도: Free 무제한 / Basic 3,000 / Pro 10,000 / Enterprise 무제한)</label>
+    <select id="planSelect">
+      <option value="free">Free (무료, 무제한)</option>
+      <option value="basic">Basic (월 3,000건)</option>
+      <option value="pro">Pro (월 1000건)</option>
+      <option value="enterprise">Enterprise (무제한)</option>
+    </select>
+    <label>구독 만료일 (비워두면 무제한)</label>
+    <input id="planExpiryInput" type="date">
+    <div class="actions">
+      <button class="btn ghost" onclick="closePlanModal()">취소</button>
+      <button class="btn" onclick="savePlan()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="brandingModal">
+  <div class="modal">
+    <h3><span id="brandingModalTenantName"></span> 브랜딩 설정</h3>
+    <div class="msg" id="brandingMsg"></div>
+    <label>앱 타이틀 (비워두면 마트명 사용)</label>
+    <input id="brandingTitle" type="text" placeholder="예: 행복마트 주문관리">
+    <label>로고 이미지</label>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <button type="button" class="btn sm ghost" onclick="document.getElementById('brandingLogoFile').click()">📁 파일 선택</button>
+      <span id="brandingLogoFileName" style="font-size:12px;color:#888">선택된 파일 없음</span>
+    </div>
+    <input id="brandingLogoFile" type="file" accept="image/*" style="display:none" onchange="onLogoFileChange(this)">
+    <img id="brandLogoPreview" class="brand-logo-preview" alt="로고 미리보기">
+    <input id="brandingLogoUrl" type="hidden">
+    <label>메인 컬러</label>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <input id="brandingColor" type="color" value="#1a237e" oninput="document.getElementById('brandingColorHex').value=this.value" style="width:44px;height:36px;padding:2px;border-radius:6px;border:1.5px solid #e0e0e0;cursor:pointer;flex:none">
+      <input id="brandingColorHex" type="text" placeholder="#1a237e" oninput="syncBrandColorFromHex()" style="flex:1">
+    </div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeBrandingModal()">취소</button>
+      <button class="btn" onclick="saveBranding()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA_QC1p052HO3TEv0SnTjgS3LL9pY5Xfww",
+  authDomain: "hatdelivery-saas.firebaseapp.com",
+  databaseURL: "https://hatdelivery-saas-default-rtdb.firebaseio.com",
+  projectId: "hatdelivery-saas",
+  storageBucket: "hatdelivery-saas.firebasestorage.app",
+  messagingSenderId: "609228475077",
+  appId: "1:609228475077:web:6a72b2c8f58e8a0e133eac",
+  measurementId: "G-E327TX7FT2"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+const storage = firebase.storage();
+
+// ══════════════════════════════════════════
+// 운영 모니터링: 클라이언트 오류 자동 기록 (자기 자신도 기록)
+// ══════════════════════════════════════════
+function logSystemError(err, source) {
+  try {
+    const msg = (err && (err.message || err.reason)) || String(err) || '알 수 없는 오류';
+    db.ref('system_logs/errors').push({
+      ts: Date.now(),
+      message: String(msg).slice(0, 300),
+      stack: (err && err.stack) ? String(err.stack).slice(0, 500) : '',
+      source: source || 'superadmin',
+      tenantId: null,
+      url: location.href.slice(0, 200),
+      ua: navigator.userAgent.slice(0, 150)
+    }).catch(function () {});
+  } catch (e) {}
+}
+window.addEventListener('error', function (e) { logSystemError(e.error || e.message, 'superadmin'); });
+window.addEventListener('unhandledrejection', function (e) { logSystemError(e.reason, 'superadmin'); });
+
+// 두 번째 보조 앱 인스턴스: 신규 사용자 생성 시 슈퍼어드민의 로그인 세션이 바뀌지 않도록 분리
+const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
+const secondaryAuth = secondaryApp.auth();
+
+let currentUid = null;
+
+auth.onAuthStateChanged(function (user) {
+  if (!user) { location.href = 'login.html'; return; }
+  db.ref('superadmins/' + user.uid).once('value').then(function (snap) {
+    if (snap.val() !== true) {
+      alert('슈퍼어드민 권한이 없습니다.');
+      location.href = 'login.html';
+      return;
+    }
+    currentUid = user.uid;
+    document.getElementById('who').textContent = user.email;
+    loadTenants();
+    loadNotices();
+    startErrorLogListener();
+  });
+});
+
+function saLogout() {
+  auth.signOut().then(function () { location.href = 'login.html'; });
+}
+
+function showMsg(text, ok) {
+  const el = document.getElementById('tenantMsg');
+  el.textContent = text;
+  el.className = 'msg show ' + (ok ? 'ok' : 'err');
+  setTimeout(function () { el.classList.remove('show'); }, 4000);
+}
+
+function slugify(s) {
+  return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '').slice(0, 30);
+}
+
+document.getElementById('newTenantName').addEventListener('input', function () {
+  const idEl = document.getElementById('newTenantId');
+  if (!idEl.dataset.touched) idEl.value = slugify(this.value);
+});
+document.getElementById('newTenantId').addEventListener('input', function () {
+  this.dataset.touched = '1';
+});
+
+function createTenant() {
+  const name = document.getElementById('newTenantName').value.trim();
+  const id = slugify(document.getElementById('newTenantId').value);
+  if (!name || !id) { showMsg('마트명과 테넌트 ID를 입력해주세요', false); return; }
+
+  db.ref('tenant_meta/' + id).once('value').then(function (snap) {
+    if (snap.exists()) { showMsg('이미 존재하는 테넌트 ID입니다', false); return; }
+    return db.ref('tenant_meta/' + id).set({
+      name: name, createdAt: Date.now(), active: true, createdBy: currentUid
+    }).then(function () {
+      document.getElementById('newTenantName').value = '';
+      document.getElementById('newTenantId').value = '';
+      document.getElementById('newTenantId').dataset.touched = '';
+      showMsg('"' + name + '" 테넌트가 생성되었습니다', true);
+      loadTenants();
+    });
+  });
+}
+
+const PLAN_LABELS = { free: 'Free', basic: 'Basic', pro: 'Pro', enterprise: 'Enterprise' };
+
+function fmtDateOnly(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
+}
+
+let _expiryAlerts = [];
+let _usageAlerts = [];
+
+function renderAlertPanel() {
+  const el = document.getElementById('opsAlerts');
+  if (!el) return;
+  const items = [];
+  _expiryAlerts.forEach(function (a) {
+    items.push('⏰ <b>' + escapeHtml(a.name) + '</b> 구독이 ' + fmtDateOnly(a.expiry) + ' 만료됩니다');
+  });
+  _usageAlerts.forEach(function (a) {
+    items.push('📦 <b>' + escapeHtml(a.name) + '</b> 이번달 주문 ' + a.count + '/' + a.limit + '건으로 플랜 한도를 초과했습니다');
+  });
+  if (!items.length) { el.innerHTML = '<div class="empty">현재 주의가 필요한 항목이 없습니다 ✅</div>'; return; }
+  el.innerHTML = items.map(function (t) { return '<div class="alert-item">' + t + '</div>'; }).join('');
+}
+
+function loadTenants() {
+  db.ref('tenant_meta').once('value').then(function (snap) {
+    const data = snap.val() || {};
+    const ids = Object.keys(data).sort(function (a, b) { return (data[b].createdAt||0) - (data[a].createdAt||0); });
+    const listEl = document.getElementById('tenantList');
+
+    _expiryAlerts = [];
+    _usageAlerts = [];
+    const nowTs = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    ids.forEach(function (id) {
+      const t = data[id];
+      if (t.active === false) return;
+      if (t.planExpiry && t.planExpiry > nowTs && (t.planExpiry - nowTs) <= sevenDaysMs) {
+        _expiryAlerts.push({ id: id, name: t.name, expiry: t.planExpiry });
+      }
+    });
+    renderAlertPanel();
+
+    if (!ids.length) { listEl.innerHTML = '<div class="empty">아직 테넌트가 없습니다</div>'; return; }
+
+    listEl.innerHTML = ids.map(function (id) {
+      const t = data[id];
+      const members = t.members || {};
+      const memberRows = Object.keys(members).map(function (uid) {
+        const m = members[uid];
+        const statusBadge = m.active === false ? '<span class="inactive">비활성</span>' : '<span class="role">' + (m.role || 'staff') + '</span>';
+        return '<div class="member" onclick="openMemberDetail(\'' + id + '\',\'' + uid + '\',\'' + escapeAttr(t.name) + '\')">' +
+          escapeHtml(m.name || m.email) + ' &lt;' + escapeHtml(m.email) + '&gt; ' + statusBadge +
+          '<span class="arrow">›</span></div>';
+      }).join('') || '<div class="empty" style="padding:6px 0">아직 계정이 없습니다</div>';
+
+      const isInactive = t.active === false;
+      const plan = t.plan || 'free';
+      const expiry = t.planExpiry;
+      const isExpired = !!(expiry && expiry < Date.now());
+      let planBadgeText = PLAN_LABELS[plan] || plan;
+      planBadgeText += expiry ? (' · ' + fmtDateOnly(expiry) + '까지') : ' · 무제한';
+      if (isExpired) planBadgeText += ' (만료됨)';
+
+      return '<div class="tenant' + (isInactive ? ' tenant-inactive' : '') + '">' +
+        '<div class="tenant-top">' +
+          '<div class="tenant-name">' + escapeHtml(t.name) + '</div>' +
+          '<div class="tenant-id">' + id + '</div>' +
+          (isInactive ? '<span class="badge-inactive">비활성</span>' : '') +
+          '<div class="tenant-actions">' +
+            '<button class="btn sm" onclick="openAddUser(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">계정 추가</button>' +
+            '<a class="applink" href="app.html?tenant=' + id + '" onclick="impersonate(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">앱 열기 →</a>' +
+          '</div>' +
+        '</div>' +
+        '<div class="tenant-meta-row">' +
+          '<span class="plan-badge plan-' + plan + (isExpired ? ' expired' : '') + '">' + planBadgeText + '</span>' +
+          '<span class="usage-badge" id="usage-' + id + '">사용량 불러오는 중...</span>' +
+          '<div class="tenant-actions2">' +
+            '<button class="btn sm ghost" onclick="copyOnboarding(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">📋 안내 복사</button>' +
+            '<button class="btn sm ghost" onclick="openBrandingModal(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">브랜딩</button>' +
+            '<button class="btn sm ghost" onclick="openPlanModal(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">플랜 관리</button>' +
+            '<button class="btn sm ghost" onclick="toggleTenantActive(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">' + (isInactive ? '활성화' : '비활성화') + '</button>' +
+            '<button class="btn sm ghost danger" onclick="confirmDeleteTenant(\'' + id + '\',\'' + escapeAttr(t.name) + '\')">영구 삭제</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:10px">' + memberRows + '</div>' +
+      '</div>';
+    }).join('');
+
+    ids.forEach(function (id) { loadTenantUsage(id, data[id].name, data[id].plan || 'free'); });
+  });
+}
+
+const PLAN_LIMITS = { free: Infinity, basic: 3000, pro: 10000, enterprise: Infinity };
+
+function loadTenantUsage(id, name, plan) {
+  Promise.all([
+    db.ref('tenants/' + id + '/orders').once('value'),
+    db.ref('tenants/' + id + '/driverAccounts').once('value')
+  ]).then(function (results) {
+    const ordersData = results[0].val() || {};
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+    const monthlyCount = Object.keys(ordersData).reduce(function (acc, k) {
+      const o = ordersData[k];
+      return acc + ((o && o.createdAt >= monthStart) ? 1 : 0);
+    }, 0);
+    const driverCount = Object.keys(results[1].val() || {}).length;
+    const limit = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+    const limitText = limit === Infinity ? (monthlyCount + '건') : (monthlyCount + '/' + limit + '건');
+    const pct = limit === Infinity ? 0 : (monthlyCount / limit);
+    let cls = 'usage-badge';
+    if (pct >= 1) cls += ' usage-over';
+    else if (pct >= 0.8) cls += ' usage-warn';
+    const el = document.getElementById('usage-' + id);
+    if (el) {
+      el.className = cls;
+      el.textContent = '📦 이번달 주문 ' + limitText + (pct >= 1 ? ' (한도초과)' : '') + ' · 🚗 기사 ' + driverCount + '명';
+    }
+    if (pct >= 1 && !_usageAlerts.some(function (a) { return a.id === id; })) {
+      _usageAlerts.push({ id: id, name: name, count: monthlyCount, limit: limit });
+      renderAlertPanel();
+    }
+  }).catch(function () {
+    const el = document.getElementById('usage-' + id);
+    if (el) el.textContent = '사용량 조회 실패';
+  });
+}
+
+// ── 시스템 오류 로그 ──
+const ERR_SEEN_KEY = 'sa_err_last_seen_ts';
+let _lastErrorSnapVal = {};
+
+function getLastSeenErrTs() { return parseInt(localStorage.getItem(ERR_SEEN_KEY) || '0', 10); }
+
+function markErrorsRead() {
+  localStorage.setItem(ERR_SEEN_KEY, String(Date.now()));
+  renderErrorLog(_lastErrorSnapVal);
+}
+
+function startErrorLogListener() {
+  db.ref('system_logs/errors').orderByChild('ts').limitToLast(50).on('value', function (snap) {
+    _lastErrorSnapVal = snap.val() || {};
+    renderErrorLog(_lastErrorSnapVal);
+  });
+}
+
+function renderErrorLog(val) {
+  const items = Object.keys(val).map(function (k) {
+    const v = val[k] || {};
+    return { _key: k, ts: v.ts, message: v.message, source: v.source, tenantId: v.tenantId };
+  });
+  items.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+  const lastSeen = getLastSeenErrTs();
+  const unread = items.filter(function (i) { return (i.ts || 0) > lastSeen; }).length;
+  const badge = document.getElementById('errBadge');
+  if (badge) {
+    if (unread > 0) { badge.textContent = unread + '건 신규'; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+  }
+  const listEl = document.getElementById('errorLogList');
+  if (!listEl) return;
+  if (!items.length) { listEl.innerHTML = '<div class="empty">기록된 오류가 없습니다 ✅</div>'; return; }
+  listEl.innerHTML = items.slice(0, 30).map(function (i) {
+    const d = new Date(i.ts || 0);
+    const timeStr = d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0') +
+      ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    return '<div class="err-item' + ((i.ts || 0) > lastSeen ? ' unread' : '') + '">' +
+      '<div class="err-top"><span class="err-source">' + escapeHtml(i.source || '') + '</span>' +
+      (i.tenantId ? '<span class="err-tenant">' + escapeHtml(i.tenantId) + '</span>' : '') +
+      '<span class="err-time">' + timeStr + '</span></div>' +
+      '<div class="err-msg">' + escapeHtml(i.message || '') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── 플랜/구독 관리 ──
+let _planTenantId = null;
+
+function toDateInputValue(ts) {
+  const d = new Date(ts);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function openPlanModal(id, name) {
+  _planTenantId = id;
+  document.getElementById('planModalTenantName').textContent = name;
+  document.getElementById('planMsg').classList.remove('show');
+  db.ref('tenant_meta/' + id).once('value').then(function (snap) {
+    const t = snap.val() || {};
+    document.getElementById('planSelect').value = t.plan || 'free';
+    document.getElementById('planExpiryInput').value = t.planExpiry ? toDateInputValue(t.planExpiry) : '';
+    document.getElementById('planModal').style.display = 'flex';
+  });
+}
+
+function closePlanModal() {
+  document.getElementById('planModal').style.display = 'none';
+}
+
+function savePlan() {
+  const plan = document.getElementById('planSelect').value;
+  const expiryStr = document.getElementById('planExpiryInput').value;
+  const expiry = expiryStr ? new Date(expiryStr + 'T23:59:59').getTime() : null;
+  db.ref('tenant_meta/' + _planTenantId).update({ plan: plan, planExpiry: expiry }).then(function () {
+    closePlanModal();
+    showMsg('플랜 정보가 저장되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    const el = document.getElementById('planMsg');
+    el.textContent = '저장 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+
+// ── 공지사항 ──
+function loadNotices() {
+  db.ref('notices').orderByChild('createdAt').limitToLast(30).once('value').then(function(snap) {
+    const list = document.getElementById('noticeList');
+    if (!snap.exists()) { list.innerHTML = '<div class="empty">등록된 공지사항 없음</div>'; return; }
+    const items = [];
+    snap.forEach(function(c) { items.unshift(Object.assign({id: c.key}, c.val())); });
+    const now = Date.now();
+    list.innerHTML = items.map(function(n) {
+      const expired = n.expiresAt && n.expiresAt < now;
+      const targetClass = n.target === 'all' ? 'all' : '';
+      const targetLabel = n.target === 'all' ? '전체' : n.target;
+      const expiryText = n.expiresAt ? new Date(n.expiresAt).toLocaleDateString('ko-KR') + ' 까지' : '상시';
+      return '<div class="notice-item" style="' + (expired ? 'opacity:.5' : '') + '">' +
+        '<span class="notice-target ' + targetClass + '">' + targetLabel + '</span>' +
+        '<div style="flex:1">' +
+          '<div class="notice-title">' + escapeHtml(n.title) + (expired ? ' <span style="color:#d23c2f;font-size:11px">[만료]</span>' : '') + '</div>' +
+          '<div class="notice-body">' + escapeHtml(n.content) + '</div>' +
+          '<div class="notice-meta">' + new Date(n.createdAt).toLocaleDateString('ko-KR') + ' 등록 · ' + expiryText + '</div>' +
+        '</div>' +
+        '<button class="btn sm ghost danger" onclick="deleteNotice(\'' + n.id + '\')">삭제</button>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function openNoticeModal() {
+  db.ref('tenant_meta').once('value').then(function(snap) {
+    const sel = document.getElementById('noticeTarget');
+    sel.innerHTML = '<option value="all">전체 테넌트</option>';
+    snap.forEach(function(c) {
+      const opt = document.createElement('option');
+      opt.value = c.key;
+      opt.textContent = (c.val().name || c.key) + ' (' + c.key + ')';
+      sel.appendChild(opt);
+    });
+  });
+  document.getElementById('noticeTitle').value = '';
+  document.getElementById('noticeContent').value = '';
+  document.getElementById('noticeExpiry').value = '';
+  document.getElementById('noticeMsg').className = 'msg';
+  document.getElementById('noticeModal').style.display = 'flex';
+}
+
+function closeNoticeModal() { document.getElementById('noticeModal').style.display = 'none'; }
+
+function submitNotice() {
+  const title = document.getElementById('noticeTitle').value.trim();
+  const content = document.getElementById('noticeContent').value.trim();
+  const target = document.getElementById('noticeTarget').value;
+  const expiry = document.getElementById('noticeExpiry').value;
+  const msgEl = document.getElementById('noticeMsg');
+  if (!title || !content) { msgEl.textContent = '제목과 내용을 입력해주세요'; msgEl.className = 'msg show err'; return; }
+  const notice = { title: title, content: content, target: target, createdAt: Date.now(), active: true };
+  if (expiry) notice.expiresAt = new Date(expiry).getTime() + 86399999;
+  db.ref('notices').push(notice).then(function() {
+    closeNoticeModal();
+    showMsg('공지사항이 등록되었습니다', true);
+    loadNotices();
+  });
+}
+
+function deleteNotice(noticeId) {
+  if (!confirm('공지사항을 삭제할까요?')) return;
+  db.ref('notices/' + noticeId).remove().then(function() {
+    showMsg('공지사항이 삭제되었습니다', true);
+    loadNotices();
+  });
+}
+
+// ── 온보딩 안내 복사 ──
+function copyOnboarding(tenantId, tenantName) {
+  const BASE = 'https://as9817.github.io/hat-delivery/saas/';
+  db.ref('tenant_meta/' + tenantId + '/members').once('value').then(function(snap) {
+    const members = snap.val() || {};
+    const adminList = Object.values(members).filter(function(m) { return m.role === 'admin' && m.active !== false; });
+    const emailLine = adminList.length > 0
+      ? adminList.map(function(m) { return m.email; }).join(', ')
+      : '(계정을 먼저 추가해주세요)';
+
+    const text =
+      '═══════════════════════════════\n' +
+      '  ' + tenantName + ' 햇배달 OMS/TMS 접속 안내\n' +
+      '═══════════════════════════════\n\n' +
+      '【 OMS (주문관리 시스템) 】\n' +
+      '  주소: ' + BASE + 'login.html?tenant=' + tenantId + '\n' +
+      '  로그인 이메일: ' + emailLine + '\n' +
+      '  임시 비밀번호: (발급 시 전달한 비밀번호 입력)\n\n' +
+      '  ※ OMS 내부 2차 로그인\n' +
+      '  아이디: admin\n' +
+      '  비밀번호: aswemake1234 → 첫 로그인 시 변경 필수\n\n' +
+      '【 TMS (기사용 배송 앱) 】\n' +
+      '  주소: ' + BASE + 'driver.html?tenant=' + tenantId + '\n' +
+      '  마트 코드: ' + tenantId + '\n' +
+      '  아이디/비밀번호: OMS 기사관리에서 생성 후 기사에게 별도 전달\n' +
+      '  ※ 비밀번호 분실 시: TMS 로그인 화면 하단\n' +
+      '     \'비밀번호를 잊으셨나요?\' 탭 → 마트 코드 + 아이디 + 휴대폰 번호 입력\n\n' +
+      '═══════════════════════════════\n' +
+      '문의: as9817@aswemake.com\n' +
+      '═══════════════════════════════';
+
+    navigator.clipboard.writeText(text).then(function() {
+      showMsg('📋 ' + tenantName + ' 온보딩 안내가 복사되었습니다', true);
+    }).catch(function() {
+      prompt('아래 내용을 복사하세요 (Ctrl+C):', text);
+    });
+  });
+}
+
+// ── 테넌트 브랜딩 ──
+let _brandingTenantId = null;
+
+function openBrandingModal(id, name) {
+  _brandingTenantId = id;
+  document.getElementById('brandingModalTenantName').textContent = name;
+  const msgEl = document.getElementById('brandingMsg');
+  msgEl.className = 'msg';
+  msgEl.textContent = '';
+  db.ref('tenant_meta/' + id + '/branding').once('value').then(function (snap) {
+    const b = snap.val() || {};
+    document.getElementById('brandingTitle').value = b.appTitle || '';
+    document.getElementById('brandingLogoUrl').value = b.logoUrl || '';
+    document.getElementById('brandingLogoFile').value = '';
+    document.getElementById('brandingLogoFileName').textContent = b.logoUrl ? '(기존 로고 사용 중)' : '선택된 파일 없음';
+    const color = b.primaryColor || '#1a237e';
+    document.getElementById('brandingColor').value = color;
+    document.getElementById('brandingColorHex').value = color;
+    previewBrandLogo();
+  });
+  document.getElementById('brandingModal').style.display = 'flex';
+}
+
+function closeBrandingModal() {
+  document.getElementById('brandingModal').style.display = 'none';
+  _brandingTenantId = null;
+}
+
+function onLogoFileChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('brandingLogoFileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = document.getElementById('brandLogoPreview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewBrandLogo() {
+  const url = document.getElementById('brandingLogoUrl').value.trim();
+  const img = document.getElementById('brandLogoPreview');
+  if (url) { img.src = url; img.style.display = 'block'; }
+  else { img.src = ''; img.style.display = 'none'; }
+}
+
+function syncBrandColorFromHex() {
+  const hex = document.getElementById('brandingColorHex').value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    document.getElementById('brandingColor').value = hex;
+  }
+}
+
+function saveBranding() {
+  if (!_brandingTenantId) return;
+  const appTitle = document.getElementById('brandingTitle').value.trim() || null;
+  const primaryColor = document.getElementById('brandingColor').value || '#1a237e';
+  const existingUrl = document.getElementById('brandingLogoUrl').value.trim() || null;
+  const fileInput = document.getElementById('brandingLogoFile');
+  const file = fileInput.files[0];
+  const msgEl = document.getElementById('brandingMsg');
+
+  function doSave(logoUrl) {
+    const branding = { primaryColor: primaryColor };
+    if (appTitle) branding.appTitle = appTitle;
+    if (logoUrl) branding.logoUrl = logoUrl;
+    db.ref('tenant_meta/' + _brandingTenantId + '/branding').set(branding).then(function () {
+      msgEl.textContent = '브랜딩 설정이 저장되었습니다';
+      msgEl.className = 'msg show ok';
+      setTimeout(closeBrandingModal, 1200);
+    }).catch(function (e) {
+      msgEl.textContent = '저장 오류: ' + e.message;
+      msgEl.className = 'msg show err';
+    });
+  }
+
+  if (file) {
+    msgEl.textContent = '로고 업로드 중...';
+    msgEl.className = 'msg show ok';
+    const ext = file.name.split('.').pop();
+    const ref = storage.ref('logos/' + _brandingTenantId + '/logo.' + ext);
+    ref.put(file).then(function() {
+      return ref.getDownloadURL();
+    }).then(function(url) {
+      doSave(url);
+    }).catch(function(e) {
+      msgEl.textContent = '업로드 오류: ' + e.message;
+      msgEl.className = 'msg show err';
+    });
+  } else {
+    doSave(existingUrl);
+  }
+}
+
+// ── 테넌트 비활성화 / 영구 삭제 ──
+function toggleTenantActive(id, name) {
+  db.ref('tenant_meta/' + id + '/active').once('value').then(function (snap) {
+    const newActive = snap.val() === false ? true : false;
+    const confirmMsg = newActive
+      ? '"' + name + '" 마트를 다시 활성화하시겠습니까?'
+      : '"' + name + '" 마트를 비활성화하시겠습니까?\n비활성화하면 해당 마트의 모든 계정(관리자/기사)이 로그인할 수 없게 됩니다.';
+    if (!confirm(confirmMsg)) return;
+    db.ref('tenant_meta/' + id + '/active').set(newActive).then(function () {
+      showMsg('"' + name + '" 마트가 ' + (newActive ? '활성화' : '비활성화') + '되었습니다', true);
+      loadTenants();
+    }).catch(function (e) {
+      showMsg('상태 변경 실패: ' + e.message, false);
+    });
+  });
+}
+
+function confirmDeleteTenant(id, name) {
+  const typed = prompt('"' + name + '"(' + id + ') 마트를 영구 삭제합니다.\n모든 주문/기사/설정 데이터가 삭제되며 복구할 수 없습니다.\n계속하려면 테넌트 ID를 정확히 입력하세요: ' + id);
+  if (typed === null) return;
+  if (typed !== id) { alert('테넌트 ID가 일치하지 않아 취소되었습니다.'); return; }
+
+  db.ref('tenant_meta/' + id).once('value').then(function (snap) {
+    const members = (snap.val() || {}).members || {};
+    const updates = {};
+    Object.keys(members).forEach(function (uid) { updates['users/' + uid + '/active'] = false; });
+    return db.ref().update(updates);
+  }).then(function () {
+    return db.ref('tenants/' + id).remove();
+  }).then(function () {
+    return db.ref('tenant_meta/' + id).remove();
+  }).then(function () {
+    showMsg('"' + name + '" 마트가 영구 삭제되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    showMsg('삭제 실패: ' + e.message, false);
+  });
+}
+
+function escapeHtml(s) { return (s||'').replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function escapeAttr(s) { return (s||'').replace(/'/g, "\\'"); }
+
+// 슈퍼어드민이 특정 테넌트 화면을 미리보기 위해 hd_tenant_id를 임시로 세팅
+function impersonate(tenantId, tenantName) {
+  localStorage.setItem('hd_tenant_id', tenantId);
+  localStorage.setItem('hd_tenant_name', tenantName);
+}
+
+let _addUserTenantId = null;
+
+function openAddUser(tenantId, tenantName) {
+  _addUserTenantId = tenantId;
+  document.getElementById('modalTenantName').textContent = tenantName;
+  document.getElementById('modalEmail').value = '';
+  document.getElementById('modalName').value = '';
+  document.getElementById('modalPhone').value = '';
+  document.getElementById('modalPw').value = '';
+  document.getElementById('modalRole').value = 'admin';
+  document.getElementById('modalErr').classList.remove('show');
+  document.getElementById('addUserModal').style.display = 'flex';
+}
+
+function closeAddUserModal() {
+  document.getElementById('addUserModal').style.display = 'none';
+}
+
+function submitAddUser() {
+  const tenantId = _addUserTenantId;
+  const email = document.getElementById('modalEmail').value.trim();
+  const name = document.getElementById('modalName').value.trim() || email;
+  const phone = document.getElementById('modalPhone').value.trim();
+  const pw = document.getElementById('modalPw').value;
+  const role = document.getElementById('modalRole').value;
+  const errEl = document.getElementById('modalErr');
+  errEl.classList.remove('show');
+
+  if (!email) { errEl.textContent = '이메일을 입력해주세요'; errEl.classList.add('show'); return; }
+  if (!pw || pw.length < 8) { errEl.textContent = '비밀번호는 8자 이상이어야 합니다'; errEl.classList.add('show'); return; }
+
+  secondaryAuth.createUserWithEmailAndPassword(email, pw).then(function (cred) {
+    const uid = cred.user.uid;
+    const now = Date.now();
+    const updates = {};
+    updates['users/' + uid] = { tenantId: tenantId, email: email, name: name, phone: phone, role: role, createdAt: now, active: true };
+    updates['tenant_meta/' + tenantId + '/members/' + uid] = { email: email, name: name, phone: phone, role: role, createdAt: now, active: true };
+    return db.ref().update(updates).then(function () {
+      return secondaryAuth.signOut();
+    }).catch(function (dbErr) {
+      // RTDB 저장 실패 시 Auth 계정 롤백
+      return cred.user.delete().catch(function () {}).then(function () {
+        return secondaryAuth.signOut().catch(function () {});
+      }).then(function () { throw dbErr; });
+    });
+  }).then(function () {
+    closeAddUserModal();
+    showMsg(email + ' 계정이 생성되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    errEl.textContent = '계정 생성 실패: ' + e.message;
+    errEl.classList.add('show');
+  });
+}
+
+// ── 계정 상세보기 / 관리 ──
+let _detailTenantId = null;
+let _detailUid = null;
+let _detailEmail = null;
+
+function fmtDate(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  return d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0') +
+    ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+function openMemberDetail(tenantId, uid, tenantName) {
+  _detailTenantId = tenantId;
+  _detailUid = uid;
+  document.getElementById('detailMsg').classList.remove('show');
+  document.getElementById('detailTenantName').textContent = tenantName || tenantId;
+
+  db.ref('users/' + uid).once('value').then(function (snap) {
+    const u = snap.val() || {};
+    _detailEmail = u.email || '';
+    document.getElementById('detailName').textContent = u.name || u.email || '계정 상세';
+    document.getElementById('detailEmail').textContent = u.email || '-';
+    document.getElementById('detailCreatedAt').textContent = fmtDate(u.createdAt);
+    document.getElementById('detailLastLogin').textContent = fmtDate(u.lastLogin);
+    document.getElementById('detailNameInput').value = u.name || '';
+    document.getElementById('detailPhone').value = u.phone || '';
+    document.getElementById('detailRole').value = u.role || 'staff';
+    const isActive = u.active !== false;
+    document.getElementById('detailStatus').textContent = isActive ? '활성' : '비활성';
+    document.getElementById('detailToggleBtn').textContent = isActive ? '비활성화' : '활성화';
+    document.getElementById('memberDetailModal').style.display = 'flex';
+  }).catch(function (e) {
+    showMsg('계정 정보를 불러올 수 없습니다: ' + e.message, false);
+  });
+}
+
+function closeMemberDetailModal() {
+  document.getElementById('memberDetailModal').style.display = 'none';
+}
+
+function saveMemberDetail() {
+  const role = document.getElementById('detailRole').value;
+  const name = document.getElementById('detailNameInput').value.trim();
+  const phone = document.getElementById('detailPhone').value.trim();
+  if (!name) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '성명을 입력해주세요';
+    el.className = 'msg show err';
+    return;
+  }
+  const updates = {};
+  updates['users/' + _detailUid + '/role'] = role;
+  updates['users/' + _detailUid + '/name'] = name;
+  updates['users/' + _detailUid + '/phone'] = phone;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/role'] = role;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/name'] = name;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/phone'] = phone;
+  db.ref().update(updates).then(function () {
+    closeMemberDetailModal();
+    showMsg('계정 정보가 저장되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '저장 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+
+function toggleMemberActive() {
+  db.ref('users/' + _detailUid + '/active').once('value').then(function (snap) {
+    const newActive = snap.val() === false ? true : false;
+    const updates = {};
+    updates['users/' + _detailUid + '/active'] = newActive;
+    updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid + '/active'] = newActive;
+    return db.ref().update(updates);
+  }).then(function () {
+    closeMemberDetailModal();
+    showMsg(_detailEmail + ' 계정이 ' + '상태 변경되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '상태 변경 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+
+function deleteMember() {
+  if (!_detailUid || !_detailTenantId) return;
+  if (!confirm('"' + (_detailEmail || _detailUid) + '" 계정을 삭제하시겠습니까?\n삭제하면 복구할 수 없습니다.')) return;
+  const updates = {};
+  updates['users/' + _detailUid] = null;
+  updates['tenant_meta/' + _detailTenantId + '/members/' + _detailUid] = null;
+  db.ref().update(updates).then(function () {
+    closeMemberDetailModal();
+    showMsg((_detailEmail || _detailUid) + ' 계정이 삭제되었습니다', true);
+    loadTenants();
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '삭제 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+
+function sendMemberPasswordReset() {
+  if (!_detailEmail) return;
+  auth.sendPasswordResetEmail(_detailEmail).then(function () {
+    const el = document.getElementById('detailMsg');
+    el.textContent = _detailEmail + ' 으로 비밀번호 재설정 메일을 보냈습니다';
+    el.className = 'msg show ok';
+  }).catch(function (e) {
+    const el = document.getElementById('detailMsg');
+    el.textContent = '메일 발송 실패: ' + e.message;
+    el.className = 'msg show err';
+  });
+}
+</script>
+</body>
+</html>
