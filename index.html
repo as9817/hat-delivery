@@ -605,11 +605,11 @@
       <label class="form-label">고객명</label>
       <input class="form-input" id="res-name" type="text" placeholder="고객명">
       <label class="form-label">배송 주소</label>
-      <input class="form-input" id="res-addr" placeholder="배송 주소">
-      <div id="res-detail-wrap" style="display:none;margin-top:6px">
-        <span style="font-size:12px;color:#888">상세주소</span>
-        <span id="res-detail-badge" style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:3px 10px;border-radius:6px;font-weight:700"></span>
+      <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:4px">
+        <input class="form-input" id="res-addr" placeholder="배송 주소" style="flex:1;margin-bottom:0">
+        <button id="regeo-btn" onclick="regeocodeAddr()" style="white-space:nowrap;background:#1565c0;color:#fff;border:none;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">🔍 주소변환</button>
       </div>
+      <input class="form-input" id="res-detail-addr" type="text" placeholder="상세주소 (동/호수, 층 등)" style="margin-bottom:0">
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
       <div id="res-amount-wrap" style="display:none;margin:10px 0 4px">
@@ -2080,18 +2080,12 @@ async function startOCR(file) {
     const roadAddr   = location?.road_address   || '';
     const detailAddr = location?.detail_address || '';
     // 화면엔 전체 주소 표시 (확인용), 저장은 분리
-    document.getElementById('res-name').value  = customer?.name  || '';
-    document.getElementById('res-phone').value = customer?.phone || '';
-    document.getElementById('res-addr').value  = roadAddr;
-    // 상세주소(동/호, 층 등) 별도 뱃지 표시
-    const detailWrap = document.getElementById('res-detail-wrap');
-    const detailBadge = document.getElementById('res-detail-badge');
-    if (detailAddr && detailWrap && detailBadge) {
-      detailBadge.textContent = detailAddr;
-      detailWrap.style.display = 'block';
-    } else if (detailWrap) {
-      detailWrap.style.display = 'none';
-    }
+    document.getElementById('res-name').value        = customer?.name  || '';
+    document.getElementById('res-phone').value       = customer?.phone || '';
+    document.getElementById('res-addr').value        = roadAddr;
+    document.getElementById('res-detail-addr').value = detailAddr;
+    window._ocrLat = location?.lat || null;
+    window._ocrLng = location?.lng || null;
     // 합계금액 표시
     const amountWrap = document.getElementById('res-amount-wrap');
     const amountInput = document.getElementById('res-amount');
@@ -2187,9 +2181,10 @@ function cleanAddr(s)  { return s.replace(/[^\w가-힣\s\-\.]/g,'').trim(); }
 
 function showResult(parsed) {
   console.log('showResult 실행중, parsed:', JSON.stringify(parsed));
-  document.getElementById('res-name').value  = parsed.name  || '';
-  document.getElementById('res-addr').value  = parsed.addr  || '';
-  document.getElementById('res-phone').value = parsed.phone || '';
+  document.getElementById('res-name').value        = parsed.name   || '';
+  document.getElementById('res-addr').value        = parsed.addr   || '';
+  document.getElementById('res-detail-addr').value = parsed.detail || '';
+  document.getElementById('res-phone').value       = parsed.phone  || '';
   // 좌표 임시 저장
   window._ocrLat = parsed.lat  || null;
   window._ocrLng = parsed.lng  || null;
@@ -2198,6 +2193,30 @@ function showResult(parsed) {
   console.log('goTab result 호출');
   goTab('result');
   console.log('goTab result 완료');
+}
+
+async function regeocodeAddr() {
+  const addr = document.getElementById('res-addr').value.trim();
+  if (!addr) { showToast('주소를 입력하세요'); return; }
+  const btn = document.getElementById('regeo-btn');
+  btn.textContent = '변환 중…'; btn.disabled = true;
+  try {
+    const geo = await fetch('https://asia-northeast3-wellbingmart-d5ee1.cloudfunctions.net/geocodeAddress', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: addr })
+    });
+    if (geo.ok) {
+      const d = (await geo.json()).data || {};
+      if (d.road_address) {
+        document.getElementById('res-addr').value        = d.road_address;
+        document.getElementById('res-detail-addr').value = d.detail_address || '';
+        window._ocrLat = d.lat || null;
+        window._ocrLng = d.lng || null;
+        showToast('✅ 주소 변환 완료');
+      } else { showToast('❌ 주소를 찾을 수 없습니다. 직접 수정해 주세요'); }
+    } else { showToast('변환 실패 (서버 오류)'); }
+  } catch(e) { showToast('변환 실패: ' + e.message); }
+  finally { btn.textContent = '🔍 주소변환'; btn.disabled = false; }
 }
 
 function toggleEdit() {
@@ -2220,9 +2239,10 @@ async function confirmAdd() {
   if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
 
   const ocrData    = window._pendingOCR || {};
-  let   lat        = ocrData.lat || null;
-  let   lng        = ocrData.lng || null;
-  const detailAddr = ocrData.detailAddress || '';
+  let   lat        = window._ocrLat || ocrData.lat || null;
+  let   lng        = window._ocrLng || ocrData.lng || null;
+  // 상세주소: 주소변환 버튼으로 업데이트된 입력 필드 우선
+  const detailAddr = document.getElementById('res-detail-addr').value.trim() || ocrData.detailAddress || '';
   const ocrName    = ocrData.ocrName || '';
   const ocrAddress = ocrData.ocrAddress || '';
   const totalAmount = (document.getElementById('res-amount')?.value || ocrData.totalAmount || '').trim();
