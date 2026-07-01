@@ -1,0 +1,22 @@
+[debug] [2026-06-29T03:45:02.798Z] ----------------------------------------------------------------------
+[debug] [2026-06-29T03:45:02.800Z] Command:       /usr/bin/node /sessions/loving-affectionate-hopper/.npm/_npx/7750544ccf494d8b/node_modules/.bin/firebase deploy --only functions:processReceipt
+[debug] [2026-06-29T03:45:02.800Z] CLI Version:   15.22.3
+[debug] [2026-06-29T03:45:02.800Z] Platform:      linux
+[debug] [2026-06-29T03:45:02.800Z] Node Version:  v22.22.3
+[debug] [2026-06-29T03:45:02.800Z] Detected Agent: unknown
+[debug] [2026-06-29T03:45:02.800Z] Time:          Mon Jun 29 2026 03:45:02 GMT+0000 (Coordinated Universal Time)
+[debug] [2026-06-29T03:45:02.801Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-29T03:45:02.802Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-06-29T03:45:03.551Z] No OAuth tokens found
+[debug] [2026-06-29T03:45:03.551Z] No OAuth tokens found
+[debug] [2026-06-29T03:45:03.551Z] [functions] service account IAM check errored, deploy may fail: Unable to refresh auth: not yet authenticated. {"name":"FirebaseError","children":[],"exit":1,"message":"Unable to refresh auth: not yet authenticated.","status":500}
+[error] 
+[error] Error: No currently active project.
+To run this command, you need to specify a project. You have two options:
+- Run this command with --project <alias_or_project_id>.
+- Set an active project by running firebase use --add, then rerun this command.
+To list all the Firebase projects to which you have access, run firebase projects:list.
+To learn about active projects for the CLI, visit https://firebase.google.com/docs/cli#project_aliases
+
+

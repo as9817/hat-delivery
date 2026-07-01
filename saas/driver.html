@@ -1717,6 +1717,89 @@ function loadSamples() {
 }
 
 // ══════════════════════════════════════════════════════
+// 경로 최적화 캐시
+let _routeCache = { key: null, timeBannerText: null, timeBannerStyle: null };
+
+function _routeCacheKey(pending) {
+  return pending.map(d => d.id + ':' + d.status).sort().join(',');
+}
+
+// ══════════════════════════════════════════════════════
+// 교통 정보 API 호출 (수동 새로고침도 이걸 씀)
+// ══════════════════════════════════════════════════════
+function fetchTrafficTime(orderedList) {
+  const stops = orderedList.filter(d => d.lat && d.lng);
+  if (stops.length < 1) return;
+  const martLoc = getMartLocation();
+  const originLoc = _lastGpsPos || martLoc || { lat: stops[0].lat, lng: stops[0].lng };
+  if (!originLoc?.lat) return;
+
+  const banner = document.getElementById('time-banner');
+  if (banner) {
+    banner.style.background = '#f3f4f6';
+    banner.style.color = '#888';
+    banner.style.fontWeight = 'normal';
+    banner.textContent = '🔄 교통 정보 불러오는 중…';
+  }
+  const refreshBtn = document.getElementById('traffic-refresh-btn');
+  if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = '불러오는 중…'; }
+
+  const origin      = { x: String(originLoc.lng), y: String(originLoc.lat), name: _lastGpsPos ? '현재위치' : (martLoc ? '마트' : '출발지') };
+  const destination = { x: String(stops[stops.length-1].lng), y: String(stops[stops.length-1].lat), name: '목적지' };
+  const waypoints   = stops.slice(0, -1).map((d, i) => ({ x: String(d.lng), y: String(d.lat), name: `경유${i+1}` }));
+
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 6000);
+  fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/kakaoWaypoints', {
+    method: 'POST', signal: ctrl.signal,
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+    body: JSON.stringify({ origin, destination, waypoints, priority: 'RECOMMEND' })
+  }).then(r => r.ok ? r.json() : null).then(json => {
+    clearTimeout(timeout);
+    const route = json?.data?.routes?.[0];
+    if (route?.result_code === 0) {
+      const totalSec = route.summary.duration;
+      routePath = [];
+      (route.sections || []).forEach(sec => {
+        (sec.roads || []).forEach(road => {
+          const v = road.vertexes || [];
+          for (let i = 0; i < v.length - 1; i += 2) routePath.push({ lng: v[i], lat: v[i+1] });
+        });
+      });
+      const stopMin = orderedList.reduce((s, d) => {
+        const amt = d.totalAmount || 0;
+        // 금액 기준 정차시간: 5만→2분, 10만→4분, 15만→6분, 20만~→10분
+        let base = amt >= 200000 ? 10 : amt >= 150000 ? 6 : amt >= 100000 ? 4 : 2;
+        return s + base + (/\d+동\s*\d+호|아파트|apt|빌라|오피스텔/.test((d.detailAddress||'')+(d.address||'')) ? 5 : 0);
+      }, 0);
+      const totalMin = Math.round(totalSec / 60) + stopMin;
+      const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      const bannerEl = document.getElementById('time-banner');
+      if (bannerEl) {
+        bannerEl.style.background = '#e8eaf6';
+        bannerEl.style.color = '#1a237e';
+        bannerEl.style.fontWeight = '700';
+        bannerEl.textContent = `🚗 예상 소요시간: 약 ${totalMin}분 (${now} 기준)`;
+      }
+      _routeCache.timeBannerText  = `🚗 예상 소요시간: 약 ${totalMin}분 (${now} 기준)`;
+      _routeCache.timeBannerStyle = { bg: '#e8eaf6', color: '#1a237e', fw: '700' };
+    } else {
+      const bannerEl = document.getElementById('time-banner');
+      if (bannerEl) bannerEl.remove();
+      _routeCache.timeBannerText = null;
+    }
+  }).catch(() => {
+    clearTimeout(timeout);
+    const bannerEl = document.getElementById('time-banner');
+    if (bannerEl) bannerEl.remove();
+    _routeCache.timeBannerText = null;
+  }).finally(() => {
+    const btn = document.getElementById('traffic-refresh-btn');
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 소요시간 다시 확인'; }
+  });
+}
+
+// ══════════════════════════════════════════════════════
 // 경로 최적화 (Nearest Neighbor TSP)
 // ══════════════════════════════════════════════════════
 async function optimizeRoute() {
@@ -1724,23 +1807,42 @@ async function optimizeRoute() {
   goTab('mapview');
 
   const allPending = deliveries.filter(d => d.status !== 'done');
+  const list = document.getElementById('route-list');
   if (!allPending.length) {
-    document.getElementById('route-list').innerHTML = '<div style="color:#999;text-align:center;padding:20px">배송 예정 건이 없습니다</div>';
+    _routeCache.key = null;
+    list.innerHTML = '<div style="color:#999;text-align:center;padding:20px">배송 예정 건이 없습니다</div>';
     return;
   }
+
+  const cacheKey = _routeCacheKey(allPending);
+
+  // ── 캐시 히트: 배달 목록 변경 없으면 기존 순서 유지, API 재호출 안 함
+  if (_routeCache.key === cacheKey && routeOrder.length > 0) {
+    renderRouteList(list, routeOrder);
+    // 캐시된 교통 배너 복원
+    const bannerEl = document.getElementById('time-banner');
+    if (_routeCache.timeBannerText && bannerEl) {
+      const s = _routeCache.timeBannerStyle || {};
+      bannerEl.style.background  = s.bg  || '#e8eaf6';
+      bannerEl.style.color       = s.color || '#1a237e';
+      bannerEl.style.fontWeight  = s.fw   || '700';
+      bannerEl.textContent = _routeCache.timeBannerText;
+    } else if (bannerEl) {
+      bannerEl.remove();
+    }
+    return;
+  }
+
+  // ── 캐시 미스: 새로 최적화
+  _routeCache.key = cacheKey;
+  _routeCache.timeBannerText = null;
 
   const withCoords = allPending.filter(d => d.lat && d.lng);
   const noCoords   = allPending.filter(d => !d.lat || !d.lng);
 
-  // 로딩 표시
-  const list = document.getElementById('route-list');
-  list.innerHTML = '<div style="color:#1a237e;text-align:center;padding:20px;font-weight:700">🔄 실시간 교통 반영 경로 최적화 중...</div>';
-
   let ordered = [];
   if (withCoords.length) {
     const martLoc = getMartLocation();
-
-    // Nearest Neighbor로 초기 순서 결정
     function dist(a, b) {
       const R = 6371, dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
       const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
@@ -1752,63 +1854,19 @@ async function optimizeRoute() {
       cur = remain.shift();
       ordered.push(cur);
     }
-
-    // 카카오 다중경유지 API로 실시간 교통 반영 소요시간 계산
-    try {
-      // origin: 기사 GPS → 마트 위치 → 첫 번째 배송지 순으로 폴백
-      const originLoc = _lastGpsPos || martLoc || (ordered.length ? { lat: ordered[0].lat, lng: ordered[0].lng } : null);
-      if (originLoc?.lat && originLoc?.lng && ordered.length >= 1) {
-        const originName = _lastGpsPos ? '현재위치' : (martLoc ? '마트' : '출발지');
-        const origin      = { x: String(originLoc.lng), y: String(originLoc.lat), name: originName };
-        const destination = { x: String(ordered[ordered.length-1].lng), y: String(ordered[ordered.length-1].lat), name: '목적지' };
-        const waypoints   = ordered.slice(0, -1).map((d,i) => ({ x: String(d.lng), y: String(d.lat), name: `경유${i+1}` }));
-        const r = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/kakaoWaypoints', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
-          body: JSON.stringify({ origin, destination, waypoints, priority: 'RECOMMEND' })
-        });
-        if (r.ok) {
-          const json = await r.json();
-          const route = json.data?.routes?.[0];
-          if (route?.result_code === 0) {
-            const totalSec = route.summary.duration;
-            // 실도로 좌표 추출 (vertexes: [lng, lat, lng, lat, ...])
-            routePath = [];
-            (route.sections || []).forEach(sec => {
-              (sec.roads || []).forEach(road => {
-                const v = road.vertexes || [];
-                for (let i = 0; i < v.length - 1; i += 2) {
-                  routePath.push({ lng: v[i], lat: v[i+1] });
-                }
-              });
-            });
-            // 정차시간 합산 (금액 기준 + 아파트/빌라 +5분)
-            const stopMin = ordered.reduce((s, d) => {
-              const amt = d.totalAmount || 0;
-              let base = amt >= 150000 ? 10 : amt >= 100000 ? 6 : amt >= 50000 ? 4 : 2;
-              const isApt = /\d+동\s*\d+호|아파트|apt|빌라|오피스텔/.test((d.detailAddress||'')+(d.address||''));
-              return s + base + (isApt ? 5 : 0);
-            }, 0);
-            const totalMin = Math.round(totalSec / 60) + stopMin;
-            // 상단에 예상 소요시간 배너 저장 (route 리스트와 합쳐서 표시)
-            list._timeBanner = `<div style="background:#e8eaf6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#1a237e;font-weight:700">🚗 예상 소요시간: 약 ${totalMin}분 (실시간 교통 반영)</div>`;
-          }
-        }
-      }
-    } catch(e) {
-      list.innerHTML = ''; // API 실패 시 조용히 fallback
-    }
   }
 
-  // 좌표 없는 것은 뒤에 추가
   routeOrder = [...ordered, ...noCoords];
+  renderRouteList(list, routeOrder);
+  fetchTrafficTime(routeOrder);
+}
 
-  // 경로 순서 렌더링 (시간 배너 + 드래그 가능 리스트)
-  const timeBanner = list._timeBanner || '';
-  list._timeBanner = null;
-  list.innerHTML = timeBanner + routeOrder.map((d, i) => {
-    const hasCoord = d.lat && d.lng;
-    return `
+function renderRouteList(list, order) {
+  list.innerHTML = `<div id="time-banner" style="background:#f3f4f6;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:#888"></div>
+<button id="traffic-refresh-btn" onclick="fetchTrafficTime(routeOrder)" style="width:100%;margin-bottom:12px;background:#f0f4ff;color:#1565c0;border:1.5px solid #90caf9;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">🔄 소요시간 다시 확인</button>` +
+    order.map((d, i) => {
+      const hasCoord = d.lat && d.lng;
+      return `
     <div class="route-item" data-id="${d.id}" style="${!hasCoord ? 'opacity:.7;border-left:3px solid #ccc' : ''}">
       <div class="drag-handle">☰</div>
       <div class="route-num" style="${!hasCoord ? 'background:#aaa' : ''}">${i+1}</div>
@@ -1818,17 +1876,18 @@ async function optimizeRoute() {
       </div>
       <button class="btn btn-blue" style="width:auto;padding:8px 12px;font-size:12px" onclick="launchNavSingle('${d.id}')">길찾기</button>
     </div>`;
-  }).join('');
+    }).join('');
 
-  // Sortable 초기화
   if (window._routeSortable) window._routeSortable.destroy();
   window._routeSortable = Sortable.create(list, {
     handle: '.drag-handle',
     animation: 150,
+    delay: 150,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 5,
     onEnd() {
       const newOrder = Array.from(list.querySelectorAll('.route-item'))
-        .map(el => routeOrder.find(d => d.id === el.dataset.id))
-        .filter(Boolean);
+        .map(el => routeOrder.find(d => d.id === el.dataset.id)).filter(Boolean);
       routeOrder = newOrder;
       list.querySelectorAll('.route-num').forEach((el, i) => el.textContent = i + 1);
       showToast('순서가 변경됐습니다');
@@ -1849,18 +1908,25 @@ function quickNav(id) {
   document.getElementById('nav-modal').classList.add('open');
 }
 
+let _navAllMode = false;
+
 function openAllNavModal() {
   if (!routeOrder.length) { showToast('먼저 경로를 최적화하세요'); return; }
+  _navAllMode = true;
   currentNavId = routeOrder[0].id;
-  document.getElementById('modal-addr').textContent = routeOrder[0].address + (routeOrder[0].detailAddress ? ' ' + routeOrder[0].detailAddress : '');
+  const last = routeOrder[routeOrder.length - 1];
+  document.getElementById('modal-addr').textContent =
+    `전체 ${routeOrder.length}건 경로 → 최종: ${last.address}`;
   document.getElementById('nav-modal').classList.add('open');
 }
 
 function closeNavModal() {
   document.getElementById('nav-modal').classList.remove('open');
+  _navAllMode = false;
 }
 
 function launchNavSingle(id) {
+  _navAllMode = false;
   currentNavId = id;
   const d = deliveries.find(x => x.id === id);
   if (d) {
@@ -1870,9 +1936,42 @@ function launchNavSingle(id) {
 }
 
 function launchNav(app) {
+  closeNavModal();
+
+  // 전체 경로 모드: 다중 경유지로 내비 실행
+  if (_navAllMode && routeOrder.length > 0) {
+    const stops = routeOrder.filter(d => d.lat && d.lng);
+    if (!stops.length) { showToast('좌표 있는 배송지가 없습니다'); return; }
+    const origin = _lastGpsPos || getMartLocation() || null;
+    const dest = stops[stops.length - 1];
+    const vias = stops.slice(0, -1);
+
+    if (app === 'kakao') {
+      const spPart = origin?.lat ? `sp=${origin.lat},${origin.lng}&` : '';
+      const epPart = `ep=${dest.lat},${dest.lng}`;
+      const viaPart = vias.length ? '&via=' + vias.map(d => `${d.lat},${d.lng}`).join('|') : '';
+      const deepLink = `kakaomap://route?${spPart}${epPart}${viaPart}&by=CAR`;
+      const webLink = `https://map.kakao.com/link/to/${encodeURIComponent(dest.address)},${dest.lat},${dest.lng}`;
+      window.location.href = deepLink;
+      setTimeout(() => window.open(webLink, '_blank'), 1500);
+    } else if (app === 'tmap') {
+      // T맵은 다중경유지 딥링크 미지원 → 첫 번째 목적지로 안내
+      showToast('티맵은 단일 목적지만 지원됩니다. 첫 번째 배송지로 안내합니다.');
+      const first = stops[0];
+      const url = `tmap://route?goalx=${first.lng}&goaly=${first.lat}&goalname=${encodeURIComponent(first.address)}`;
+      window.location.href = url;
+    } else if (app === 'naver') {
+      showToast('네이버는 단일 목적지만 지원됩니다. 첫 번째 배송지로 안내합니다.');
+      const first = stops[0];
+      const url = `nmap://route/car?dlat=${first.lat}&dlng=${first.lng}&dname=${encodeURIComponent(first.address)}&appname=hatdelivery`;
+      window.location.href = url;
+    }
+    return;
+  }
+
+  // 단일 목적지 모드
   const d = deliveries.find(x => x.id === currentNavId);
   if (!d) return;
-  closeNavModal();
 
   // 길찾기 시작 → ETA 계산 후 Firebase orders에 저장
   if (_fbDb) {

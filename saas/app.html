@@ -561,7 +561,8 @@ body.impersonating{padding-top:38px}
 .usage-limit-banner .ulb-close{cursor:pointer;font-weight:700;opacity:.6;padding:0 4px}
 </style>
 <!-- 카카오맵 SDK -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bcrypt.js/2.4.3/bcrypt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"
+  onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/bCrypt.min.js';document.head.appendChild(s)"></script>
 </head>
 <body>
 
@@ -1114,6 +1115,24 @@ body.impersonating{padding-top:38px}
   <div style="padding:20px">
     <h2 style="font-size:18px;font-weight:800;margin-bottom:16px">🚗 기사 관리</h2>
 
+    <!-- TMS 접속 안내 카드 -->
+    <div style="background:linear-gradient(135deg,#1a237e,#283593);border-radius:14px;padding:16px;margin-bottom:16px;color:#fff">
+      <div style="font-weight:800;font-size:14px;margin-bottom:10px">📱 기사용 TMS 접속 안내</div>
+      <div style="font-size:12px;opacity:.8;margin-bottom:8px">기사에게 아래 정보를 공유하세요</div>
+      <div style="background:rgba(255,255,255,.12);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-size:11px;opacity:.7;margin-bottom:4px">접속 주소</div>
+        <div style="font-size:13px;font-weight:700;word-break:break-all" id="tms-url-display">https://hatdelivery-saas.web.app/saas/driver.html</div>
+      </div>
+      <div style="background:rgba(255,255,255,.12);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;opacity:.7;margin-bottom:4px">마트 코드</div>
+        <div style="font-size:18px;font-weight:900;letter-spacing:2px" id="tms-tenant-code">-</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="copyTmsInfo()" style="flex:1;background:#fff;color:#1a237e;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 안내문 복사</button>
+        <button onclick="shareTmsInfo()" style="flex:1;background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔗 공유하기</button>
+      </div>
+    </div>
+
     <!-- 기사 등록 폼 -->
     <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:16px">
       <div style="font-weight:700;font-size:14px;margin-bottom:12px">신규 기사 등록</div>
@@ -1224,6 +1243,23 @@ body.impersonating{padding-top:38px}
     <div class="stats-modal-hdr">
       <div class="stats-modal-title">🚗 기사 관리</div>
       <button class="stats-modal-close" onclick="hideDriversModal()">✕</button>
+    </div>
+
+    <!-- TMS 접속 안내 카드 -->
+    <div style="background:linear-gradient(135deg,#1a237e,#283593);border-radius:12px;padding:14px;margin-bottom:14px;color:#fff">
+      <div style="font-weight:800;font-size:13px;margin-bottom:8px">📱 기사용 TMS 접속 안내</div>
+      <div style="background:rgba(255,255,255,.13);border-radius:8px;padding:10px;margin-bottom:6px">
+        <div style="font-size:10px;opacity:.7;margin-bottom:2px">접속 주소</div>
+        <div style="font-size:12px;font-weight:700;word-break:break-all">https://hatdelivery-saas.web.app/saas/driver.html</div>
+      </div>
+      <div style="background:rgba(255,255,255,.13);border-radius:8px;padding:10px;margin-bottom:10px">
+        <div style="font-size:10px;opacity:.7;margin-bottom:2px">마트 코드</div>
+        <div style="font-size:20px;font-weight:900;letter-spacing:2px" id="modal-tms-tenant-code">-</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="copyTmsInfo()" style="flex:1;background:#fff;color:#1a237e;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📋 안내문 복사</button>
+        <button onclick="shareTmsInfo()" style="flex:1;background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔗 공유하기</button>
+      </div>
     </div>
 
     <!-- 기사 등록 폼 -->
@@ -2579,7 +2615,7 @@ function goTab(tab) {
     if (inp) inp.value = '';
     renderCustDB('cdb-list');
   }
-  if (tab === 'drivers') renderDriverList();
+  if (tab === 'drivers') { initTmsInfoCard(); renderDriverList(); }
 }
 
 // ══════════════════════════════════════════
@@ -6424,11 +6460,38 @@ _fbAuth.onAuthStateChanged(user => {
 
 function showDriversModal() {
   document.getElementById('drivers-modal').classList.add('show');
+  const codeEl = document.getElementById('modal-tms-tenant-code');
+  if (codeEl && TENANT_ID) codeEl.textContent = TENANT_ID;
   renderDriverList();
 }
 function hideDriversModal(e) {
   if (e && e.target !== document.getElementById('drivers-modal')) return;
   document.getElementById('drivers-modal').classList.remove('show');
+}
+
+function initTmsInfoCard() {
+  const codeEl = document.getElementById('tms-tenant-code');
+  if (codeEl && TENANT_ID) codeEl.textContent = TENANT_ID;
+}
+
+function copyTmsInfo() {
+  const code = TENANT_ID || '-';
+  const url = 'https://hatdelivery-saas.web.app/saas/driver.html';
+  const msg = `[햇배달 TMS 기사 앱 접속 안내]\n\n📱 접속 주소:\n${url}\n\n🔑 마트 코드: ${code}\n\n위 주소로 접속 후 마트 코드와 기사 아이디/비밀번호를 입력하시면 됩니다.`;
+  navigator.clipboard.writeText(msg).then(() => showToast('✅ 안내문이 복사됐습니다')).catch(() => {
+    prompt('아래 내용을 복사하세요:', msg);
+  });
+}
+
+function shareTmsInfo() {
+  const code = TENANT_ID || '-';
+  const url = 'https://hatdelivery-saas.web.app/saas/driver.html';
+  const msg = `[햇배달 TMS] 접속 주소: ${url} / 마트 코드: ${code}`;
+  if (navigator.share) {
+    navigator.share({ title: '햇배달 TMS 접속 안내', text: msg, url }).catch(() => {});
+  } else {
+    copyTmsInfo();
+  }
 }
 
 function renderDriverList() {
