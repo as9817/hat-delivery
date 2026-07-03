@@ -116,6 +116,11 @@
       margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
     }
     .delivery-item.done { opacity: .55; }
+    .dl-tab-bar { display:flex; gap:8px; margin-bottom:12px; }
+    .dl-tab { flex:1; padding:9px 0; border:1.5px solid #e0e0e0; border-radius:10px;
+              background:#fff; font-size:13px; font-weight:700; color:#888;
+              cursor:pointer; transition:all .2s; }
+    .dl-tab.active { background:#FF6B00; border-color:#FF6B00; color:#fff; }
     .dl-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     .dl-num {
       background: #FF6B00; color: #fff; border-radius: 50%;
@@ -410,6 +415,7 @@
 </div>
 
 <div id="app">
+<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6B00;color:#fff;padding:10px 16px;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.2)"><span style="font-size:13px;font-weight:700">🔄 새 버전이 있습니다. 새로고침 해주세요.</span><button onclick="location.reload(true)" style="background:#fff;color:#FF6B00;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">새로고침</button></div>
 
   <!-- ══════════════ 홈: 배송 목록 ══════════════ -->
   <div id="home" class="screen active">
@@ -443,6 +449,10 @@
     </div>
 
     <!-- 배송 목록 -->
+    <div class="dl-tab-bar">
+      <button class="dl-tab active" id="dl-tab-active" onclick="switchDeliveryTab('active')">배송중 <span id="dl-tab-active-cnt"></span></button>
+      <button class="dl-tab" id="dl-tab-done" onclick="switchDeliveryTab('done')">완료 <span id="dl-tab-done-cnt"></span></button>
+    </div>
     <div id="delivery-list"></div>
     <div id="none" style="display:none" class="card" style="text-align:center">
       <div style="text-align:center;color:#bbb;padding:20px 0">
@@ -641,10 +651,11 @@
       <label class="form-label">배송 주소</label>
       <input class="form-input" id="res-addr" placeholder="배송 주소">
       <div id="res-detail-wrap" style="display:none;margin-top:6px">
-        <span style="font-size:12px;color:#888">상세주소</span>
-        <span id="res-detail-badge" style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:3px 10px;border-radius:6px;font-weight:700"></span>
+        <label class="form-label">상세주소 (동·호수, 층 등)</label>
+        <input class="form-input" id="res-detail-badge" type="text" placeholder="상세주소">
       </div>
       <button id="regeo-btn" onclick="regeocodeAddr()" style="margin-top:6px;width:100%;background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">🔍 주소 다시 검색하기</button>
+      <button onclick="saveLearnedAddress()" style="margin-top:6px;width:100%;background:#e8f5e9;color:#2e7d32;border:1.5px solid #a5d6a7;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">📍 학습 주소 저장하기</button>
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
       <div id="res-amount-wrap" style="display:none;margin:10px 0 4px">
@@ -799,6 +810,7 @@
 // 로그인 / 세션 관리
 // ══════════════════════════════════════════════════════
 const SESSION_KEY = 'driver_session_v1';
+const APP_VERSION = '3';  // 배포 시마다 +1
 let currentDriver = null; // { id, name, tenantId, tenantName }
 let TENANT_ID = '';
 let TENANT_NAME = '';
@@ -964,6 +976,7 @@ function doLogout() {
   document.getElementById('login-err').style.display = 'none';
 }
 
+let _versionListenerStarted = false;
 function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
   const el = document.getElementById('header-driver-name');
@@ -972,6 +985,16 @@ function showApp() {
   startGpsTracking();        // 로그인 시 GPS 자동 시작
   startFirebaseOrderSync();  // 로그인 시 배정 주문 수신 시작
   startOnlineDriversSync();  // 로그인 시 접속중 기사 동기화 시작
+  // 앱 버전 체크
+  if (_fbDb && !_versionListenerStarted) {
+    _versionListenerStarted = true;
+    firebase.database().ref('settings/appVersion').on('value', function(snap) {
+      const firebaseVer = snap.val();
+      if (firebaseVer && String(firebaseVer) !== APP_VERSION) {
+        document.getElementById('update-banner').style.display = 'flex';
+      }
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1308,6 +1331,7 @@ function saveToFirebase(item) {
 // 상태 & 유틸
 // ══════════════════════════════════════════════════════
 let deliveries = [];
+let _deliveryTab = "active";
 let currentNavId = null;
 let currentPhotoId = null;
 let routeOrder = [];
@@ -1373,6 +1397,16 @@ function goTab(tab) {
 }
 
 // ══════════════════════════════════════════════════════
+// 배송중/완료 탭 전환
+// ══════════════════════════════════════════════════════
+function switchDeliveryTab(tab) {
+  _deliveryTab = tab;
+  document.getElementById('dl-tab-active').classList.toggle('active', tab === 'active');
+  document.getElementById('dl-tab-done').classList.toggle('active', tab === 'done');
+  renderHome();
+}
+
+// ══════════════════════════════════════════════════════
 // 홈 렌더링
 // ══════════════════════════════════════════════════════
 function renderHome() {
@@ -1388,10 +1422,28 @@ function renderHome() {
   document.getElementById('progress-label').textContent =
     `${total - done}건 남음 · 완료 ${done}/${total}건`;
 
+  // 탭 카운트 업데이트 (total=0일 때도 반드시 초기화)
+  const activeCnt = deliveries.filter(d => d.status !== 'done').length;
+  const doneCnt   = deliveries.filter(d => d.status === 'done').length;
+  const cntActive = document.getElementById('dl-tab-active-cnt');
+  const cntDone   = document.getElementById('dl-tab-done-cnt');
+  if (cntActive) cntActive.textContent = activeCnt ? '(' + activeCnt + ')' : '';
+  if (cntDone)   cntDone.textContent   = doneCnt   ? '(' + doneCnt   + ')' : '';
+
   if (!total) { list.innerHTML = ''; none.style.display = 'block'; return; }
   none.style.display = 'none';
 
-  list.innerHTML = deliveries.map((d, i) => {
+  // 탭 필터링
+  const filtered = _deliveryTab === 'done'
+    ? deliveries.filter(d => d.status === 'done')
+    : deliveries.filter(d => d.status !== 'done');
+
+  if (!filtered.length) {
+    list.innerHTML = _deliveryTab === 'done'
+      ? '<div style="text-align:center;padding:32px 0;color:#aaa;font-size:14px">완료된 배송이 없습니다</div>'
+      : '<div style="text-align:center;padding:32px 0;color:#aaa;font-size:14px">배송 중인 항목이 없습니다</div>';
+  } else {
+  list.innerHTML = filtered.map((d, i) => {
     const isCancelled = d.status === 'cancelled';
     const isDone = d.status === 'done';
     return `
@@ -1414,9 +1466,10 @@ function renderHome() {
       </div>`}
     </div>`;
   }).join('');
+  } // end filtered tab
 
   // 사진 썸네일 로드
-  deliveries.filter(d => d.photoId).forEach(d => {
+  filtered.filter(d => d.photoId).forEach(d => {
     getPhoto(d.id).then(url => {
       const img = document.getElementById('thumb-' + d.id);
       if (img && url) img.src = url;
@@ -2436,12 +2489,8 @@ async function startOCR(file) {
     // 상세주소(동/호, 층 등) 별도 뱃지 표시
     const detailWrap = document.getElementById('res-detail-wrap');
     const detailBadge = document.getElementById('res-detail-badge');
-    if (detailAddr && detailWrap && detailBadge) {
-      detailBadge.textContent = detailAddr;
-      detailWrap.style.display = 'block';
-    } else if (detailWrap) {
-      detailWrap.style.display = 'none';
-    }
+    if (detailBadge) detailBadge.value = detailAddr || '';
+    if (detailWrap)  detailWrap.style.display = 'block'; // 항상 표시
     // 합계금액 표시
     const amountWrap = document.getElementById('res-amount-wrap');
     const amountInput = document.getElementById('res-amount');
@@ -2567,8 +2616,8 @@ async function regeocodeAddr() {
         document.getElementById('res-addr').value = d.road_address;
         const badge = document.getElementById('res-detail-badge');
         const wrap  = document.getElementById('res-detail-wrap');
-        if (badge) badge.textContent = d.detail_address || '';
-        if (wrap)  wrap.style.display = d.detail_address ? 'block' : 'none';
+        if (badge && d.detail_address) badge.value = d.detail_address; // 새 값 있을 때만 덮어씀
+        if (wrap)  wrap.style.display = 'block'; // 항상 표시 유지
         window._ocrLat = d.lat || null;
         window._ocrLng = d.lng || null;
         showToast('✅ 주소 변환 완료');
@@ -2591,6 +2640,24 @@ function setEditMode(on) {
   });
 }
 
+function saveLearnedAddress() {
+  const name   = document.getElementById('res-name').value.trim();
+  const addr   = document.getElementById('res-addr').value.trim();
+  const detail = document.getElementById('res-detail-badge')?.value.trim() || '';
+  if (!name || !addr) { showToast('고객명과 주소를 먼저 입력하세요'); return; }
+  if (!_fbDb) { showToast('Firebase 연결 안됨'); return; }
+  const learnData = {
+    road_address:   addr,
+    detail_address: detail,
+    lat: window._ocrLat || null,
+    lng: window._ocrLng || null,
+    updatedAt: Date.now()
+  };
+  tref('settings/learnedLocations/' + name).set(learnData)
+    .then(() => showToast(`📚 "${name}" 학습 주소 저장 완료!`))
+    .catch(e => showToast('저장 실패: ' + e.message));
+}
+
 async function confirmAdd() {
   const name  = document.getElementById('res-name').value.trim();
   const addr  = document.getElementById('res-addr').value.trim();
@@ -2600,7 +2667,7 @@ async function confirmAdd() {
   const ocrData    = window._pendingOCR || {};
   let   lat        = ocrData.lat || null;
   let   lng        = ocrData.lng || null;
-  const detailAddr = ocrData.detailAddress || '';
+  const detailAddr = (document.getElementById('res-detail-badge')?.value || ocrData.detailAddress || '').trim();
   const ocrName    = ocrData.ocrName || '';
   const ocrAddress = ocrData.ocrAddress || '';
   const totalAmount = (document.getElementById('res-amount')?.value || ocrData.totalAmount || '').trim();
