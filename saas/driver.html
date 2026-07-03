@@ -654,8 +654,21 @@
         <label class="form-label">상세주소 (동·호수, 층 등)</label>
         <input class="form-input" id="res-detail-badge" type="text" placeholder="상세주소">
       </div>
-      <button id="regeo-btn" onclick="regeocodeAddr()" style="margin-top:6px;width:100%;background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">🔍 주소 다시 검색하기</button>
-      <button onclick="saveLearnedAddress()" style="margin-top:6px;width:100%;background:#e8f5e9;color:#2e7d32;border:1.5px solid #a5d6a7;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">📍 학습 주소 저장하기</button>
+      <div class="row-btns" style="margin-top:6px">
+        <button id="regeo-btn" onclick="regeocodeAddr()" class="btn" style="background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9">🔄 도로명 주소 변환</button>
+        <button onclick="saveLearnedAddress()" class="btn" style="background:#e8f5e9;color:#2e7d32;border:1.5px solid #a5d6a7">📍 학습 주소 저장</button>
+      </div>
+      <!-- 도로명 변환 결과 비교 -->
+      <div id="addr-compare-wrap" style="display:none;margin-top:8px;background:#f0f4ff;border:1.5px solid #c5cae9;border-radius:10px;padding:10px 12px">
+        <div style="font-size:11px;color:#888;margin-bottom:4px">변환 전</div>
+        <div id="addr-before" style="font-size:12px;color:#555;margin-bottom:8px;word-break:break-all"></div>
+        <div style="font-size:11px;color:#1565c0;font-weight:700;margin-bottom:4px">🔄 변환 후 (도로명)</div>
+        <div id="addr-after" style="font-size:13px;color:#1a237e;font-weight:700;margin-bottom:10px;word-break:break-all"></div>
+        <div class="row-btns" style="margin:0">
+          <button onclick="applyConvertedAddr()" class="btn btn-orange" style="font-size:12px;padding:10px 0">✅ 이 주소 적용</button>
+          <button onclick="document.getElementById('addr-compare-wrap').style.display='none'" class="btn" style="background:#F2F2F7;color:#555;font-size:12px;padding:10px 0">✖ 닫기</button>
+        </div>
+      </div>
       <label class="form-label">연락처</label>
       <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
       <div id="res-amount-wrap" style="display:none;margin:10px 0 4px">
@@ -2613,18 +2626,18 @@ async function regeocodeAddr() {
     if (geo.ok) {
       const d = (await geo.json()).data || {};
       if (d.road_address) {
-        document.getElementById('res-addr').value = d.road_address;
-        const badge = document.getElementById('res-detail-badge');
-        const wrap  = document.getElementById('res-detail-wrap');
-        if (badge && d.detail_address) badge.value = d.detail_address; // 새 값 있을 때만 덮어씀
-        if (wrap)  wrap.style.display = 'block'; // 항상 표시 유지
-        window._ocrLat = d.lat || null;
-        window._ocrLng = d.lng || null;
-        showToast('✅ 주소 변환 완료');
+        // 변환 결과를 바로 적용하지 않고 비교 영역에 표시
+        const compareWrap = document.getElementById('addr-compare-wrap');
+        document.getElementById('addr-before').textContent = addr;
+        document.getElementById('addr-after').textContent  = d.road_address;
+        if (compareWrap) compareWrap.style.display = 'block';
+        // 변환 결과를 전역에 임시 저장 (적용 버튼 클릭 시 사용)
+        window._convertedAddr = { road_address: d.road_address, detail_address: d.detail_address || '', lat: d.lat || null, lng: d.lng || null };
+        showToast('🔄 변환 결과를 확인해 주세요');
       } else { showToast('❌ 주소를 찾을 수 없습니다. 직접 수정해 주세요'); }
     } else { showToast('변환 실패 (서버 오류)'); }
   } catch(e) { showToast('변환 실패: ' + e.message); }
-  finally { btn.textContent = '🔍 주소 다시 검색하기'; btn.disabled = false; }
+  finally { btn.textContent = '🔄 도로명 주소 변환'; btn.disabled = false; }
 }
 
 function toggleEdit() {
@@ -2638,6 +2651,21 @@ function setEditMode(on) {
   ['res-name','res-addr','res-phone'].forEach(id => {
     document.getElementById(id).readOnly = !on;
   });
+}
+
+function applyConvertedAddr() {
+  const c = window._convertedAddr;
+  if (!c) return;
+  document.getElementById('res-addr').value = c.road_address;
+  const badge = document.getElementById('res-detail-badge');
+  const wrap  = document.getElementById('res-detail-wrap');
+  if (badge && c.detail_address) badge.value = c.detail_address;
+  if (wrap) wrap.style.display = 'block';
+  window._ocrLat = c.lat;
+  window._ocrLng = c.lng;
+  document.getElementById('addr-compare-wrap').style.display = 'none';
+  window._convertedAddr = null;
+  showToast('✅ 주소가 적용됐습니다');
 }
 
 function saveLearnedAddress() {
