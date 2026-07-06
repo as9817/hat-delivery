@@ -1326,6 +1326,7 @@ function saveToFirebase(item) {
     id: item.id,
     customerName: item.customerName,
     address: item.address,
+    detailAddress: item.detailAddress || '',
     phone: item.phone || '-',
     lat: item.lat || null,
     lng: item.lng || null,
@@ -1469,6 +1470,9 @@ function renderHome() {
   list.innerHTML = filtered.map((d, i) => {
     const isCancelled = d.status === 'cancelled';
     const isDone = d.status === 'done';
+    // 필드명이 detailAddress가 아닌 다른 경로(detail_address, location.detail_address)로
+    // 저장된 과거 데이터도 표시되도록 fallback 체인 적용
+    const detailAddr = d.detailAddress || d.detail_address || d.location?.detail_address || '';
     return `
     <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
       <div class="dl-top">
@@ -1476,7 +1480,7 @@ function renderHome() {
         <div style="flex:1">
           <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
           <div class="dl-addr">${d.address}</div>
-          ${d.detailAddress ? `<div class="dl-detail-addr">${d.detailAddress}</div>` : ''}
+          ${detailAddr ? `<div class="dl-detail-addr">${detailAddr}</div>` : ''}
           <div class="dl-phone">📞 ${d.phone}${d.totalAmount ? `<span style="margin-left:8px;font-size:12px;color:#e65100;font-weight:700">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
         </div>
         ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : ''}
