@@ -130,6 +130,10 @@
     .delivery-item.done .dl-num { background: #4CAF50; }
     .dl-name { font-size: 16px; font-weight: 700; }
     .dl-addr { font-size: 13px; color: #555; margin-bottom: 4px; }
+    .dl-detail-addr {
+      display: inline-block; font-size: 12px; color: #1a237e; background: #e8eaf6;
+      padding: 2px 8px; border-radius: 6px; font-weight: 700; margin-bottom: 4px;
+    }
     .dl-phone { font-size: 12px; color: #888; }
     .dl-photo-thumb {
       width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
@@ -1471,7 +1475,8 @@ function renderHome() {
         <div class="dl-num">${i+1}</div>
         <div style="flex:1">
           <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
-          <div class="dl-addr">${d.address}${d.detailAddress ? `<span style="margin-left:6px;font-size:12px;background:#e8eaf6;color:#1a237e;padding:2px 7px;border-radius:5px;font-weight:700">${d.detailAddress}</span>` : ''}</div>
+          <div class="dl-addr">${d.address}</div>
+          ${d.detailAddress ? `<div class="dl-detail-addr">${d.detailAddress}</div>` : ''}
           <div class="dl-phone">📞 ${d.phone}${d.totalAmount ? `<span style="margin-left:8px;font-size:12px;color:#e65100;font-weight:700">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
         </div>
         ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : ''}
