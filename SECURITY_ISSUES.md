@@ -36,15 +36,38 @@
 
 ## SEC-002: Cloud Functions 인증/CORS 강화
 
-- **상태**: 🔲 Not started
+- **상태**: ✅ Deployed / Verified (2026-07-06)
 - **우선순위**: P1
-- **범위**: `processReceipt`, `geocodeAddress`, `reverseGeocode`, `kakaoWaypoints`의 인증 없는 CORS 전체 개방, `receiveOrder`의 하드코딩 기본 토큰(`'hatdelivery2026'`) 제거.
-- **비고**: 다음 작업으로 설계 예정.
+- **범위**: `processReceipt`, `geocodeAddress`, `reverseGeocode`, `kakaoWaypoints`의 인증 없는 CORS 전체 개방, `receiveOrder`의 하드코딩 기본 토큰 제거.
+- **조치**: Firebase ID Token 인증 공통 헬퍼(`verifyAuthAndResolveTenantId`) 추가. 4개 브라우저 호출 함수는 `Authorization: Bearer <idToken>` 검증 필수화, CORS `Allow-Headers`에 `Authorization` 추가. `processReceipt`는 추가로 토큰/DB로 판정한 tenantId와 `body.tenantId` 일치 여부 검사. `receiveOrder`는 `ORDER_AUTH_TOKEN` 하드코딩 폴백 제거.
+- **커밋**:
+  - `b97cb43` — chore(functions): sync deployed functions into git (geocodeAddress/reverseGeocode/kakaoWaypoints/issueDriverToken이 배포는 됐으나 git에 없던 상태를 먼저 반영, 인증 변경 없음)
+  - `f46ef32` — security(functions): require auth for browser callable functions (SEC-002 인증 로직만)
+- **배포 대상**: Firebase Functions + Hosting, 프로젝트 `hatdelivery-saas`
+- **검증 근거** (전항목 통과):
+  - `functions/index.js` 문법 검사: pass
+  - `app.html`/`driver.html` fetch 호출부 Authorization 헤더 반영: pass
+  - OPTIONS preflight 무인증 204 반환 (4개 함수): pass
+  - 미인증 호출 시 401 (`geocodeAddress`/`reverseGeocode`/`kakaoWaypoints`/`processReceipt`): pass
+  - `processReceipt` tenantId 불일치 시 403: pass
+  - `processReceipt` 본인 테넌트 인증 통과 후 다음 단계(Vision API)까지 정상 진행 확인: pass
+  - testmart 기사 계정 TMS 정상 렌더링: pass
+  - testmart 관리자 계정 OMS 정상 렌더링: pass
+  - 브라우저 콘솔 에러: 0건
+  - `receiveOrder` 하드코딩 폴백 제거 확인 + `ORDER_AUTH_TOKEN` 환경변수 명시적 설정 확인 (값은 마스킹, 기존 값과 동일하게 유지하여 MacroDroid 자동접수 연속성 확보)
+- **롤백**: 불필요 (전항목 검증 통과, 문제 발생 없음)
+- **후속 작업**:
+  - `ORDER_AUTH_TOKEN`을 더 강력한 값으로 로테이션 + MacroDroid 설정 동시 변경 (P0/P1 후속, 별도 티켓)
+  - 안정화 확인 후 레거시 `X-Api-Key`/`FUNCTION_API_KEY` 제거 (2차 정리)
+  - P1-001 (기사앱 비밀번호 찾기 Cloud Function 이전)
+  - 테넌트 내부 역할 분리
+  - 평문 비밀번호 레거시 폴백 제거
+  - 기존 미커밋 OCR/주소/반경 관련 작업 리뷰 (SEC-001/002와 분리 보존됨, 별도 diff 검토 → 테스트 → 커밋 필요)
 
 ---
 
 ## 후속 백로그 (P1/P2, 이번 범위 밖)
 
-- 테넌트 내부 역할 분리 (기사가 `settings`/`driverAccounts` 등 민감 경로를 직접 쓰지 못하게 제한)
-- 평문 비밀번호 레거시 폴백 제거 (`functions/index.js` `issueDriverToken`)
+> 테넌트 내부 역할 분리, 평문 비밀번호 폴백 제거, `ORDER_AUTH_TOKEN` 로테이션, `X-Api-Key` 제거는 SEC-002 후속 작업 항목 참고.
+
 - git 저장소 정리: `orders.json`, `functions.zip`, `functions/node_modules` 추적 해제 (히스토리 재작성 여부 별도 논의)
