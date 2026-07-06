@@ -8,11 +8,37 @@
 ## 완료
 
 ### P2: Fix @ Apartment Abbreviation Normalization
-- **Status**: ✅ Completed
+- **Status**: ✅ Deployed / Verified
 - **Commit**: `ad97c1c`
 - **Result**: `@` apartment abbreviation now normalizes correctly when used as a standalone abbreviation (previously never matched due to `\b` not forming a boundary after a non-word character).
 - **Tests**: Synthetic regression tests added (`functions/test/receipt-utils.test.js`); related tests passing.
-- **Remaining unrelated failures**: Existing stale smoke tests only (`saas/app.html` APP_VERSION assumption, `database.rules.json` simple-rule assumption) — not in scope for this fix.
+- **Remaining unrelated failures**: Existing stale smoke tests only at the time — since fixed, see below.
+- **Deploy**: See "Functions 배포: OCR/주소 파싱 리팩터 + @ 약어 수정 + 의존성 선언" entry below — code-complete and confirmed live in production.
+
+### Functions 배포: OCR/주소 파싱 리팩터 + @ 약어 수정 + 의존성 선언
+- **Status**: ✅ Deployed / Verified
+- **Scope**:
+  - `e2fda83` OCR/address parsing refactor
+  - `ad97c1c` @ apartment abbreviation fix
+  - `6675cc2` functions dependency declaration
+- **Deploy target**: Firebase Functions only, project `hatdelivery-saas`. Hosting/DB rules not touched.
+- **Evidence**:
+  - git status clean before deploy
+  - full functions test suite 63/63 pass
+  - `firebase deploy --only functions` success
+  - authenticated testmart `geocodeAddress` call: 200
+  - synthetic `@` apartment abbreviation and `A` abbreviation return identical result
+  - server log confirms query normalized to apartment wording
+  - `processReceipt` unauthenticated: 401
+  - `processReceipt` tenant mismatch: 403
+  - `processReceipt` own tenant reaches Vision stage
+  - error-level function logs: 0
+- **Result**: Production Functions now match committed OCR/address parsing changes — no remaining deploy gap.
+- **Sensitive data policy**: No real customer addresses, phone numbers, tokens, or receipt logs recorded. Details in `_bmad/tea/evidence-log.md`.
+
+### `functions/test/smoke.test.js` stale 테스트 수정 + `DEPLOY_CHECKLIST.md` API 키 마스킹
+- **Status**: ✅ Completed
+- **Commit**: `1f8fa37`
 
 ---
 
@@ -23,8 +49,6 @@
 
 ## 진행 대기 (정리/품질)
 
-- **`functions/test/smoke.test.js` stale 테스트 수정** — `saas/app.html` APP_VERSION 존재 가정(애초에 틀림), `database.rules.json` 단순 `auth != null` 가정(SEC-001로 낡아짐) 2건 수정 후 커밋.
-- **`DEPLOY_CHECKLIST.md` API 키 마스킹** — 120번째 줄 부근 실제 Google API 키 값 제거/마스킹 전까지 커밋 금지.
 - ~~**`.agents/`, `.claude/skills/` 커밋 여부 판단**~~ → **결정 완료**: `node_modules`와 동일하게 취급, `.gitignore`에 추가하고 저장소에는 포함하지 않음(각 12MB, `playwright-cli` 스킬 1개 차이만 있고 사실상 완전 중복). 필요 시 아래 명령어로 재생성:
   ```powershell
   npx bmad-method install --directory . --modules bmm --tools claude-code,codex --yes
