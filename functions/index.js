@@ -10,6 +10,15 @@ const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const { GoogleGenAI } = require('@google/genai');
 const bcrypt = require('bcryptjs');
+require('./lib/utils'); // haversineKm/scoreKeywordMatch는 lib/receipt-utils.js가 내부적으로 사용
+const {
+  resolveLearnKey,
+  kakaoAddrSearch,
+  kakaoKeywordSearch,
+  preprocessOcrText,
+  parseAddressComponents,
+} = require('./lib/receipt-utils');
+
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -88,12 +97,13 @@ exports.processReceipt = functions
       const parsed = await parseWithGemini(rawText, GEMINI_KEY);
 
       logger.info('STEP 3: Kakao API');
-      // 학습주소 먼저 확인
-      if (parsed.name) {
-        const learnedSnap = await db.ref((dbBase ? dbBase + '/' : '') + 'settings/learnedLocations/' + parsed.name).once('value').catch(() => null);
+      // 학습주소 먼저 확인 (전화번호 우선, 없으면 성명으로 fallback)
+      const learnKey = resolveLearnKey(parsed.phone, parsed.name);
+      if (learnKey) {
+        const learnedSnap = await db.ref((dbBase ? dbBase + '/' : '') + 'settings/learnedLocations/' + learnKey).once('value').catch(() => null);
         const learned = learnedSnap?.val();
         if (learned?.road_address) {
-          logger.info('학습주소 적용:', parsed.name, learned.road_address);
+          logger.info('학습주소 적용:', learnKey, learned.road_address);
           res.status(200).json({ status: 'success', data: {
             customer: { name: parsed.name, phone: parsed.phone || '' },
             location: { road_address: learned.road_address, detail_address: learned.detail_address || '', lat: learned.lat || null, lng: learned.lng || null },
@@ -115,7 +125,8 @@ exports.processReceipt = functions
       const finalMartLat = martData.lat || clientMartLat || null;
       const finalMartLng = martData.lng || clientMartLng || null;
       logger.info('주변 동 검색 순서:', nearbyDongs.join(' → '));
-      const location = await standardizeAddress(parsed.address, KAKAO_KEY, nearbyDongs, finalMartLat, finalMartLng, parsed.name);
+      const finalMartRadius = martData.nearbyRadius || null;
+      const location = await standardizeAddress(parsed.address, KAKAO_KEY, nearbyDongs, finalMartLat, finalMartLng, parsed.name, finalMartRadius);
 
       res.status(200).json({
         status: 'success',
@@ -159,27 +170,13 @@ async function parseWithGemini(rawText, apiKey) {
   // OCR 줄바꿈 오분리 보정: 숫자 뒤에서 끊긴 층/호/동 합치기
   // 예) "737-42 1\n층" → "737-42 1층"
   logger.info('[DEBUG] Vision rawText:', JSON.stringify(rawText));
-  // ⓪ 하이픈 건물번호 줄바꿈 합치기 (층/호가 바로 이어지지 않는 경우만)
-  //    예) "210-2\n6 1층" → "210-26 1층" / "737-42\n1층"은 1 뒤에 층→ 해당 없음
-  rawText = rawText.replace(/(-\d+)\n(\d+)(?![층호])/g, '$1$2');
-  // ① "숫자\n숫자 층/호" → 공백으로 연결
-  //    예) "어딘가로123\n8 1층" → "어딘가로123 8 1층"
-  rawText = rawText.replace(/(\d)\n(\d+)\s+(층|호[수]?|\d+층|\d+호)/g, '$1 $2 $3');
-  // ② "숫자\n숫자층/호" (공백 없이 붙은 경우)
-  //    예) "737-42\n1층" → "737-42 1층", "45-48\n1층" → "45-48 1층"
-  rawText = rawText.replace(/(\d)\n(\d+)(층|호)/g, '$1 $2$3');
-  // ③ 숫자 뒤 줄바꿈 후 바로 층/호/동 (공백 없이 붙이기)
-  //    예) "737-42 1\n층" → "737-42 1층"
-  rawText = rawText.replace(/(\d)\n\s*(층|호|동)/g, '$1$2');
-  // ④ 칸 이동으로 인한 한글 단어 중간 공백 제거 (한글 + 공백 + 한글+숫자 패턴)
-  //    예) "수 호2동" → "수호2동" (영수증 칸이 열로 나뉠 때 OCR이 공백으로 읽는 현상)
-  rawText = rawText.replace(/([가-힣])\s+([가-힣]\d)/g, '$1$2');
+  rawText = preprocessOcrText(rawText);
   logger.info('[DEBUG] preprocessed rawText:', JSON.stringify(rawText));
   const prompt = `너는 마트 영수증 데이터 파싱 전문가야. 아래 OCR 텍스트에서 다음 4가지를 추출해:
 1. name: 고객명 ('성명:' 옆 텍스트. '합계금액' 키워드 자체는 이름이 아님)
 2. phone: 연락처 (전화번호. 010 없이 국번만 있어도 그대로 추출. 없으면 null)
-3. address: 주소 ('주소:' 키워드 바로 뒤 텍스트만 추출. 영수증 상단 마트/가게 주소는 절대 제외. 고객 배달 주소만. 주소가 여러 줄에 걸쳐 있을 경우(다음 줄이 숫자/층/호/동으로 시작하면) 합쳐서 하나의 address로 만들어. 예1) "녹사평대로210-26\n1층" → "녹사평대로210-26 1층". 예2) "한남동 737-42\n1층" → "한남동 737-42 1층". ★중요: 숫자 사이 공백은 절대 제거하지 말 것. 예3) "45-4 8 피스릿길1층" → "45-4 8 피스릿길1층" (절대로 "45-48"로 합치면 안 됨). OCR에 있는 공백과 숫자를 그대로 보존할 것. ★칸이동 공백: 영수증 칸 구분으로 한글 단어 중간에 공백이 들어간 경우 붙여서 추출. 예4) "수 호2동 101호" → "수호2동 101호" (칸 이동으로 분리된 건물명은 합칠 것))
-4. totalAmount: 합계금액 (영수증에서 '합계', '합 계', '총합계', '결제금액' 키워드 바로 옆/아래 숫자. 쉼표 제거한 순수 숫자만. 상품 바코드나 상품코드가 아닌 최종 결제 금액)
+3. address: 주소 ('주소:' 키워드 바로 뒤 텍스트만 추출. 영수증 상단 마트/가게 주소는 절대 제외. 고객 배달 주소만. 주소가 여러 줄에 걸쳐 있을 경우(다음 줄이 숫자/층/호/동으로 시작하면) 합쳐서 하나의 address로 만들어. 예1) "녹사평대로210-26\n1층" → "녹사평대로210-26 1층". 예2) "한남동 737-42\n1층" → "한남동 737-42 1층". ★중요: 숫자 사이 공백은 절대 제거하지 말 것. 예3) "45-4 8 피스릿길1층" → "45-4 8 피스릿길1층" (절대로 "45-48"로 합치면 안 됨). OCR에 있는 공백과 숫자를 그대로 보존할 것. ★칸이동 공백: 영수증 칸 구분으로 한글 단어 중간에 공백이 들어간 경우 붙여서 추출. 예4) "수 호2동 101호" → "수호2동 101호" (칸 이동으로 분리된 건물명은 합칠 것). ★번지 줄바꿈: 번지 숫자가 두 줄에 나뉜 경우 공백 없이 붙일 것. 예5) "회나무로12나길1\n0 목멱어린이집" → "회나무로12나길10 목멱어린이집" (1과 0 사이 공백 없음). ★복수 주소: '주소:' 뒤에 "1. 주소A 2. 주소B" 처럼 번호가 매겨진 여러 주소가 있으면 가장 마지막 번호의 주소를 선택(앞 번호는 취소된 주소). 예6) "주소: 1.한신디테라스108-7\n2.민락엘레트 1903-1505" → "민락엘레트 1903-1505")
+4. totalAmount: 합계금액 (영수증에서 '합계', '합 계', '총합계', '결제금액', '착불매출', '착불금액', '매출합계' 키워드 바로 옆/아래 숫자. 쉼표 제거한 순수 숫자만. 상품 바코드나 상품코드가 아닌 최종 결제 금액)
 
 반드시 JSON({name,phone,address,totalAmount})으로만 응답. totalAmount는 숫자 문자열(예: "17300").
 
@@ -480,89 +477,26 @@ async function parseOrderWithGemini(message, apiKey) {
   try { return JSON.parse(m[0]); } catch (e) { logger.warn('JSON 파싱 실패:', m[0]); return {}; }
 }
 
-async function kakaoAddrSearch(query, kakaoKey) {
-  const res = await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=5`, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const docs = data.documents || [];
-  if (!docs.length) return null;
-  // 신주소(road_address)가 있는 결과 중 마지막(가장 최신) 선택
-  const withRoad = docs.filter(d => d.road_address?.address_name);
-  const doc = withRoad.length ? withRoad[withRoad.length - 1] : docs[0];
-  return { road_address: doc.road_address?.address_name || doc.address?.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
-}
+// kakaoAddrSearch, kakaoKeywordSearch는 lib/receipt-utils.js로 이동
+// (fetch 모킹 기반 테스트를 위해 분리 — functions/test/receipt-utils.kakao.test.js 참고)
 
-async function kakaoKeywordSearch(query, kakaoKey, martLat, martLng) {
-  if (!query?.trim()) return null;
-  const url = martLat && martLng
-    ? `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&x=${martLng}&y=${martLat}&radius=3000&size=1`
-    : `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=1`;
-  const res = await fetch(url, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const doc = data.documents?.[0];
-  if (!doc) return null;
-  return { road_address: doc.road_address_name || doc.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
-}
-
-async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLat, martLng, fallbackName) {
+async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLat, martLng, fallbackName, martRadius) {
   if (!rawAddress?.trim()) {
     // 주소 없으면 상호명/고객명으로 키워드 검색
     if (fallbackName) {
       logger.info('주소 없음 → 상호명 키워드 검색:', fallbackName);
-      const rk = await kakaoKeywordSearch(fallbackName, kakaoKey, martLat, martLng);
+      const rk = await kakaoKeywordSearch(fallbackName, kakaoKey, martLat, martLng, martRadius);
       if (rk) { logger.info('상호명 검색 성공:', rk.road_address); return { ...rk, detail_address: '' }; }
     }
     return { road_address: '', detail_address: '', lat: null, lng: null };
   }
 
-  // 아파트 약어 정규화: "용산A" / "대림APT" / "용산@" → "용산아파트" / "대림아파트"
-  rawAddress = rawAddress
-    .replace(/([가-힣]+)\s*[@A]\b/g, '$1아파트')
-    .replace(/([가-힣]+)\s*[Aa][Pp][Tt]\b/g, '$1아파트');
+  // 순수 문자열 파싱(아파트 약어 정규화, 동-호 분리, 괄호/건물명/약식 동호 분리)은
+  // lib/receipt-utils.js의 parseAddressComponents로 분리 (functions/test/receipt-utils.test.js 참고)
+  const { query: q, detailAddress: daFinal } = parseAddressComponents(rawAddress);
 
-  // Gemini가 동 이름을 주소 앞에 포함한 경우 제거
-  // "이태원동 258-116" → "258-116", "이태원1동44-50 1층" → "44-50 1층"
-  // ※ 동만 매칭 (가|로|길 제외), 한글로 시작 (숫자로 시작하는 "101동" 제외)
-  // ※ 지번 뒤에 바로 호/층이 붙으면 제거 안 함: "한신1동 703호" → 그대로 유지
-  const dongPrefixMatch = rawAddress.match(/^([가-힣][가-힣\d]*동)\s*(\d+(?:-\d+)*(?=\s|$).*)$/);
-  const rawAddressClean = dongPrefixMatch ? dongPrefixMatch[2] : rawAddress;
-
-  // 아파트 동-호 형식 정규화: "109-302호" → "109동 302호"
-  const aptDongHoMatch = rawAddressClean.match(/(\d{2,4})-(\d{2,4}호)/);
-  const aptDongHoDetail = aptDongHoMatch ? `${aptDongHoMatch[1]}동 ${aptDongHoMatch[2]}` : null;
-  const addrBase = aptDongHoDetail
-    ? rawAddressClean.slice(0, rawAddressClean.lastIndexOf(aptDongHoMatch[0])).trim()
-    : rawAddressClean;
-
-  // 지하/지중/지층 등 위치 설명어 제거 (검색 전)
-  const locDescMatch = addrBase.match(/\s*(지하|지중|지층|옥상|B\d+)$/);
-  const locDesc = locDescMatch ? locDescMatch[0].trim() : '';
-  const addrClean = locDesc ? addrBase.slice(0, addrBase.lastIndexOf(locDescMatch[0])).trim() : addrBase;
-
-  // 상세주소 패턴: 101호, 3층, 나-516, 가동 101호 등
-  // ※ \d+동 앞에 한글/숫자가 있으면 동 이름의 일부이므로 lookbehind로 제외 (예: "이태원1동" → 동호수 아님)
-  const dm = aptDongHoDetail ? null : addrClean.match(/[가-힣]?-?\d+호|\d+층|(?<![가-힣\d])\d+동\s*\d*호?|[가나다라마바사아자차카타파하]-\d+/);
-  // dm 이후 전체를 da로 사용 (예: "102동 지층 101호" → dm="102동" → da="102동 지층 101호", 뒤 정보 유실 방지)
-  const dmIdx = dm ? addrClean.lastIndexOf(dm[0].trimEnd()) : -1;
-  const da = aptDongHoDetail
-    ? [aptDongHoDetail, locDesc].filter(Boolean).join(' ')
-    : [dmIdx >= 0 ? addrClean.slice(dmIdx).trim() : '', locDesc].filter(Boolean).join(' ');
-  let q  = da && dm ? addrClean.slice(0, dmIdx).replace(/-\s*$/, '').trim() : addrClean.trim();
-  // q에 지번 뒤 건물명(한글 포함)이 남아 있으면 da 앞으로 이동
-  // 예: q="용산2가 46-3 수호2동", da="101호" → q="용산2가 46-3", da="수호2동 101호"
-  let daFull = da;
-  if (q && daFull) {
-    const extraMatch = q.match(/^(.*\d+(?:-\d+)?)\s+([가-힣].*)$/);
-    if (extraMatch) {
-      daFull = [extraMatch[2].trim(), daFull].filter(Boolean).join(' ');
-      q = extraMatch[1].replace(/-\s*$/, '').trim();
-    }
-  }
-  const daFinal = daFull || da;
-
-  // 1차: 원본 주소 검색
-  const r1 = await kakaoAddrSearch(q, kakaoKey);
+  // 1차: 원본 주소 검색 (마트 좌표 기준 거리순)
+  const r1 = await kakaoAddrSearch(q, kakaoKey, martLat, martLng, martRadius);
   if (r1) return { ...r1, detail_address: daFinal };
 
   // 주소가 숫자 시작(지번)이면 주변 동 검색, 아니면 키워드 검색(건물명/아파트)
@@ -575,7 +509,7 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     // 2차: 주변 동 이름 병렬 시도 (지번만으로) — 거리순 정렬 유지, Promise.all로 동시 요청
     if (nearbyDongs.length > 0) {
       const r2Results = await Promise.all(
-        nearbyDongs.map(dong => kakaoAddrSearch(dong + ' ' + jibunOnly, kakaoKey))
+        nearbyDongs.map(dong => kakaoAddrSearch(dong + ' ' + jibunOnly, kakaoKey, martLat, martLng, martRadius))
       );
       const r2Idx = r2Results.findIndex(r => r !== null);
       if (r2Idx !== -1) {
@@ -586,8 +520,18 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     // 3차: 건물명 있으면 키워드 검색
     if (bldgName) {
       logger.info('지번+건물명 키워드 검색:', bldgName);
-      const rk3 = await kakaoKeywordSearch(bldgName, kakaoKey, martLat, martLng);
+      const rk3 = await kakaoKeywordSearch(bldgName, kakaoKey, martLat, martLng, martRadius);
       if (rk3) { logger.info('건물명 키워드 검색 성공:', rk3.road_address); return { ...rk3, detail_address: daFinal }; }
+    }
+    // 4차: 지번만으로 주소 검색 (마트 좌표 있을 때만 — haversine으로 가장 가까운 결과 선택)
+    // nearbyDongs 없어도 마트 좌표가 있으면 "211-14" → 마트 근처 매칭 가능
+    if (martLat && martLng) {
+      const r4 = await kakaoAddrSearch(jibunOnly, kakaoKey, martLat, martLng, martRadius);
+      if (r4) {
+        const detailParts = [bldgName, daFinal].filter(Boolean).join(' ');
+        logger.info('4차 지번 단독 검색 성공:', r4.road_address, '/ 세부:', detailParts);
+        return { ...r4, detail_address: detailParts };
+      }
     }
   } else {
     // 끝에 "숫자-숫자" 패턴(동-호) 분리: "대림APT 113-104" → bldg="대림APT", unit="113-104"
@@ -599,7 +543,7 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     // 건물명/아파트 → 키워드 검색 (괄호 제거, APT→아파트 치환 후 검색)
     const qClean = searchQ.replace(/\(.*?\)/g, '').replace(/\bAPT\b/gi, '아파트').replace(/@/g, '아파트').trim();
     logger.info('건물명 키워드 검색:', qClean);
-    const rk = await kakaoKeywordSearch(qClean, kakaoKey, martLat, martLng);
+    const rk = await kakaoKeywordSearch(qClean, kakaoKey, martLat, martLng, martRadius);
     if (rk) { logger.info('키워드 검색 성공:', rk.road_address); return { ...rk, detail_address: finalDa }; }
 
     // 주소 검색 실패 시 고객명(상호명)으로 2차 시도
@@ -607,14 +551,18 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     if (fallbackName && fallbackName !== q) {
       const pureName = fallbackName.replace(/(지하|[0-9]+층|B[0-9]+|옥상)$/g, '').trim();
       logger.info('고객명으로 2차 키워드 검색:', pureName);
-      const rk2 = await kakaoKeywordSearch(pureName, kakaoKey, martLat, martLng);
+      const rk2 = await kakaoKeywordSearch(pureName, kakaoKey, martLat, martLng, martRadius);
       if (rk2) { logger.info('고객명 검색 성공:', rk2.road_address); return { ...rk2, detail_address: daFinal }; }
     }
   }
 
-  return { road_address: rawAddress, detail_address: '', lat: null, lng: null };
+  // 카카오 검색 완전 실패 — 파싱된 세부주소(daFinal)는 그대로 반환
+  return { road_address: q || rawAddress, detail_address: daFinal || '', lat: null, lng: null };
 }
 
+// ══════════════════════════════════════════════════════
+// geocodeAddress: 주소 → 좌표 변환 프록시
+// ══════════════════════════════════════════════════════
 exports.geocodeAddress = functions
   .region('asia-northeast3')
   .runWith({ timeoutSeconds: 15, memory: '128MB' })
@@ -645,7 +593,6 @@ exports.geocodeAddress = functions
 // ══════════════════════════════════════════════════════
 // reverseGeocode: 좌표 → 행정동 배치 변환 프록시
 // ══════════════════════════════════════════════════════
-
 exports.reverseGeocode = functions
   .region('asia-northeast3')
   .runWith({ timeoutSeconds: 30, memory: '256MB' })
@@ -689,7 +636,6 @@ exports.reverseGeocode = functions
 // ══════════════════════════════════════════════════════
 // kakaoWaypoints: 카카오 다중경유지 경로 최적화 프록시
 // ══════════════════════════════════════════════════════
-
 exports.kakaoWaypoints = functions
   .region('asia-northeast3')
   .runWith({ timeoutSeconds: 30, memory: '256MB' })
@@ -732,7 +678,6 @@ exports.kakaoWaypoints = functions
 // ══════════════════════════════════════════════════════
 // issueDriverToken: 기사 로그인 → Firebase Custom Token 발급
 // ══════════════════════════════════════════════════════
-
 exports.issueDriverToken = functions
   .region('asia-northeast3')
   .runWith({ timeoutSeconds: 15, memory: '128MB' })
