@@ -162,6 +162,12 @@ const dbBase = tenantId ? `tenants/${tenantId}` : '';
 - `collectRadius`: 주변 동(nearbyDongs) 자동 수집 반경 (OMS 설정)
 - `nearbyRadius`: OCR 영수증 주소 검색 허용 반경 = 배달 커버 반경 (Cloud Function에서 사용)
 
+### 도로명 주소 변환 흐름 (driver.html, regeocodeAddr)
+- 변환 결과를 `res-addr` 에 바로 덮어쓰지 않음
+- `window._convertedAddr` 에 임시 저장 후 `#addr-compare-wrap` 카드에 전/후 표시
+- 사용자가 "✅ 이 주소 적용" 클릭 시 `applyConvertedAddr()` 호출 → `res-addr` 교체
+- "✖ 닫기" 클릭 시 원본 주소 유지, 카드만 숨김
+
 ---
 
 ## 알려진 이슈 / 주의사항
