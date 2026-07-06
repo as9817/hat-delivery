@@ -6,3 +6,5 @@ node_modules/
 .playwright-mcp/
 .fuse_hidden*
 .claude/settings.local.json
+.agents/
+.claude/skills/

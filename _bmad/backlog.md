@@ -25,7 +25,11 @@
 
 - **`functions/test/smoke.test.js` stale 테스트 수정** — `saas/app.html` APP_VERSION 존재 가정(애초에 틀림), `database.rules.json` 단순 `auth != null` 가정(SEC-001로 낡아짐) 2건 수정 후 커밋.
 - **`DEPLOY_CHECKLIST.md` API 키 마스킹** — 120번째 줄 부근 실제 Google API 키 값 제거/마스킹 전까지 커밋 금지.
-- **`.agents/`, `.claude/skills/` 커밋 여부 판단** — BMAD 설치물(각 12MB, 재생성 가능). 커밋해서 팀과 공유할지, node_modules처럼 취급할지 결정 필요.
+- ~~**`.agents/`, `.claude/skills/` 커밋 여부 판단**~~ → **결정 완료**: `node_modules`와 동일하게 취급, `.gitignore`에 추가하고 저장소에는 포함하지 않음(각 12MB, `playwright-cli` 스킬 1개 차이만 있고 사실상 완전 중복). 필요 시 아래 명령어로 재생성:
+  ```powershell
+  npx bmad-method install --directory . --modules bmm --tools claude-code,codex --yes
+  npx bmad-method install --directory . --custom-source https://github.com/bmad-code-org/bmad-method-test-architecture-enterprise --tools claude-code,codex --action update --yes
+  ```
 - **`standardizeAddress` 오케스트레이션 통합 테스트** — 1~4차 폴백 순서 전체와 Gemini 프롬프트 동작(복수주소 선택 등)은 아직 통합 테스트 없음. 순수 함수 단위(문자열 파싱, 후보 선택)는 커버됨.
 - **git 저장소 정리** — `orders.json`, `functions.zip`, `functions/node_modules` 히스토리 내 잔존 여부 및 재작성(BFG 등) 필요성 별도 논의.
 
