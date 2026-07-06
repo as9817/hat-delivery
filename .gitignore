@@ -1,0 +1,8 @@
+functions/node_modules/
+functions/.env
+node_modules/
+.firebase/
+*.log
+.playwright-mcp/
+.fuse_hidden*
+.claude/settings.local.json
