@@ -1,7 +1,24 @@
 {
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "functions/**"]
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "functions/**",
+      "functions.zip",
+      "orders.json",
+      "영수증_다운로드/**",
+      "영수증_테스트용/**",
+      "database.rules.json",
+      "hongdae/**",
+      "*.ps1",
+      "*.bat",
+      "*.md",
+      "*.xlsx",
+      "download-receipts.js",
+      "*.json.bak"
+    ]
   },
   "functions": {
     "source": "functions",
