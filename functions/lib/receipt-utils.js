@@ -114,8 +114,11 @@ function preprocessOcrText(rawText) {
  */
 function parseAddressComponents(rawAddress) {
   // 아파트 약어 정규화: "용산A" / "대림APT" / "용산@" → "용산아파트" / "대림아파트"
+  // ※ '@'는 word character가 아니라서 \b가 절대 성립하지 않음 — 뒤에 영숫자가
+  //   바로 이어지지 않는지(negative lookahead)로 \b와 동등한 조건을 대신 사용
   let addr = rawAddress
-    .replace(/([가-힣]+)\s*[@A]\b/g, '$1아파트')
+    .replace(/([가-힣]+)\s*@(?![A-Za-z0-9_])/g, '$1아파트')
+    .replace(/([가-힣]+)\s*A\b/g, '$1아파트')
     .replace(/([가-힣]+)\s*[Aa][Pp][Tt]\b/g, '$1아파트');
 
   // Gemini가 동 이름을 주소 앞에 포함한 경우 제거

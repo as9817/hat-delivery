@@ -47,14 +47,29 @@ describe('preprocessOcrText', () => {
 });
 
 describe('parseAddressComponents', () => {
-  // 기존(WIP) 정규식 /[@A]\b/ 는 '@'가 word character가 아니라서 \b가 성립하지 않아
-  // '@' 케이스는 실제로 치환되지 않는 기존 버그가 있음(회귀 기준선으로 고정, 수정은 별도 이슈).
-  it('[알려진 버그] 아파트 약어(@)는 \\b 조건 때문에 치환되지 않음 — 현재 동작 고정', () => {
-    const { query } = parseAddressComponents('가상마을@ 101-203호');
-    assert.equal(query, '가상마을@', '이 값이 바뀌면 @ 처리 버그가 고쳐졌다는 뜻 — 아래 테스트를 "아파트"로 갱신할 것');
+  // 과거(WIP) 정규식 /[@A]\b/ 는 '@'가 word character가 아니라서 \b가 절대 성립하지
+  // 않아 '@' 케이스가 치환되지 않는 버그가 있었음. '@'는 negative lookahead
+  // ((?![A-Za-z0-9_]))로 \b와 동등한 조건을 대신 적용해 수정함.
+  it('아파트 약어(@, 뒤에 공백+동호)는 정상 치환됨', () => {
+    const { query, detailAddress } = parseAddressComponents('가상마을@ 101-203호');
+    assert.equal(query, '가상마을아파트');
+    assert.equal(detailAddress, '101동 203호');
   });
 
-  it('아파트 약어(A, 단독 뒤 공백/끝)는 정상 치환됨', () => {
+  it('아파트 약어(@, 문자열 끝)는 정상 치환됨', () => {
+    const { query } = parseAddressComponents('용산@');
+    assert.equal(query, '용산아파트');
+  });
+
+  it('@ 뒤에 영숫자가 바로 이어지면(예: 이메일 형태) "아파트"로 치환하지 않음', () => {
+    // "101동"은 별개의 동호수 분리 로직이 detailAddress로 뽑아가므로 query에는
+    // "용산@"만 남음 — 여기서 확인하려는 건 "@"가 "아파트"로 바뀌지 않았다는 것
+    const { query } = parseAddressComponents('용산@101동');
+    assert.equal(query, '용산@', 'A 케이스와 동일하게 뒤에 영숫자가 바로 붙으면 경계로 보지 않아야 함');
+    assert.ok(!query.includes('아파트'), `@가 잘못 치환됨: ${query}`);
+  });
+
+  it('아파트 약어(A, 단독 뒤 공백/끝)는 계속 정상 치환됨', () => {
     const { query } = parseAddressComponents('가상마을A 101-203호');
     assert.equal(query, '가상마을아파트');
   });
