@@ -47,3 +47,23 @@
   - `firebase functions:log`에서 에러 레벨 로그 0건 확인
 - **Result**: 프로덕션 Functions가 커밋된 OCR/주소 파싱 변경 사항과 완전히 일치 — 남은 배포 갭 없음.
 - **Sensitive data policy**: 실제 고객 주소/전화번호/토큰/영수증 로그는 기록하지 않음. 검증 중 우연히 노출된 이전 실사용 로그(영수증 스캔 기록)는 본 로그에도, 대화 응답에도 옮겨 적지 않음.
+
+## 2026-07-06 — TMS: saveToFirebase() detailAddress 필드 누락 버그 수정 배포 검증
+
+- **대상**: `saas/driver.html` — `saveToFirebase()` (Firebase 저장 필드 화이트리스트), `renderHome()` (표시 폴백 체인)
+- **발견 경위**: 이전 라운드(TMS 배송목록 상세주소 표시, 커밋 `b7f08d8`)에서 렌더링 로직만 수정하고, 합성 데이터를 `firebase database:set`으로 직접 주입해 렌더링만 검증했음. 실제 사용자가 영수증 인식 → 확인 화면 → "배송 목록에 추가" 흐름으로 저장한 경우 `detailAddress`가 저장 단계에서 누락되어 새로고침/재접속 후 사라지는 문제를 사용자가 스크린샷으로 제보.
+- **Root cause**: `saveToFirebase(item)`이 Firebase에 쓰는 주문 객체를 명시적 필드 목록으로 구성하는데, 그 목록에 `detailAddress`가 없었음(다른 필드는 다 있는데 이것만 누락).
+- **Fix**: `detailAddress: item.detailAddress || ''` 추가. `renderHome()`에 `d.detailAddress || d.detail_address || d.location?.detail_address` 폴백 체인 추가(이미 저장된 구버전 레코드/다른 경로 호환용).
+- **커밋**: `92576e2`
+- **배포**: `firebase deploy --only hosting --project hatdelivery-saas`
+- **배포 후 라이브 검증 절차 및 이슈**:
+  1. curl로 배포된 `driver.html` 소스에 수정된 코드가 포함됐는지 1차 확인(정적 확인)
+  2. Playwright로 기존에 열려있던 브라우저 탭에서 실제 `confirmAdd()` 함수를 호출해 합성 테스트 주문(테스트고객4) 저장 → Firebase 조회 결과 `detailAddress` 필드 자체가 없음(빈 문자열도 아니고 키 자체가 없음) → **이상 신호**
+  3. 원인 조사: 배포 시각(`Last-Modified` 헤더, KST 16:59:37)과 테스트 주문 생성 시각(KST 17:00:59)을 비교하면 배포 자체는 이미 완료된 시점이었음 → 배포 문제가 아니라, 해당 브라우저 탭이 배포 이전부터 열려 있어 메모리 상의 구버전 JS로 동작한 것으로 결론(페이지를 다시 로드하지 않으면 서버 파일이 갱신돼도 실행 중인 스크립트는 그대로임)
+  4. 캐시버스팅 쿼리로 페이지 하드 리로드 → `document.scripts` 텍스트에 수정된 코드 문자열이 포함됨을 재확인(`hasFix: true`)
+  5. 하드 리로드된 페이지에서 다시 로그인, 실제 `confirmAdd()`로 합성 주문(테스트고객5, "3105동 502호 (공동현관 비번 미기재)") 추가 → Firebase 조회 결과 `detailAddress` 필드 정상 저장 확인
+  6. 배송목록 카드 스냅샷에서 큰 주소(가상로 5) 아래 상세주소 라인 정상 표시 확인
+  7. 페이지 새로고침 + 재로그인 후에도 카드에 상세주소 그대로 유지됨을 재확인(realtime resync 이후에도 데이터 손실 없음)
+  8. 테스트 주문 2건(테스트고객4, 테스트고객5) Firebase에서 삭제, 잔존 테스트 데이터 없음을 재조회로 확인
+- **Result**: 프로덕션에서 실제 저장 → 실시간 동기화 → 새로고침 전 과정에 걸쳐 상세주소 데이터 손실 없음을 확인. 이번 검증에서 얻은 방법론적 교훈: **Cloud Function/Hosting 배포 검증 시, 배포 시각뿐 아니라 테스트에 사용하는 브라우저 탭/세션이 배포 이후에 새로 로드됐는지도 함께 확인해야 함** — 배포는 정상이어도 오래된 탭에서 테스트하면 거짓 음성(false negative)이 발생할 수 있음.
+- **Sensitive data policy**: 실제 고객 이름/주소/전화번호 미사용, 합성 데이터만 사용. 테스트 주문은 검증 직후 삭제.
