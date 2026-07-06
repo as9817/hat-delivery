@@ -829,6 +829,12 @@ let TENANT_ID = '';
 let TENANT_NAME = '';
 const FUNCTION_API_KEY = 'd955ba17588f3ec9057caffaa8dd874467efe84852194988c7363ed4cfa732bc';
 
+// SEC-002: Cloud Functions 호출용 Firebase ID Token 헤더
+async function _authHeader() {
+  const token = await _fbAuth.currentUser.getIdToken();
+  return { 'Authorization': 'Bearer ' + token };
+}
+
 function getSession() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
 }
@@ -1816,11 +1822,11 @@ function fetchTrafficTime(orderedList) {
 
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), 6000);
-  fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/kakaoWaypoints', {
+  _authHeader().then(authHeader => fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/kakaoWaypoints', {
     method: 'POST', signal: ctrl.signal,
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
     body: JSON.stringify({ origin, destination, waypoints, priority: 'RECOMMEND' })
-  }).then(r => r.ok ? r.json() : null).then(json => {
+  })).then(r => r.ok ? r.json() : null).then(json => {
     clearTimeout(timeout);
     const route = json?.data?.routes?.[0];
     if (route?.result_code === 0) {
@@ -2476,9 +2482,10 @@ async function startOCR(file) {
     // 2단계: Cloud Function 호출 (마트 위치 Firebase에서 최신값 읽어서 전달)
     setStep('step-init', 'active');
     const mart = await loadMartLocationFromFirebase().catch(() => null);
+    const authHeader = await _authHeader();
     const response = await fetch(CLOUD_FN, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
       body: JSON.stringify({ imageBase64: base64, tenantId: TENANT_ID, martLat: mart?.lat || null, martLng: mart?.lng || null })
     });
     setStep('step-init', 'done');
@@ -2619,8 +2626,9 @@ async function regeocodeAddr() {
   btn.textContent = '변환 중…'; btn.disabled = true;
   try {
     const mart = getMartLocation();
+    const authHeader = await _authHeader();
     const geo = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/geocodeAddress', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
       body: JSON.stringify({ address: addr, martLat: mart?.lat || null, martLng: mart?.lng || null })
     });
     if (geo.ok) {
@@ -2707,8 +2715,9 @@ async function confirmAdd() {
   if (addrChanged) {
     try {
       // 수정된 주소로 좌표 재획득 (geocodeAddress Cloud Function 사용)
+      const authHeader = await _authHeader();
       const geo = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/geocodeAddress', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
         body: JSON.stringify({ address: addr })
       });
       if (geo.ok) {

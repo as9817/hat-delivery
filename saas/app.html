@@ -1859,6 +1859,12 @@ window.addEventListener('unhandledrejection', function (e) { logSystemError(e.re
 const FUNCTION_API_KEY = 'd955ba17588f3ec9057caffaa8dd874467efe84852194988c7363ed4cfa732bc';
 const FUNCTIONS_URL = 'https://asia-northeast3-hatdelivery-saas.cloudfunctions.net';
 
+// SEC-002: Cloud Functions 호출용 Firebase ID Token 헤더
+async function _authHeader() {
+  const token = await _fbAuth.currentUser.getIdToken();
+  return { 'Authorization': 'Bearer ' + token };
+}
+
 // 테넌트 컨텍스트 (멀티테넌트 핵심 로직)
 // ══════════════════════════════════════════
 let TENANT_ID = localStorage.getItem('hd_tenant_id') || '';
@@ -5861,9 +5867,10 @@ async function collectNearbyDongs(lat, lng, maxRadius = 3) {
         });
 
     try {
+      const authHeader = await _authHeader();
       const res = await fetch(`${FUNCTIONS_URL}/reverseGeocode`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
         body: JSON.stringify({ coords: samples.map(s => ({ lat: s.lat, lng: s.lng })) })
       });
       if (res.ok) {
@@ -5978,9 +5985,10 @@ async function saveLearnedLocation(key) {
   // Cloud Function으로 좌표 재검색
   let lat = null, lng = null;
   try {
+    const authHeader = await _authHeader();
     const res = await fetch(`${FUNCTIONS_URL}/geocodeAddress`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
       body: JSON.stringify({ address: addr })
     });
     const json = await res.json();
@@ -6208,9 +6216,10 @@ async function _kakaoRouteOptimize(orderIds, allPts) {
   const waypoints   = orderedPts.slice(0, -1).map((p, i) => ({ x: String(p.lng), y: String(p.lat), name: `경유${i+1}` }));
 
   try {
+    const authHeader = await _authHeader();
     const r = await fetch(`${FUNCTIONS_URL}/kakaoWaypoints`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY },
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
       body: JSON.stringify({ origin, destination, waypoints, priority: 'RECOMMEND' })
     });
     if (!r.ok) return null;

@@ -16,18 +16,59 @@ if (!admin.apps.length) {
 }
 const db = admin.database();
 
+// ══════════════════════════════════════════════════════
+// SEC-002: Firebase ID Token 인증 공통 헬퍼
+// Authorization: Bearer <idToken> 검증 후 uid/tenantId/superadmin 여부 반환
+// ══════════════════════════════════════════════════════
+async function verifyAuthAndResolveTenantId(req) {
+  const authHeader = req.headers['authorization'] || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return { authError: 401, message: '인증 토큰 없음' };
+
+  let decoded;
+  try {
+    decoded = await admin.auth().verifyIdToken(idToken);
+  } catch (e) {
+    return { authError: 401, message: '유효하지 않은 인증 토큰' };
+  }
+
+  const uid = decoded.uid;
+
+  const superadminSnap = await db.ref('superadmins/' + uid).once('value');
+  if (superadminSnap.val() === true) {
+    return { uid, isSuperadmin: true, tenantId: null };
+  }
+
+  if (decoded.tenantId) {
+    // 기사 커스텀 토큰
+    return { uid, isSuperadmin: false, tenantId: decoded.tenantId };
+  }
+
+  // 일반 관리자 계정: users/{uid}/tenantId 조회
+  const userSnap = await db.ref('users/' + uid + '/tenantId').once('value');
+  const tenantId = userSnap.val() || null;
+  return { uid, isSuperadmin: false, tenantId };
+}
+
 exports.processReceipt = functions
   .region('asia-northeast3')
   .runWith({ timeoutSeconds: 60, memory: '512MB' })
   .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key, Authorization');
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ status: 'error', message: 'POST only' }); return; }
 
     const { imageBase64, tenantId, martLat: clientMartLat, martLng: clientMartLng } = req.body;
     if (!imageBase64) { res.status(400).json({ status: 'error', message: 'imageBase64 없음' }); return; }
+
+    const authResult = await verifyAuthAndResolveTenantId(req);
+    if (authResult.authError) { res.status(authResult.authError).json({ status: 'error', message: authResult.message }); return; }
+    if (!authResult.isSuperadmin && authResult.tenantId !== tenantId) {
+      res.status(403).json({ status: 'error', message: '테넌트 권한 없음' }); return;
+    }
+
     // 멀티테넌트: tenantId가 있으면 테넌트 경로 사용
     const dbBase = tenantId ? `tenants/${tenantId}` : '';
 
@@ -172,8 +213,9 @@ exports.receiveOrder = functions
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).json({ error: 'POST only' }); return; }
 
-    // 인증 토큰 확인
-    const AUTH_TOKEN = process.env.ORDER_AUTH_TOKEN || 'hatdelivery2026';
+    // 인증 토큰 확인 (SEC-002: 기본값 폴백 제거, 환경변수 미설정 시 즉시 실패)
+    const AUTH_TOKEN = process.env.ORDER_AUTH_TOKEN;
+    if (!AUTH_TOKEN) { res.status(500).json({ error: 'ORDER_AUTH_TOKEN 미설정' }); return; }
     const token = req.headers['x-auth-token'];
     if (token !== AUTH_TOKEN) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
@@ -579,8 +621,11 @@ exports.geocodeAddress = functions
   .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key, Authorization');
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+    const authResult = await verifyAuthAndResolveTenantId(req);
+    if (authResult.authError) { res.status(authResult.authError).json({ status: 'error', message: authResult.message }); return; }
 
     const KAKAO_KEY = process.env.KAKAO_KEY;
     if (!KAKAO_KEY) { res.status(500).json({ status: 'error', message: 'KAKAO_KEY 미설정' }); return; }
@@ -607,8 +652,11 @@ exports.reverseGeocode = functions
   .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key, Authorization');
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+    const authResult = await verifyAuthAndResolveTenantId(req);
+    if (authResult.authError) { res.status(authResult.authError).json({ status: 'error', message: authResult.message }); return; }
 
     const KAKAO_KEY = process.env.KAKAO_KEY;
     if (!KAKAO_KEY) { res.status(500).json({ status: 'error', message: 'KAKAO_KEY 미설정' }); return; }
@@ -648,8 +696,11 @@ exports.kakaoWaypoints = functions
   .https.onRequest(async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key, Authorization');
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+    const authResult = await verifyAuthAndResolveTenantId(req);
+    if (authResult.authError) { res.status(authResult.authError).json({ status: 'error', message: authResult.message }); return; }
 
     const KAKAO_KEY = process.env.KAKAO_KEY;
     if (!KAKAO_KEY) { res.status(500).json({ status: 'error', message: 'KAKAO_KEY 미설정' }); return; }
