@@ -419,7 +419,7 @@
 </div>
 
 <div id="app">
-<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6B00;color:#fff;padding:10px 16px;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.2)"><span style="font-size:13px;font-weight:700">🔄 새 버전이 있습니다. 새로고침 해주세요.</span><button onclick="location.reload(true)" style="background:#fff;color:#FF6B00;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">새로고침</button></div>
+<div id="update-banner" style="display:none;position:sticky;top:0;z-index:9999;background:#FF6B00;color:#fff;padding:10px 16px;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.2)"><span style="font-size:13px;font-weight:700">🔄 새 버전이 배포되었습니다. 새로고침해주세요.</span><button onclick="location.reload(true)" style="background:#fff;color:#FF6B00;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">새로고침</button></div>
 
   <!-- ══════════════ 홈: 배송 목록 ══════════════ -->
   <div id="home" class="screen active">
@@ -827,7 +827,7 @@
 // 로그인 / 세션 관리
 // ══════════════════════════════════════════════════════
 const SESSION_KEY = 'driver_session_v1';
-const APP_VERSION = '3';  // 배포 시마다 +1
+const APP_VERSION = '4';  // 배포 시마다 +1
 let currentDriver = null; // { id, name, tenantId, tenantName }
 let TENANT_ID = '';
 let TENANT_NAME = '';

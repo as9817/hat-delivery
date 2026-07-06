@@ -54,6 +54,7 @@ git diff
 - TMS 로그인 플로우 정상 여부
 - Firebase 주문 저장/읽기 영향 여부
 - 로컬스토리지 필드 변경 시 기존 데이터 호환성
+- **`APP_VERSION` 상수 +1 갱신 여부** (아래 "4-1. driver.html(TMS) 버전 갱신" 참고 — 빠뜨리면 기존에 열려있던 탭이 업데이트 배너를 못 보고 구버전으로 계속 동작함)
 
 ### saas/app.html 변경 시
 - OMS 로그인 → 주문 조회 → 배차 플로우 영향 여부
@@ -82,6 +83,34 @@ firebase deploy --project hatdelivery-saas
 
 ---
 
+## 4-1. driver.html(TMS) 버전 갱신 (필수, 수동)
+
+TMS는 실행 중인 탭이 새 배포를 스스로 감지하지 못합니다. `saas/driver.html`의
+`APP_VERSION` 상수와 Firebase `settings/appVersion` 값이 일치하지 않을 때만
+기존 탭에 업데이트 배너(🔄)가 뜨는 구조이므로, **아래 두 단계를 모두** 거쳐야
+실제로 알림이 동작합니다. 하나라도 빠뜨리면 이미 열려있던 탭은 아무 알림 없이
+구버전으로 계속 동작합니다.
+
+1. **배포 전**: `saas/driver.html`의 `const APP_VERSION = 'N';` 값을 +1 (커밋에 포함)
+2. **`firebase deploy --only hosting` 완료 직후**: Firebase `settings/appVersion`을
+   동일한 값으로 갱신
+   ```powershell
+   $TOKEN = (gcloud auth print-access-token)
+   Invoke-RestMethod -Method Put `
+     -Uri "https://hatdelivery-saas-default-rtdb.firebaseio.com/settings/appVersion.json" `
+     -Headers @{ Authorization = "Bearer $TOKEN" } `
+     -Body '"N"'
+   ```
+3. 배너 문구는 기본적으로 **"새 버전이 배포되었습니다. 새로고침해주세요."** 로 고정.
+   - 이번 배포에 **인증/권한 변경**(SEC 계열 핫픽스 등)이 포함된 경우에만, 새로고침만으로는
+     세션 클레임/토큰이 갱신되지 않을 수 있으므로 배너 문구에 "로그아웃 후 다시
+     로그인해주세요" 안내를 추가하는 것을 검토. (현재 배너 구현은 기본 문구 고정형이며,
+     이 예외 문구는 아직 코드로 자동화되어 있지 않음 — 인증 변경 배포 시 수동으로
+     `saas/driver.html`의 `#update-banner` 문구를 임시로 바꿔서 배포하거나, 필요성이
+     반복되면 별도 작업으로 조건부 문구 처리를 추가)
+
+---
+
 ## 5. 배포 후 검증
 
 ### Functions 변경 시
@@ -94,6 +123,10 @@ firebase deploy --project hatdelivery-saas
 - [ ] OMS 로그인 → 주문 조회 동작 확인
 - [ ] TMS 로그인 → 배달 목록 → 완료 체크 → 취소 동작 확인
 - [ ] Firebase RTDB에서 `orders/` 경로에 데이터 정상 저장 확인
+- [ ] `driver.html` 변경 배포 시: `settings/appVersion` 갱신 후, **새로고침하지 않은
+      기존 탭**에서 업데이트 배너가 뜨는지 확인 → 새로고침 시 배너가 사라지는지 확인
+      (탭을 새로 열어서 테스트하면 이미 새 버전을 받아버려 이 검증이 무의미해짐 — 반드시
+      배포 전부터 열려있던 탭으로 확인)
 
 ---
 
