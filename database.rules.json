@@ -1,6 +1,45 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "settings": {
+      ".read": true,
+      ".write": false
+    },
+    "superadmins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "root.child('superadmins').child(auth.uid).val() === true"
+      }
+    },
+    "system_logs": {
+      "errors": {
+        ".read": "root.child('superadmins').child(auth.uid).val() === true",
+        ".write": "auth != null"
+      }
+    },
+    "tenant_meta": {
+      ".read": "root.child('superadmins').child(auth.uid).val() === true",
+      "$tenantId": {
+        ".read": "auth != null && (root.child('superadmins').child(auth.uid).val() === true || auth.token.tenantId === $tenantId || root.child('users').child(auth.uid).child('tenantId').val() === $tenantId)",
+        ".write": "root.child('superadmins').child(auth.uid).val() === true",
+        "onboarded": {
+          ".write": "auth != null && (auth.token.tenantId === $tenantId || root.child('users').child(auth.uid).child('tenantId').val() === $tenantId)"
+        }
+      }
+    },
+    "tenants": {
+      "$tenantId": {
+        ".read": "auth != null && (root.child('superadmins').child(auth.uid).val() === true || auth.token.tenantId === $tenantId || root.child('users').child(auth.uid).child('tenantId').val() === $tenantId)",
+        ".write": "auth != null && (root.child('superadmins').child(auth.uid).val() === true || auth.token.tenantId === $tenantId || root.child('users').child(auth.uid).child('tenantId').val() === $tenantId)"
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('superadmins').child(auth.uid).val() === true)",
+        ".write": "root.child('superadmins').child(auth.uid).val() === true",
+        "lastLogin": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    }
   }
 }
