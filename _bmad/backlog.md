@@ -56,6 +56,30 @@
   - 테스트 주문 2건(테스트고객4, 테스트고객5) 모두 Firebase에서 삭제, 잔존 테스트 데이터 없음 확인
 - **Sensitive data policy**: 실제 고객 이름/주소/전화번호 미사용, 합성 데이터만 사용.
 
+### TMS: 업데이트 안내 배너 최소 범위 개선 (버전 상수/겹침/문서화) + 배너 감지 로직 미작동 버그 발견 및 수정
+- **Status**: ✅ Deployed / Verified
+- **Commits**: `68b3732`(버전 범프 + 배너 sticky 전환 + 배포 체크리스트 문서화), `9c5cc12`(버전 리스너 `_fbDb` 수정)
+- **범위(사전 합의)**:
+  1. `APP_VERSION` `'3'` → `'4'`
+  2. `#update-banner`를 `position:fixed` 오버레이에서 `position:sticky`(문서 흐름 내)로 전환 — 헤더 겹침 방지, 문구를 "새 버전이 배포되었습니다. 새로고침해주세요."로 통일
+  3. `DEPLOY_CHECKLIST.md`에 TMS 배포 시 `APP_VERSION`/Firebase `settings/appVersion` 동시 갱신 절차 명문화, 인증/권한 변경 배포 시에만 "로그아웃 후 재로그인" 문구를 검토하라는 안내 추가(코드 자동화는 안 함, 문서화만)
+  4. PWA `manifest.json`/`sw.js` 경로 문제는 이번 범위에서 다루지 않고 백로그로만 기록 (아래 참고)
+  5. 배포 자동화 스크립트는 이번 범위에서 만들지 않음 — 후속 과제로 기록 (아래 참고)
+- **배포 후 검증 중 발견한 별도 버그**: 업데이트 배너의 "감지" 로직 자체가 프로덕션에서 **한 번도 정상 작동한 적이 없었음**.
+  - 원인: `showApp()`의 버전 리스너가 `firebase.database().ref('settings/appVersion')`(인자 없는 기본 앱 참조)를 호출하는데, TMS는 `firebase.initializeApp(config, 'driver')`로 **이름 있는 앱**을 사용하므로 기본(`[DEFAULT]`) 앱이 존재하지 않아 이 호출이 매번 `FirebaseError`를 던짐.
+  - 이 예외는 `doLogin()`의 try/catch로 전파되지만, 그 시점엔 이미 로그인 화면이 숨겨진 뒤라 사용자 화면엔 아무 문제 없이 정상 작동하는 것처럼 보였고, 정작 버전 리스너는 한 번도 등록에 성공한 적이 없었음.
+  - 사용자 승인 하에 이번 범위에 포함해 수정: `firebase.database()` → `_fbDb`(이미 초기화된 이름 있는 앱의 database 인스턴스, 파일 전체에서 이미 쓰이던 패턴)로 교체. 한 줄 변경.
+- **검증**:
+  - `node --test` 63/63 pass (수정 전/후 동일)
+  - 로컬 정적 검증: 수정된 sticky 배너가 헤더와 겹치지 않음(바운딩 박스 비교로 확인), 새로고침 버튼 줄바꿈 방지 스타일 추가
+  - 실제 프로덕션 Firebase(testmart/test1)로 로그인하는 로컬 사본 2종으로 실사용 시나리오 검증:
+    - 수정된 코드 + `APP_VERSION='3'`(Firebase 값 `"4"`와 불일치) → 배너 정상 표시(`display:flex`) 확인
+    - 수정된 코드 + `APP_VERSION='4'`(Firebase 값 `"4"`와 일치) → 배너 숨김(`display:none`) 확인
+    - 수정 전 코드(커밋 `92576e2` 시점 사본)로는 동일 조건에서 배너가 뜨지 않음을 먼저 재현해 버그를 확정한 뒤 수정
+  - Hosting 배포 후 라이브 소스에 `_fbDb.ref('settings/appVersion')`와 `APP_VERSION = '4'` 반영 확인
+  - Firebase `settings/appVersion`은 이미 `"4"`였으므로 별도 갱신 없이 유지
+- **Sensitive data policy**: 실제 고객 데이터 미사용. 검증 중 실제 Firebase 프로젝트에 대해 읽기 전용 조회 및 임시 리스너 연결만 수행, 쓰기 작업 없음.
+
 ---
 
 ## 진행 대기 (P1)
@@ -72,6 +96,8 @@
   ```
 - **`standardizeAddress` 오케스트레이션 통합 테스트** — 1~4차 폴백 순서 전체와 Gemini 프롬프트 동작(복수주소 선택 등)은 아직 통합 테스트 없음. 순수 함수 단위(문자열 파싱, 후보 선택)는 커버됨.
 - **git 저장소 정리** — `orders.json`, `functions.zip`, `functions/node_modules` 히스토리 내 잔존 여부 및 재작성(BFG 등) 필요성 별도 논의.
+- **TMS 배포 버전 갱신 자동화** — 현재는 `APP_VERSION` 상수와 Firebase `settings/appVersion`을 사람이 수동으로 맞춰야 함(`DEPLOY_CHECKLIST.md` "4-1" 절차 참고). 배포 스크립트가 배포 시각 기반 값을 자동 생성해 양쪽에 동시에 써주는 방식으로 자동화하면 수동 누락 리스크 제거 가능. 이번 라운드에서는 범위 밖으로 유보.
+- **PWA manifest/sw 경로 불일치** — `saas/driver.html`이 `/hat-delivery/manifest.json`, `/hat-delivery/sw.js`를 참조하는데 실제 배포 루트(`hatdelivery-saas.web.app/`)에서 둘 다 404 확인됨(`manifest.json`은 저장소에 파일 자체가 없음). PWA 설치/오프라인 캐시 갱신 흐름이 현재 완전히 미동작 상태(콘솔에서 조용히 실패, 기능상 악영향은 없음). 실제 PWA 기능이 필요한지 확인 후 (a) 경로를 `/manifest.json`, `/sw.js`로 고치고 `manifest.json`을 새로 작성하거나 (b) 불필요하면 관련 태그/등록 스크립트를 제거하는 방향 결정 필요.
 
 ## 백로그 (P2, 장기)
 

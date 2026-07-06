@@ -67,3 +67,23 @@
   8. 테스트 주문 2건(테스트고객4, 테스트고객5) Firebase에서 삭제, 잔존 테스트 데이터 없음을 재조회로 확인
 - **Result**: 프로덕션에서 실제 저장 → 실시간 동기화 → 새로고침 전 과정에 걸쳐 상세주소 데이터 손실 없음을 확인. 이번 검증에서 얻은 방법론적 교훈: **Cloud Function/Hosting 배포 검증 시, 배포 시각뿐 아니라 테스트에 사용하는 브라우저 탭/세션이 배포 이후에 새로 로드됐는지도 함께 확인해야 함** — 배포는 정상이어도 오래된 탭에서 테스트하면 거짓 음성(false negative)이 발생할 수 있음.
 - **Sensitive data policy**: 실제 고객 이름/주소/전화번호 미사용, 합성 데이터만 사용. 테스트 주문은 검증 직후 삭제.
+
+## 2026-07-06 — TMS: 업데이트 안내 배너 최소 범위 개선 + 배너 감지 로직 미작동 버그 발견/수정 배포 검증
+
+- **대상**: `saas/driver.html` — `APP_VERSION` 상수, `#update-banner` 마크업/스타일, `showApp()`의 버전 리스너
+- **1차 커밋(`68b3732`)**: `APP_VERSION` `'3'`→`'4'`, `#update-banner`를 `position:fixed` 오버레이 → `position:sticky` 방식으로 전환(문서 흐름 내 배치로 헤더 겹침 방지), 문구를 "새 버전이 배포되었습니다. 새로고침해주세요."로 통일, 새로고침 버튼에 `white-space:nowrap` 추가. `DEPLOY_CHECKLIST.md`에 "4-1. driver.html(TMS) 버전 갱신(필수, 수동)" 절차 신설.
+- **1차 로컬 검증**: `npx serve`로 로컬 정적 서버 구동 → `login-screen` 숨기고 배너를 강제로 `display:flex`로 만든 뒤 `getBoundingClientRect()`로 배너/헤더 바운딩 박스 비교 → `overlap: false` 확인(배너 70px, 헤더는 그 아래 70px부터 시작). 스크린샷으로도 겹침 없음 재확인.
+- **1차 배포**: `firebase deploy --only hosting --project hatdelivery-saas` → 라이브 소스에 `APP_VERSION='4'`와 sticky 배너 스타일 반영 확인 → Firebase `settings/appVersion`을 `"4"`로 갱신.
+- **2차 검증 중 발견한 버그**: "이미 열려있던 구버전 탭에서 배너가 뜨는지" 확인하기 위해, 배포 직전 커밋(`92576e2`) 시점의 `driver.html`을 로컬에 그대로 서빙하고 실제 프로덕션 Firebase(testmart/test1)로 로그인 → `settings/appVersion`이 이미 `"4"`(로컬 `APP_VERSION='3'`과 불일치)인데도 배너가 전혀 뜨지 않음을 확인.
+  - 원인 조사: `showApp()`의 버전 리스너가 `firebase.database().ref('settings/appVersion')`(인자 없는 기본 앱 참조)를 호출하는데, TMS는 `_fbApp = firebase.initializeApp(config, 'driver')`로 **이름 있는 앱**을 사용하므로 기본(`[DEFAULT]`) 앱이 없어 이 호출이 매번 `FirebaseError: No Firebase App '[DEFAULT]' has been created`를 던짐 — `browser_evaluate`로 동일한 호출을 직접 실행해 재현.
+  - 이 예외는 `doLogin()`의 try/catch로 전파되지만 그 시점엔 이미 로그인 화면이 숨겨진 뒤라 화면상 아무 문제 없이 정상 작동하는 것처럼 보였음(GPS 시작, 주문 동기화 등은 예외 발생 이전 코드라 정상 실행) — 버전 리스너만 한 번도 등록에 성공한 적이 없었던 것으로 결론.
+  - 사용자 승인 하에 이번 라운드에 포함해 수정(`9c5cc12`): `firebase.database()` → `_fbDb`(이미 초기화된 이름 있는 앱의 database 인스턴스)로 교체. 1줄 변경.
+- **2차 로컬 검증(수정 후, 실제 프로덕션 Firebase 대상)**:
+  - `node --test "test/*.test.js"` 63/63 pass (수정 전/후 동일)
+  - 수정된 코드 사본 + `APP_VERSION='3'`(Firebase 값 `"4"`와 불일치) → testmart/test1 로그인 → `update-banner`의 `style.display === 'flex'` 확인(정상 표시)
+  - 수정된 코드(현재 저장소 상태, `APP_VERSION='4'`, Firebase 값 `"4"`와 일치) → 동일 계정 로그인 → `update-banner`의 `style.display === 'none'` 확인(정상 숨김)
+  - 두 로컬 사본 모두 실제 프로덕션 Firebase 프로젝트(`hatdelivery-saas`)에 연결해 읽기 전용으로 검증 — 쓰기 작업 없음, 합성/실사용 데이터 변경 없음
+- **2차 배포**: `firebase deploy --only hosting --project hatdelivery-saas` → 라이브 소스에 `_fbDb.ref('settings/appVersion')` 반영 확인. `settings/appVersion`은 이미 `"4"`였으므로 추가 갱신 없음.
+- **Result**: 업데이트 배너의 표시/문구/레이아웃뿐 아니라, 그동안 한 번도 작동하지 않았던 "감지" 로직 자체를 이번 라운드에서 실제로 살려냄. 프로덕션에서 버전 불일치 시 배너가 뜨고, 새로고침(또는 버전 일치 상태로 재접속) 시 배너가 사라지는 전체 흐름을 실제 Firebase 백엔드 대상으로 확인.
+- **범위 밖으로 남긴 것(백로그 기록만)**: PWA `manifest.json`/`sw.js` 경로 불일치(둘 다 404, `manifest.json`은 파일 자체가 없음), 버전 갱신 자동화 스크립트 — `_bmad/backlog.md` 참고.
+- **Sensitive data policy**: 실제 고객 데이터 미사용. 검증 전 과정에서 Firebase에 대한 쓰기 작업 없음(읽기 전용 조회 및 실시간 리스너 연결만 수행).
