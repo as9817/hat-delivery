@@ -1011,7 +1011,7 @@ function showApp() {
   // 앱 버전 체크
   if (_fbDb && !_versionListenerStarted) {
     _versionListenerStarted = true;
-    firebase.database().ref('settings/appVersion').on('value', function(snap) {
+    _fbDb.ref('settings/appVersion').on('value', function(snap) {
       const firebaseVer = snap.val();
       if (firebaseVer && String(firebaseVer) !== APP_VERSION) {
         document.getElementById('update-banner').style.display = 'flex';
