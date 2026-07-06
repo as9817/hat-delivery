@@ -9,6 +9,7 @@ const functions = require('firebase-functions');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const { GoogleGenAI } = require('@google/genai');
+const bcrypt = require('bcryptjs');
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -571,3 +572,155 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
 
   return { road_address: rawAddress, detail_address: '', lat: null, lng: null };
 }
+
+exports.geocodeAddress = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 15, memory: '128MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+    const KAKAO_KEY = process.env.KAKAO_KEY;
+    if (!KAKAO_KEY) { res.status(500).json({ status: 'error', message: 'KAKAO_KEY 미설정' }); return; }
+
+    const { address, martLat, martLng } = req.body || {};
+    if (!address) { res.status(400).json({ status: 'error', message: 'address 없음' }); return; }
+
+    try {
+      const location = await standardizeAddress(address, KAKAO_KEY, [], martLat || null, martLng || null, null);
+      res.status(200).json({ status: 'success', data: location });
+    } catch (err) {
+      logger.error('geocodeAddress 오류:', err);
+      res.status(500).json({ status: 'error', message: err.message });
+    }
+  });
+
+// ══════════════════════════════════════════════════════
+// reverseGeocode: 좌표 → 행정동 배치 변환 프록시
+// ══════════════════════════════════════════════════════
+
+exports.reverseGeocode = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 30, memory: '256MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+    const KAKAO_KEY = process.env.KAKAO_KEY;
+    if (!KAKAO_KEY) { res.status(500).json({ status: 'error', message: 'KAKAO_KEY 미설정' }); return; }
+
+    const { coords } = req.body || {};
+    if (!Array.isArray(coords) || !coords.length) {
+      res.status(400).json({ status: 'error', message: 'coords 없음' }); return;
+    }
+
+    try {
+      const results = await Promise.all(
+        coords.map(async ({ lat, lng }) => {
+          if (!lat || !lng) return [];
+          const r = await fetch(
+            `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
+            { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } }
+          );
+          if (!r.ok) return [];
+          const data = await r.json();
+          return data.documents || [];
+        })
+      );
+      res.status(200).json({ results });
+    } catch (err) {
+      logger.error('reverseGeocode 오류:', err);
+      res.status(500).json({ status: 'error', message: err.message });
+    }
+  });
+
+// ══════════════════════════════════════════════════════
+// kakaoWaypoints: 카카오 다중경유지 경로 최적화 프록시
+// ══════════════════════════════════════════════════════
+
+exports.kakaoWaypoints = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 30, memory: '256MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+    const KAKAO_KEY = process.env.KAKAO_KEY;
+    if (!KAKAO_KEY) { res.status(500).json({ status: 'error', message: 'KAKAO_KEY 미설정' }); return; }
+
+    const { origin, destination, waypoints, priority } = req.body || {};
+    if (!origin || !destination) {
+      res.status(400).json({ status: 'error', message: 'origin/destination 없음' }); return;
+    }
+
+    try {
+      const r = await fetch('https://apis-navi.kakaomobility.com/affiliate/v1/waypoints/directions100', {
+        method: 'POST',
+        headers: { Authorization: `KakaoAK ${KAKAO_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin, destination, waypoints: waypoints || [], priority: priority || 'RECOMMEND' }),
+      });
+      if (!r.ok) {
+        const errText = await r.text();
+        logger.error('kakaoWaypoints Kakao 오류:', r.status, errText);
+        res.status(r.status).json({ status: 'error', message: errText }); return;
+      }
+      const data = await r.json();
+      res.status(200).json({ status: 'success', data });
+    } catch (err) {
+      logger.error('kakaoWaypoints 오류:', err);
+      res.status(500).json({ status: 'error', message: err.message });
+    }
+  });
+
+// ══════════════════════════════════════════════════════
+// issueDriverToken: 기사 로그인 → Firebase Custom Token 발급
+// ══════════════════════════════════════════════════════
+
+exports.issueDriverToken = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 15, memory: '128MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ status: 'error', message: 'POST only' }); return; }
+
+    const { tenantId, driverId, password } = req.body || {};
+    if (!tenantId || !driverId || !password) {
+      res.status(400).json({ status: 'error', message: '필수 파라미터 없음' }); return;
+    }
+
+    try {
+      const snap = await db.ref(`tenants/${tenantId}/driverAccounts/${driverId}`).once('value');
+      const driver = snap.val();
+      if (!driver || !driver.active) {
+        res.status(401).json({ status: 'error', message: '존재하지 않거나 비활성화된 계정입니다' }); return;
+      }
+      const pwMatch = driver.password.startsWith('$2') 
+        ? await bcrypt.compare(password, driver.password)
+        : driver.password === password; // 레거시 plain text 폴백
+      if (!pwMatch) {
+        res.status(401).json({ status: 'error', message: '비밀번호가 올바르지 않습니다' }); return;
+      }
+      const settingsSnap = await db.ref(`tenants/${tenantId}/settings`).once('value');
+      const settings = settingsSnap.val() || {};
+      const uid = `${tenantId}_driver_${driverId}`;
+      const token = await admin.auth().createCustomToken(uid, { tenantId, driverId, role: 'driver' });
+      res.status(200).json({
+        status: 'success',
+        token,
+        tenantName: settings.martName || tenantId,
+        driverName: driver.name || driverId,
+      });
+    } catch (err) {
+      logger.error('issueDriverToken 오류:', err);
+      res.status(500).json({ status: 'error', message: err.message });
+    }
+  });
