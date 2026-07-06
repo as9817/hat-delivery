@@ -1600,6 +1600,12 @@ body.impersonating{padding-top:38px}
         <span style="font-size:13px;color:#555">km</span>
       </div>
       <button onclick="omsAutoCollectDongs()" id="oms-auto-collect-btn" style="width:100%;background:#e8eaf6;color:#1a237e;border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">🔍 주변 동 자동 수집</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <span style="font-size:13px;color:#555;white-space:nowrap">배달 커버 반경</span>
+        <input id="oms-delivery-radius" type="number" min="1" max="30" value="5" style="width:64px;border:1.5px solid #e0e0e0;border-radius:8px;padding:6px 10px;font-size:13px;text-align:center;outline:none;font-family:inherit">
+        <span style="font-size:13px;color:#555">km</span>
+        <span style="font-size:11px;color:#999">(OCR 주소 검색 범위)</span>
+      </div>
     </div>
     <div style="font-size:11px;color:#f57c00;margin-bottom:16px;padding:8px 12px;background:#fff8e1;border-radius:8px">
       ⚠️ 저장하면 모든 기사 앱과 OMS에 즉시 반영됩니다
@@ -5717,22 +5723,27 @@ let _mapInitialized = false;
 
 function getMartLocation() { return _martLocation; }
 
-// Firebase에서 마트 위치 실시간 수신
-tref('settings/martLocation').on('value', snap => {
-  const data = snap.val();
-  if (data && data.lat && data.lng) {
-    _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '웰빙마트', address: data.address || '', oldAddress: data.oldAddress || '', nearbyDongs: data.nearbyDongs || [] };
-    localStorage.setItem('mart_location_' + TENANT_ID, JSON.stringify(_martLocation));
-    if (_mapInitialized) {
-      updateOmsMapMarkers(); // 지도 이미 초기화됐으면 마커만 갱신
-    } else {
-      // 지도 아직 안 만들어졌으면 이제 초기화
-      kakao.maps.load(() => setTimeout(initTmsMap, 100));
+// Firebase에서 마트 위치 실시간 수신 (auth 확인 후 연결 — onAuthStateChanged에서 시작)
+let _martLocationRef = null;
+function startMartLocationListener() {
+  if (_martLocationRef) { _martLocationRef.off(); }
+  _martLocationRef = tref('settings/martLocation');
+  _martLocationRef.on('value', snap => {
+    const data = snap.val();
+    if (data && data.lat && data.lng) {
+      _martLocation = { lat: data.lat, lng: data.lng, name: data.name || '웰빙마트', address: data.address || '', oldAddress: data.oldAddress || '', nearbyDongs: data.nearbyDongs || [], collectRadius: data.collectRadius || null, nearbyRadius: data.nearbyRadius || null };
+      localStorage.setItem('mart_location_' + TENANT_ID, JSON.stringify(_martLocation));
+      if (_mapInitialized) {
+        updateOmsMapMarkers(); // 지도 이미 초기화됐으면 마커만 갱신
+      } else {
+        // 지도 아직 안 만들어졌으면 이제 초기화
+        kakao.maps.load(() => setTimeout(initTmsMap, 100));
+      }
+      const el = document.getElementById('oms-mart-addr-current');
+      if (el) el.textContent = '현재: ' + (data.address || `${data.lat}, ${data.lng}`);
     }
-    const el = document.getElementById('oms-mart-addr-current');
-    if (el) el.textContent = '현재: ' + (data.address || `${data.lat}, ${data.lng}`);
-  }
-});
+  });
+}
 
 async function saveOmsMartLocation() {
   const addr = document.getElementById('oms-mart-addr-input').value.trim();
@@ -5771,7 +5782,9 @@ async function saveOmsMartLocation() {
     // 현재 동 목록 그대로 저장 (자동 수집 없음 — 수집은 "주변 동 자동 수집" 버튼으로만)
     const manualDongs = _omsDongList.slice();
 
-    const martData = { address: roadAddr || addr, oldAddress: oldAddr, name, lat, lng, nearbyDongs: manualDongs, updatedAt: Date.now() };
+    const collectRadius = parseFloat(document.getElementById('oms-collect-radius')?.value) || 3;
+    const deliveryRadius = parseFloat(document.getElementById('oms-delivery-radius')?.value) || 5;
+    const martData = { address: roadAddr || addr, oldAddress: oldAddr, name, lat, lng, nearbyDongs: manualDongs, collectRadius, nearbyRadius: deliveryRadius, updatedAt: Date.now() };
 
     // Firebase에 저장 → 모든 OMS/TMS 자동 반영
     await tref('settings/martLocation').set(martData);
@@ -5903,6 +5916,10 @@ function openOmsMartSettings() {
   if (oi) oi.value = m.oldAddress || '';
   _omsDongList = Array.isArray(m.nearbyDongs) ? [...m.nearbyDongs] : [];
   renderOmsDongList();
+  const ri = document.getElementById('oms-collect-radius');
+  if (ri && m.collectRadius) ri.value = m.collectRadius;
+  const di = document.getElementById('oms-delivery-radius');
+  if (di) di.value = m.nearbyRadius || 5;
   document.getElementById('oms-mart-modal').style.display = 'flex';
 }
 
@@ -6461,9 +6478,11 @@ _fbAuth.onAuthStateChanged(user => {
       driverAccountsList = snap.val() || {};
       renderDriverList();
     });
+    startMartLocationListener(); // 마트 위치 리스너 (auth 확립 후 시작)
   } else {
     driverAccountsList = {};
     renderDriverList();
+    if (_martLocationRef) { _martLocationRef.off(); _martLocationRef = null; }
   }
 });
 
