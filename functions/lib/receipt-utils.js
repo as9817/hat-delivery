@@ -208,13 +208,49 @@ function isSimilarAddress(a, b) {
 function buildLearnedLocationResponse(currentAddress, learned) {
   if (!learned || !learned.road_address) return null;
   const addressMatches = isSimilarAddress(currentAddress, learned.road_address);
+  // 학습 레코드의 detail_address 자체가 과거(이 기능 도입 전)에 괄호가 안 분리된
+  // 채로 저장됐을 수 있어 여기서도 한 번 더 분리를 시도 — 이미 access_info가
+  // 저장돼 있으면 그 값이 우선(덮어쓰지 않음), 없을 때만 분리 결과로 채움.
+  const split = splitDetailAndAccessInfo(learned.detail_address || '');
+  const accessInfo = addressMatches ? (learned.access_info || split.accessInfo || '') : '';
   return {
     road_address: learned.road_address,
-    detail_address: learned.detail_address || '',
-    access_info: addressMatches ? (learned.access_info || '') : '',
+    detail_address: split.detailAddress,
+    access_info: accessInfo,
     lat: learned.lat || null,
     lng: learned.lng || null,
   };
+}
+
+// 괄호 안에 이 키워드 중 하나라도 있으면 출입정보로 판단 — 없으면 애매한 것으로
+// 보고 분리하지 않음(기존처럼 detailAddress에 그대로 둠). "#"/"*"는 실제
+// 비밀번호 표기("#1234", "2580*")에서 흔히 등장하는 짧은 표식이라 포함시킴.
+// "종"(예: "2634종")은 넣지 않음 — "종로" 등 지명과 겹쳐 오탐 가능성이 있고,
+// "현관 104열쇠 2634종" 같은 케이스도 "열쇠" 키워드만으로 이미 분리되므로 불필요.
+const ACCESS_INFO_KEYWORDS = [
+  '공동현관', '비밀번호', '비번', '호출', '경비실', '문 앞', '출입', '열쇠', '#', '*',
+];
+
+/**
+ * detailAddress 문자열 끝에 붙은 괄호 안 내용이 출입정보(공동현관 비밀번호/호출
+ * 등)로 보이면 detailAddress와 accessInfo로 분리한다. parseAddressComponents/
+ * standardizeAddress의 결과(항상 끝에 괄호가 남는 형태)를 대상으로 하며, 그
+ * 파싱 로직 자체는 건드리지 않고 이후 단계에서 한 번 더 나누는 방식이다.
+ * 괄호가 없거나, 괄호 안에 출입정보로 볼 근거(키워드)가 없으면 원문을 그대로
+ * detailAddress로 반환하고 accessInfo는 빈 값 — 애매하면 분리하지 않는다.
+ * @param {string} detailText
+ * @returns {{detailAddress: string, accessInfo: string}}
+ */
+function splitDetailAndAccessInfo(detailText) {
+  const text = (detailText || '').trim();
+  if (!text) return { detailAddress: '', accessInfo: '' };
+  const m = text.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (!m) return { detailAddress: text, accessInfo: '' };
+  const before = m[1].trim();
+  const inside = m[2].trim();
+  const looksLikeAccessInfo = ACCESS_INFO_KEYWORDS.some(kw => inside.includes(kw));
+  if (!looksLikeAccessInfo) return { detailAddress: text, accessInfo: '' };
+  return { detailAddress: before, accessInfo: inside };
 }
 
 module.exports = {
@@ -225,4 +261,5 @@ module.exports = {
   parseAddressComponents,
   isSimilarAddress,
   buildLearnedLocationResponse,
+  splitDetailAndAccessInfo,
 };

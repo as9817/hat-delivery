@@ -1,7 +1,7 @@
 'use strict';
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { preprocessOcrText, parseAddressComponents, isSimilarAddress, buildLearnedLocationResponse, resolveLearnKey } = require('../lib/receipt-utils');
+const { preprocessOcrText, parseAddressComponents, isSimilarAddress, buildLearnedLocationResponse, resolveLearnKey, splitDetailAndAccessInfo } = require('../lib/receipt-utils');
 
 // 아래 테스트 데이터는 전부 합성(가상) 주소/영수증 텍스트입니다.
 // 실제 고객명/전화번호/영수증 원문은 포함하지 않습니다.
@@ -249,5 +249,102 @@ describe('학습주소 키 일치성(전화번호 우선 저장 → 조회 → a
     const result = buildLearnedLocationResponse('서울 강남구 다른로 999', learnedRecordSavedUnderPhoneKey);
     assert.equal(learnKey, phone);
     assert.equal(result.access_info, '');
+  });
+});
+
+describe('splitDetailAndAccessInfo (OCR 괄호 출입정보 자동 분리)', () => {
+  it('"종" 키워드 없이도 "열쇠"로 "104열쇠 2634종" 케이스가 분리됨 ("종" 단독 매칭 제거 회귀 확인)', () => {
+    const result = splitDetailAndAccessInfo('101동 202호 (현관 104열쇠 2634종)');
+    assert.equal(result.detailAddress, '101동 202호');
+    assert.equal(result.accessInfo, '현관 104열쇠 2634종');
+  });
+
+  it('"1903동 104호 (현관 비번 1234)" → 분리됨', () => {
+    const result = splitDetailAndAccessInfo('1903동 104호 (현관 비번 1234)');
+    assert.equal(result.detailAddress, '1903동 104호');
+    assert.equal(result.accessInfo, '현관 비번 1234');
+  });
+
+  it('"101동 202호 (공동현관 #1234)" → 분리됨', () => {
+    const result = splitDetailAndAccessInfo('101동 202호 (공동현관 #1234)');
+    assert.equal(result.detailAddress, '101동 202호');
+    assert.equal(result.accessInfo, '공동현관 #1234');
+  });
+
+  it('"3층 (경비실 호출)" → 분리됨', () => {
+    const result = splitDetailAndAccessInfo('3층 (경비실 호출)');
+    assert.equal(result.detailAddress, '3층');
+    assert.equal(result.accessInfo, '경비실 호출');
+  });
+
+  it('"B동 502호 (문 앞 호출)" → 분리됨', () => {
+    const result = splitDetailAndAccessInfo('B동 502호 (문 앞 호출)');
+    assert.equal(result.detailAddress, 'B동 502호');
+    assert.equal(result.accessInfo, '문 앞 호출');
+  });
+
+  it('"1204호 (비밀번호 2580*)" → 분리됨', () => {
+    const result = splitDetailAndAccessInfo('1204호 (비밀번호 2580*)');
+    assert.equal(result.detailAddress, '1204호');
+    assert.equal(result.accessInfo, '비밀번호 2580*');
+  });
+
+  it('괄호 없음 → accessInfo 빈 값, detailAddress 그대로', () => {
+    const result = splitDetailAndAccessInfo('101동 202호');
+    assert.equal(result.detailAddress, '101동 202호');
+    assert.equal(result.accessInfo, '');
+  });
+
+  it('괄호 안 내용이 전부인 경우("(현관 비번 1234)") → detailAddress 빈 값, accessInfo 있음', () => {
+    const result = splitDetailAndAccessInfo('(현관 비번 1234)');
+    assert.equal(result.detailAddress, '');
+    assert.equal(result.accessInfo, '현관 비번 1234');
+  });
+
+  it('애매한 케이스 — "상가 2층 (왼쪽 문)": 출입정보 키워드 없어 분리하지 않음(원문 그대로 유지)', () => {
+    const result = splitDetailAndAccessInfo('상가 2층 (왼쪽 문)');
+    assert.equal(result.detailAddress, '상가 2층 (왼쪽 문)');
+    assert.equal(result.accessInfo, '');
+  });
+
+  it('빈 문자열/undefined 입력 → 둘 다 빈 값', () => {
+    assert.deepEqual(splitDetailAndAccessInfo(''), { detailAddress: '', accessInfo: '' });
+    assert.deepEqual(splitDetailAndAccessInfo(undefined), { detailAddress: '', accessInfo: '' });
+  });
+});
+
+describe('buildLearnedLocationResponse + splitDetailAndAccessInfo 연동 (병합 규칙)', () => {
+  it('학습 레코드의 detail_address에 괄호 출입정보가 남아있고 access_info가 비어있으면 분리 결과로 채움', () => {
+    const learned = {
+      road_address: '서울 용산구 가상로 100',
+      detail_address: '1903동 104호 (현관 비번 9999)',
+      lat: 37.5, lng: 127.0,
+    };
+    const result = buildLearnedLocationResponse('서울 용산구 가상로 100', learned);
+    assert.equal(result.detail_address, '1903동 104호');
+    assert.equal(result.access_info, '현관 비번 9999');
+  });
+
+  it('이미 access_info가 저장돼 있으면 detail_address 괄호 분리 결과로 덮어쓰지 않음(기존값 우선)', () => {
+    const learned = {
+      road_address: '서울 용산구 가상로 100',
+      detail_address: '1903동 104호 (현관 비번 9999)',
+      access_info: '기존에 저장된 진짜 출입정보',
+      lat: 37.5, lng: 127.0,
+    };
+    const result = buildLearnedLocationResponse('서울 용산구 가상로 100', learned);
+    assert.equal(result.detail_address, '1903동 104호', 'detail_address는 항상 분리됨');
+    assert.equal(result.access_info, '기존에 저장된 진짜 출입정보', '기존 access_info가 우선');
+  });
+
+  it('주소가 다르면(오적용 방지 게이트) 괄호에서 분리된 accessInfo도 적용하지 않음', () => {
+    const learned = {
+      road_address: '서울 용산구 가상로 100',
+      detail_address: '1903동 104호 (현관 비번 9999)',
+      lat: 37.5, lng: 127.0,
+    };
+    const result = buildLearnedLocationResponse('서울 강남구 다른로 999', learned);
+    assert.equal(result.detail_address, '1903동 104호', 'detail_address는 게이트와 무관하게 분리됨');
+    assert.equal(result.access_info, '', '주소 불일치 시 분리된 accessInfo도 미적용');
   });
 });

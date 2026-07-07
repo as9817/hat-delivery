@@ -18,6 +18,7 @@ const {
   preprocessOcrText,
   parseAddressComponents,
   buildLearnedLocationResponse,
+  splitDetailAndAccessInfo,
 } = require('./lib/receipt-utils');
 
 
@@ -129,6 +130,11 @@ exports.processReceipt = functions
       logger.info('주변 동 검색 순서:', nearbyDongs.join(' → '));
       const finalMartRadius = martData.nearbyRadius || null;
       const location = await standardizeAddress(parsed.address, KAKAO_KEY, nearbyDongs, finalMartLat, finalMartLng, parsed.name, finalMartRadius);
+      // OCR 원문 괄호에 섞여있던 출입정보(공동현관 비밀번호 등)를 detail_address에서
+      // 분리 — parseAddressComponents/standardizeAddress 자체는 건드리지 않고,
+      // 최종 응답 직전에 한 번만 분리한다(학습주소 없는 신규 주소라 기존 access_info
+      // 값과 충돌할 여지가 없음).
+      const splitResult = splitDetailAndAccessInfo(location.detail_address || '');
 
       res.status(200).json({
         status: 'success',
@@ -136,8 +142,8 @@ exports.processReceipt = functions
           customer: { name: parsed.name || '', phone: parsed.phone || '' },
           location: {
             road_address:   location.road_address   || parsed.address || '',
-            detail_address: location.detail_address || '',
-            access_info: '', // 학습주소 미적용 경로 — 신규 주소는 출입정보 없음
+            detail_address: splitResult.detailAddress,
+            access_info: splitResult.accessInfo, // OCR 괄호에서 자동 분리(학습값 없는 신규 주소)
             lat: location.lat || null,
             lng: location.lng || null,
           },
