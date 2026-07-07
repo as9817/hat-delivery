@@ -1,7 +1,7 @@
 'use strict';
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { preprocessOcrText, parseAddressComponents } = require('../lib/receipt-utils');
+const { preprocessOcrText, parseAddressComponents, isSimilarAddress, buildLearnedLocationResponse, resolveLearnKey } = require('../lib/receipt-utils');
 
 // 아래 테스트 데이터는 전부 합성(가상) 주소/영수증 텍스트입니다.
 // 실제 고객명/전화번호/영수증 원문은 포함하지 않습니다.
@@ -127,5 +127,127 @@ describe('parseAddressComponents', () => {
     const { query, detailAddress } = parseAddressComponents('가상로20길8');
     assert.equal(query, '가상로20길8');
     assert.equal(detailAddress, '');
+  });
+});
+
+describe('isSimilarAddress (출입정보 오적용 방지 기준)', () => {
+  it('완전 동일 주소 → true', () => {
+    assert.equal(isSimilarAddress('서울 용산구 가상로 100', '서울 용산구 가상로 100'), true);
+  });
+
+  it('공백/대소문자만 다른 주소 → true', () => {
+    assert.equal(isSimilarAddress('서울용산구가상로100', '서울 용산구 가상로 100'), true);
+  });
+
+  it('한쪽이 다른 쪽을 포함(부분 표기 차이) → true', () => {
+    assert.equal(isSimilarAddress('가상로 100', '서울 용산구 가상로 100'), true);
+    assert.equal(isSimilarAddress('서울 용산구 가상로 100', '가상로 100'), true);
+  });
+
+  it('서로 다른 주소 → false', () => {
+    assert.equal(isSimilarAddress('서울 용산구 가상로 100', '서울 강남구 가상로 200'), false);
+  });
+
+  it('둘 중 하나가 비어있으면 false (애매하면 미적용)', () => {
+    assert.equal(isSimilarAddress('', '서울 용산구 가상로 100'), false);
+    assert.equal(isSimilarAddress('서울 용산구 가상로 100', ''), false);
+    assert.equal(isSimilarAddress(null, '서울 용산구 가상로 100'), false);
+    assert.equal(isSimilarAddress(undefined, undefined), false);
+  });
+});
+
+describe('buildLearnedLocationResponse (학습주소 응답 변환 + access_info 게이팅)', () => {
+  it('학습 레코드 없음 → null', () => {
+    assert.equal(buildLearnedLocationResponse('서울 용산구 가상로 100', null), null);
+    assert.equal(buildLearnedLocationResponse('서울 용산구 가상로 100', undefined), null);
+  });
+
+  it('학습 레코드에 road_address 없음 → null', () => {
+    assert.equal(buildLearnedLocationResponse('서울 용산구 가상로 100', { access_info: '현관 1234' }), null);
+  });
+
+  it('현재 주소와 학습 주소가 유사 → access_info 포함', () => {
+    const learned = { road_address: '서울 용산구 가상로 100', detail_address: '101동 202호', access_info: '현관 104열쇠 2634종', lat: 37.5, lng: 127.0 };
+    const result = buildLearnedLocationResponse('서울 용산구 가상로 100', learned);
+    assert.deepEqual(result, {
+      road_address: '서울 용산구 가상로 100',
+      detail_address: '101동 202호',
+      access_info: '현관 104열쇠 2634종',
+      lat: 37.5,
+      lng: 127.0,
+    });
+  });
+
+  it('현재 주소와 학습 주소가 다름 → access_info는 빈 값(road_address/detail_address는 유지, 기존 동작 보존)', () => {
+    const learned = { road_address: '서울 용산구 가상로 100', detail_address: '101동 202호', access_info: '현관 104열쇠 2634종', lat: 37.5, lng: 127.0 };
+    const result = buildLearnedLocationResponse('서울 강남구 가상로 999', learned);
+    assert.equal(result.road_address, '서울 용산구 가상로 100');
+    assert.equal(result.detail_address, '101동 202호');
+    assert.equal(result.access_info, '');
+  });
+
+  it('학습 레코드에 access_info 자체가 없음 → 빈 값', () => {
+    const learned = { road_address: '서울 용산구 가상로 100', detail_address: '101동 202호', lat: 37.5, lng: 127.0 };
+    const result = buildLearnedLocationResponse('서울 용산구 가상로 100', learned);
+    assert.equal(result.access_info, '');
+  });
+
+  it('lat/lng 없는 학습 레코드 → null로 대체', () => {
+    const learned = { road_address: '서울 용산구 가상로 100' };
+    const result = buildLearnedLocationResponse('서울 용산구 가상로 100', learned);
+    assert.equal(result.lat, null);
+    assert.equal(result.lng, null);
+  });
+});
+
+// driver.html 클라이언트 저장 키가 서버 조회 키(resolveLearnKey)와 어긋나면
+// access_info/detail_address를 학습해도 다시 불러오지 못하는 문제가 있었음(전화번호
+// 우선 조회 vs 성명 키 저장 불일치). 아래는 그 회귀 방지 테스트 — driver.html은 이
+// resolveLearnKey와 동일한 로직(phone || name || null)을 그대로 복제해서 쓰므로,
+// "전화번호 키로 저장된 학습 레코드가 실제로 응답에 포함되는지"를 서버 쪽 순수
+// 함수 조합으로 검증한다.
+describe('학습주소 키 일치성(전화번호 우선 저장 → 조회 → access_info 응답 포함)', () => {
+  it('전화번호가 있으면 phone이 조회 키 → 그 키로 저장된 레코드의 access_info가 응답에 포함됨', () => {
+    const phone = '010-0000-1234';
+    const name = '가상고객';
+    const learnKey = resolveLearnKey(phone, name);
+    assert.equal(learnKey, phone, '전화번호가 있으면 phone이 우선 키여야 함');
+
+    // driver.html이 이 키(phone)로 저장했다고 가정한 학습 레코드
+    const learnedRecordSavedUnderPhoneKey = {
+      road_address: '서울 용산구 가상로 100',
+      detail_address: '101동 202호',
+      access_info: '현관 104열쇠 2634종',
+      name, phone,
+      lat: 37.5, lng: 127.0,
+      updatedAt: Date.now(),
+    };
+    const result = buildLearnedLocationResponse('서울 용산구 가상로 100', learnedRecordSavedUnderPhoneKey);
+    assert.equal(result.access_info, '현관 104열쇠 2634종');
+    assert.equal(result.road_address, '서울 용산구 가상로 100');
+  });
+
+  it('전화번호가 없으면 name으로 fallback', () => {
+    const name = '가상고객2';
+    const learnKey = resolveLearnKey(null, name);
+    assert.equal(learnKey, name);
+    assert.equal(resolveLearnKey('', name), name);
+    assert.equal(resolveLearnKey(undefined, name), name);
+  });
+
+  it('전화번호 키로 저장된 레코드라도 이번 영수증 주소가 다르면 access_info는 빈 값(오적용 방지 유지)', () => {
+    const phone = '010-0000-5678';
+    const name = '가상고객3';
+    const learnKey = resolveLearnKey(phone, name);
+    const learnedRecordSavedUnderPhoneKey = {
+      road_address: '서울 용산구 가상로 100',
+      detail_address: '101동 202호',
+      access_info: '현관 104열쇠 2634종',
+      name, phone,
+      lat: 37.5, lng: 127.0,
+    };
+    const result = buildLearnedLocationResponse('서울 강남구 다른로 999', learnedRecordSavedUnderPhoneKey);
+    assert.equal(learnKey, phone);
+    assert.equal(result.access_info, '');
   });
 });

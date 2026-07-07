@@ -17,6 +17,7 @@ const {
   kakaoKeywordSearch,
   preprocessOcrText,
   parseAddressComponents,
+  buildLearnedLocationResponse,
 } = require('./lib/receipt-utils');
 
 
@@ -102,11 +103,12 @@ exports.processReceipt = functions
       if (learnKey) {
         const learnedSnap = await db.ref((dbBase ? dbBase + '/' : '') + 'settings/learnedLocations/' + learnKey).once('value').catch(() => null);
         const learned = learnedSnap?.val();
-        if (learned?.road_address) {
-          logger.info('학습주소 적용:', learnKey, learned.road_address);
+        const learnedLocation = buildLearnedLocationResponse(parsed.address, learned);
+        if (learnedLocation) {
+          logger.info('학습주소 적용:', learnKey, learnedLocation.road_address, '/ access_info 적용:', !!learnedLocation.access_info);
           res.status(200).json({ status: 'success', data: {
             customer: { name: parsed.name, phone: parsed.phone || '' },
-            location: { road_address: learned.road_address, detail_address: learned.detail_address || '', lat: learned.lat || null, lng: learned.lng || null },
+            location: learnedLocation,
             totalAmount: parsed.totalAmount || '',
           }});
           return;
@@ -135,6 +137,7 @@ exports.processReceipt = functions
           location: {
             road_address:   location.road_address   || parsed.address || '',
             detail_address: location.detail_address || '',
+            access_info: '', // 학습주소 미적용 경로 — 신규 주소는 출입정보 없음
             lat: location.lat || null,
             lng: location.lng || null,
           },

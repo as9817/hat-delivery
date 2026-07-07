@@ -178,10 +178,51 @@ function parseAddressComponents(rawAddress) {
   return { query: q, detailAddress: daFinal };
 }
 
+/**
+ * 두 주소 문자열이 같거나 매우 유사한지 판단 (공백/대소문자 무시 후 완전일치
+ * 또는 한쪽이 다른 쪽을 포함). 학습된 출입정보(access_info) 오적용 방지용
+ * 최소 기준 — 애매하면 false를 반환해 자동 적용을 막는다.
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+function isSimilarAddress(a, b) {
+  if (!a || !b) return false;
+  const norm = s => String(s).replace(/\s+/g, '').toLowerCase();
+  const na = norm(a), nb = norm(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  return na.includes(nb) || nb.includes(na);
+}
+
+/**
+ * 학습주소(settings/learnedLocations 레코드)를 processReceipt 응답의 location으로
+ * 변환. access_info는 현재 영수증 주소(currentAddress)와 학습된 road_address가
+ * 유사할 때만 포함하고, 그렇지 않으면 빈 값을 반환해 오적용을 방지한다.
+ * (road_address/detail_address는 기존 동작 그대로 유지 — 이 함수가 바꾸는 건
+ * access_info 포함 여부뿐)
+ * @param {string} currentAddress - 이번 영수증에서 Gemini가 추출한 원본 주소
+ * @param {object|null} learned - settings/learnedLocations/{key} 레코드
+ * @returns {{road_address:string, detail_address:string, access_info:string, lat:number|null, lng:number|null}|null}
+ */
+function buildLearnedLocationResponse(currentAddress, learned) {
+  if (!learned || !learned.road_address) return null;
+  const addressMatches = isSimilarAddress(currentAddress, learned.road_address);
+  return {
+    road_address: learned.road_address,
+    detail_address: learned.detail_address || '',
+    access_info: addressMatches ? (learned.access_info || '') : '',
+    lat: learned.lat || null,
+    lng: learned.lng || null,
+  };
+}
+
 module.exports = {
   resolveLearnKey,
   kakaoAddrSearch,
   kakaoKeywordSearch,
   preprocessOcrText,
   parseAddressComponents,
+  isSimilarAddress,
+  buildLearnedLocationResponse,
 };
