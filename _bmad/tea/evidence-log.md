@@ -180,3 +180,25 @@
   6. 테스트 중 생성된 주문 2건(`orders/ext_1783409735462`, `orders/ext_1783409763495` — receiveOrder는 테넌트 스코프 없이 루트 `orders/`에 저장하는 기존 구조, 이번 라운드에서 변경하지 않음) 전부 삭제, 재조회로 잔존 없음 확인
 - **Result**: receiveOrder의 PII 로그 노출 문제가 실제 배포본에서 해결됨을 확인. processReceipt에 이어 이 세션에서 다뤘던 두 주문 접수 경로(영수증 OCR, SMS·카톡 자동접수) 모두 Cloud Functions 로그의 PII 마스킹이 완료됨.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/주소/품목/메모). `ORDER_AUTH_TOKEN`은 셸 변수로만 다뤄 노출 없음. 검증용 주문 2건 전부 삭제 확인.
+
+## 2026-07-07 — TMS: OCR 실패 UX 개선(401/403/500/세션만료 안내) 배포 검증
+
+- **대상**: `saas/driver.html`의 `_authHeader()`, `friendlyErrorMessage()`(신규), `startOCR()`, `regeocodeAddr()`
+- **배경**: read-only 분석 라운드에서 발견한 문제 — `startOCR()`가 `!response.ok`면 서버가 준 구체적 `message`를 읽지 않고 바로 "서버 오류: {코드}"만 던져 401/403/500이 전부 동일하게 보였음. 세션 만료(`_fbAuth.currentUser`가 null) 시에는 `_authHeader()`에서 cryptic한 TypeError가 그대로 alert에 노출됐음. `regeocodeAddr()`도 실패 시 항상 "변환 실패 (서버 오류)"로만 뭉뚱그려짐.
+- **Fix**: `_authHeader()`가 `currentUser` null이면 "로그인이 만료되었습니다. 다시 로그인해주세요."를 명시적으로 던짐. `friendlyErrorMessage(status, serverMessage, context)` 신규 헬퍼로 401/403/500(Vision/Gemini/일반)을 상태별 안내 문구로 변환, `startOCR()`/`regeocodeAddr()` 양쪽에서 재사용. OCR/학습주소/DB 저장 로직과 Cloud Functions는 전혀 변경하지 않음(클라이언트 UX만 수정).
+- **커밋**: `941d9f0`(UX 개선), `7f5a691`(APP_VERSION 6 범프)
+- **테스트**: `node --test` **101/101 pass**(functions 변경 없어 그대로 유지)
+- **배포**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. `DEPLOY_CHECKLIST.md` "4-1" 절차대로 배포 전 `APP_VERSION` 5→6 범프(커밋에 포함), 배포 후 Firebase `settings/appVersion`도 "6"으로 갱신.
+- **배포 전 확인**: git status clean, `node --test` 101/101 재확인.
+- **배포 후 라이브 검증** (testmart 테넌트, 합성 데이터만 사용):
+  1. 라이브 `driver.html` 소스에 `APP_VERSION='6'`, `friendlyErrorMessage`, "로그인이 만료되었습니다" 문구 반영 확인
+  2. testmart/test1 계정으로 실제 프로덕션 로그인 성공
+  3. **정상 OCR 흐름**: 실제 `startOCR()` 함수를 합성 영수증 이미지(성명/연락처/주소/합계금액)로 호출 → 결과 화면에 전부 정상 반영, 화면 전환 정상 — 회귀 없음 확인
+  4. **401**: Authorization 헤더 없이 실제 `processReceipt` 호출 → `friendlyErrorMessage` → "로그인이 만료되었거나 인증에 실패했습니다. 다시 로그인해주세요."
+  5. **403**: 정상 인증 + 다른 tenantId로 실제 호출 → "이 마트에 대한 권한이 없습니다. 마트 정보를 확인해주세요."
+  6. **500**: 텍스트 없는 빈 이미지로 실제 Vision 실패 유발(`Vision: 텍스트 인식 실패` 서버 응답) → "영수증 사진을 인식하지 못했습니다. 더 밝고 선명하게 다시 촬영해주세요."
+  7. **세션 만료**: 실제 `_fbAuth.signOut()` 후 `_authHeader()`/`regeocodeAddr()` 호출 → "로그인이 만료되었습니다. 다시 로그인해주세요." (토스트/예외 메시지 모두 확인)
+  8. **업데이트 배너/appVersion 동기화**: 배포 전부터 열려있던 탭(구버전 코드, in-memory `APP_VERSION='5'`)에서 로그인 시 배너가 실시간으로 뜨는 것을 확인, 새로 로드한 탭(`APP_VERSION='6'`, Firebase 값과 일치)에서는 배너가 뜨지 않음을 확인
+  9. 테스트 중 Firebase에 생성된 데이터 없음 확인(재조회로 잔존 없음) — `confirmAdd()`를 거치지 않아 애초에 저장이 발생하지 않음
+- **Result**: OCR 실패 시 사용자 안내가 401/403/500/세션만료 전부 구분되어 표시되고, 정상 흐름과 학습주소/DB 저장 로직은 그대로 유지됨을 실제 배포본에서 확인.
+- **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소). 실제 고객 데이터 미노출.

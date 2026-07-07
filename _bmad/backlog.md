@@ -131,6 +131,17 @@
 - **Evidence**: `node --test` 101/101 pass. 배포 후 실제 `receiveOrder` 엔드포인트를 합성 SMS 메시지로 2회 호출(정상 주문 1건, 스팸 메시지 1건) — 응답 바디(`success`/`orderId`/`parsed` 스키마)가 기존과 동일하게 유지됨을 확인. `gcloud logging read`로 배포 이후 ERROR 로그 0건, `Gemini 원본 응답 길이`/`원본 메시지 길이`/`최종 이름(마스킹)`/`주문 접수 완료` 등 모든 관련 로그가 `[len:N]`/`(없음)` 형태로만 남고 실제 성명/전화번호/주소/원문 메시지가 로그 어디에도 없음을 JSON 페이로드로 직접 확인.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/주소/품목). 검증 중 생성된 테스트 주문 2건(`orders/ext_...`, 테넌트 스코프 밖 루트 경로) 전부 삭제 확인. `ORDER_AUTH_TOKEN` 값은 로컬 `.env`에서 셸 변수로만 로드해 사용, 대화 응답이나 로그에 출력하지 않음.
 
+### TMS: OCR 실패 UX 개선(401/403/500/세션만료 안내) 배포/검증
+- **Status**: ✅ Deployed / Verified (Hosting만 배포, Functions/DB rules 미변경)
+- **Commits**: `941d9f0`(UX 개선 코드), `7f5a691`(APP_VERSION 6 범프)
+- **Scope**: `saas/driver.html`만 변경 — `_authHeader()`(세션 만료 시 명확한 안내), `friendlyErrorMessage()` 신규 공용 헬퍼(401/403/500을 상태별 안내로 변환), `startOCR()`/`regeocodeAddr()`가 실패 시 서버 message를 읽어 반영. OCR/학습주소/DB 저장 로직, Cloud Functions 변경 없음.
+- **Deploy**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. `DEPLOY_CHECKLIST.md` "4-1" 절차대로 배포 전 `APP_VERSION` 5→6 범프, 배포 후 `settings/appVersion`도 6으로 갱신.
+- **Evidence**: `node --test` 101/101 pass(변경이 클라이언트 전용이라 그대로). 배포 후 실제 라이브에서 검증:
+  - 정상 OCR 흐름: 실제 `startOCR()` 호출로 합성 영수증 이미지 처리 → 이름/주소/전화/금액 정상 채워지고 결과 화면 전환 확인(회귀 없음)
+  - 401/403/500: 실제 배포된 `processReceipt` 엔드포인트를 인증 없음/테넌트 불일치/빈 이미지(Vision 실패 유발)로 각각 호출 → `friendlyErrorMessage()`가 상태 코드별 안내 문구로 정확히 변환함을 확인
+  - 업데이트 배너/appVersion 동기화: 배포 전부터 열려있던 탭(구버전 코드, `APP_VERSION='5'` in-memory)에서 로그인 시 배너가 정상 표시됨을 확인, 새로 로드한 탭(`APP_VERSION='6'`)에서는 배너가 뜨지 않음을 확인
+- **Sensitive data policy**: 합성 데이터만 사용. `startOCR()`/오류 테스트 호출은 `confirmAdd()`를 거치지 않아 Firebase에 아무 데이터도 생성되지 않음 — 재조회로 잔존 없음 확인.
+
 ---
 
 ## 진행 대기 (P1)
