@@ -87,3 +87,30 @@
 - **Result**: 업데이트 배너의 표시/문구/레이아웃뿐 아니라, 그동안 한 번도 작동하지 않았던 "감지" 로직 자체를 이번 라운드에서 실제로 살려냄. 프로덕션에서 버전 불일치 시 배너가 뜨고, 새로고침(또는 버전 일치 상태로 재접속) 시 배너가 사라지는 전체 흐름을 실제 Firebase 백엔드 대상으로 확인.
 - **범위 밖으로 남긴 것(백로그 기록만)**: PWA `manifest.json`/`sw.js` 경로 불일치(둘 다 404, `manifest.json`은 파일 자체가 없음), 버전 갱신 자동화 스크립트 — `_bmad/backlog.md` 참고.
 - **Sensitive data policy**: 실제 고객 데이터 미사용. 검증 전 과정에서 Firebase에 대한 쓰기 작업 없음(읽기 전용 조회 및 실시간 리스너 연결만 수행).
+
+## 2026-07-07 — TMS: 공동현관 비밀번호/출입정보(accessInfo) 1차 구현 + phone-priority 학습주소 키 수정 배포 검증
+
+- **대상**: `saas/driver.html`(출입정보 입력/표시/저장), `functions/lib/receipt-utils.js`(`isSimilarAddress`, `buildLearnedLocationResponse`), `functions/index.js`(`processReceipt` 학습주소 응답)
+- **커밋**: `6485a85`(accessInfo 기능), `fb7c26f`(APP_VERSION 5 범프)
+- **단위 테스트**: `node --test "test/*.test.js"` → **77/77 pass**
+  - `isSimilarAddress` 5케이스(완전일치/공백-대소문자 무시 일치/포함관계/불일치/빈값)
+  - `buildLearnedLocationResponse` 6케이스(정상 게이트 통과/주소 불일치 시 access_info만 빈값·road_address는 유지/학습 레코드 없음/road_address 없음/access_info 필드 자체 없음/lat·lng 없음)
+  - phone-priority 키 연동 3케이스(전화번호 있으면 phone 키로 조회한 레코드의 access_info가 응답에 포함/전화번호 없으면 name fallback/phone 키 레코드라도 주소 불일치 시 access_info는 빈값)
+- **배포**:
+  - `firebase deploy --only functions --project hatdelivery-saas` → 6개 함수 전부 성공
+  - `firebase deploy --only hosting --project hatdelivery-saas` → 성공, 라이브 소스에 `APP_VERSION='5'`, `res-access-info`, `dl-access-info`, `resolveLearnKey` 반영 확인
+  - 배포 후 `settings/appVersion`을 `"5"`로 갱신
+- **배포 후 라이브 검증** (testmart 테넌트, 합성 데이터만 사용, 검증 직후 전부 삭제):
+  1. testmart/test1 계정으로 실제 프로덕션 TMS 로그인
+  2. 실제 `confirmAdd()` 호출로 4가지 조합(상세주소만/출입정보만/둘다/둘다없음, 이름 "배포검증A~D") 저장
+  3. 전체 페이지 새로고침(세션은 실제 Firebase Auth로 자동 복원) 후 4장 카드 모두 배지 유지 확인
+  4. `.dl-detail-addr`/`.dl-access-info`와 `.row-btns`의 `getBoundingClientRect()` 비교 → 375px 모바일 폭에서 4건 전부 겹침 없음
+  5. `saveLearnedAddress()` 호출 → `settings/learnedLocations/{phone}`과 `settings/learnedLocations/{name}` 양쪽에 동일 데이터(access_info/name/phone 포함) 저장 확인
+  6. **`processReceipt` 실제 배포 엔드포인트 E2E 검증** — 브라우저 canvas로 "성명/연락처/주소/합계금액" 4줄 텍스트를 그린 합성 영수증 이미지를 생성해 실제 Vision OCR → Gemini 파싱 → Kakao/학습주소 조회 파이프라인을 그대로 통과시킴(사전에 `settings/learnedLocations/{phone}`에 합성 학습 레코드 시드):
+     - 영수증 주소를 학습 레코드의 `road_address`와 동일하게 작성 → 응답 `location.access_info`에 학습된 값 포함, 서버 로그 `학습주소 적용: {phone} {road_address} / access_info 적용: true` 확인
+     - 동일 전화번호·다른 주소로 작성 → 응답 `location.access_info`는 빈 문자열, `road_address`/`detail_address`는 학습값 그대로 유지, 서버 로그 `access_info 적용: false` 확인
+  7. `gcloud logging read`로 배포 이후(`timestamp>="2026-07-07T02:30:00Z"`) `processReceipt` 및 전체 함수의 `severity>=ERROR` 로그 0건 확인
+  8. 브라우저 콘솔: 기존에 알려진 `manifest.json`/`sw.js` 404(별도 백로그 항목, 무관) 외 신규 에러 없음
+  9. 테스트 주문 4건(배포검증A~D) + 학습주소 레코드 3건(`010-9500-0001`, `010-9700-0001`, `배포학습검증`) 전부 삭제, 재조회로 잔존 없음 확인
+- **Result**: accessInfo 기능이 저장 → 실시간 동기화 → 새로고침 → 학습주소 자동 적용(오적용 방지 게이트 포함)까지 전 구간에서 프로덕션 배포본으로 정상 동작함을 확인. 특히 `processReceipt`의 access_info 게이팅은 실제 이미지 기반 E2E 호출로 검증해, 단위테스트만으로는 확인할 수 없었던 Vision/Gemini 파싱 단계까지 포함한 전체 파이프라인이 의도대로 동작함을 확인.
+- **Sensitive data policy**: 전 과정 합성 데이터만 사용. `firebase functions:log` 확인 중 이번 검증과 무관한 실제 고객 영수증 로그 일부가 우연히 노출됐으나(다른 시각대 실사용 트래픽), 본 로그와 대화 응답 어디에도 옮겨 적지 않고 배포 이후 시간대(`2026-07-07T02:30:00Z` 이후)로 한정해 조회.

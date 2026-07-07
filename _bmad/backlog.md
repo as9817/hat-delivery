@@ -80,6 +80,32 @@
   - Firebase `settings/appVersion`은 이미 `"4"`였으므로 별도 갱신 없이 유지
 - **Sensitive data policy**: 실제 고객 데이터 미사용. 검증 중 실제 Firebase 프로젝트에 대해 읽기 전용 조회 및 임시 리스너 연결만 수행, 쓰기 작업 없음.
 
+### TMS: 공동현관 비밀번호/출입정보(accessInfo) 1차 구현 + 학습주소 phone-priority 키 수정
+- **Status**: ✅ Deployed / Verified
+- **Commits**: `6485a85`(accessInfo 기능 전체), `fb7c26f`(APP_VERSION 5로 범프)
+- **범위**:
+  - `detailAddress`(상세주소)와 `accessInfo`(공동현관 비밀번호/출입정보)를 분리한 별도 필드로 추가
+  - TMS OCR 확인 화면에 출입정보 입력칸 추가(상세주소 입력칸 바로 아래)
+  - 배송목록 카드에 `🔐` 배지로 출입정보 표시(상세주소 배지 아래, 버튼 영역과 분리된 별도 줄)
+  - `saveToFirebase(item)`/`confirmAdd()`에 `accessInfo` 배관 연결
+  - `settings/learnedLocations`에 `access_info`/`name`/`phone` 필드 저장/조회 지원
+  - `processReceipt`가 학습주소 적용 시 `access_info`를 반환하되, 이번 영수증 주소와 학습된 `road_address`가 유사할 때만 포함(오적용 방지) — `functions/lib/receipt-utils.js`의 `isSimilarAddress`/`buildLearnedLocationResponse` 순수함수로 구현
+  - **추가 발견 및 수정**: 서버 조회(`resolveLearnKey`)는 전화번호 우선인데 클라이언트 저장(`saveLearnedAddress()`, `confirmAdd()` 자동학습)은 항상 성명 키만 써서, 전화번호가 있는 영수증에서는 학습된 `access_info`/`detail_address`를 못 불러오는 기존 버그를 발견 → 클라이언트에도 동일한 `resolveLearnKey(phone, name)` 로직을 복제해 전화번호 우선 키로 저장하도록 수정, 전화번호 인식 실패 케이스 대비 성명 키에도 동일 데이터 dual-write
+- **범위 밖으로 남긴 것(백로그 기록만, 아래 항목 참고)**: OCR 원문 괄호 안 출입정보 자동 분리, 학습주소 저장 자동화 스크립트, 기존 이름 키로만 쌓인 과거 데이터 마이그레이션
+- **테스트**: `node --test` 77/77 pass (신규 14개 — `isSimilarAddress` 5, `buildLearnedLocationResponse` 6, phone-key/access_info 연동 3)
+- **배포**: Functions(`firebase deploy --only functions`) + Hosting(`firebase deploy --only hosting`) 순서로 배포, 배포 후 `settings/appVersion`을 `APP_VERSION`과 동일하게(`5`) 갱신
+- **배포 후 라이브 검증** (합성 데이터만 사용, testmart 테넌트, 검증 직후 전부 삭제):
+  - 실제 `confirmAdd()`로 상세주소만/출입정보만/둘다/둘다없음 4가지 조합 저장 → 새로고침 후에도 카드에 유지 확인
+  - 배지와 버튼 영역(길찾기/완료체크/✏️) 겹침 없음을 바운딩 박스로 확인(모바일 폭 375px)
+  - `saveLearnedAddress()` 호출 → phone 키/name 키 양쪽에 동일 데이터(access_info/name/phone 포함) 저장 확인
+  - **`processReceipt` 실제 배포 엔드포인트를 합성 영수증 이미지(canvas로 생성한 "성명/연락처/주소/합계금액" 텍스트)로 직접 호출**해 Vision OCR → Gemini 파싱 → 학습주소 조회 전체 파이프라인을 실제로 거침:
+    - 학습된 주소와 동일한 주소로 영수증 작성 → 응답에 `access_info` 포함, 서버 로그에도 `access_info 적용: true` 확인
+    - 학습된 주소와 다른 주소로 영수증 작성(동일 전화번호) → 응답의 `access_info`는 빈 값, `road_address`/`detail_address`는 기존 학습값 유지, 서버 로그에 `access_info 적용: false` 확인
+  - Functions 에러 로그(`severity>=ERROR`) 배포 이후 0건 확인
+  - 브라우저 콘솔 에러는 기존에 알려진 manifest.json/sw.js 404(별도 백로그 항목, 무관)뿐 — accessInfo 관련 신규 에러 없음
+  - 테스트 주문 4건 + 학습주소 레코드 3건 전부 삭제, 잔존 없음 확인
+- **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소/출입정보). Functions 로그 확인 중 무관한 실제 고객 영수증 로그가 우연히 노출됐으나 본 기록에도 대화 응답에도 옮겨 적지 않음.
+
 ---
 
 ## 진행 대기 (P1)
@@ -98,6 +124,8 @@
 - **git 저장소 정리** — `orders.json`, `functions.zip`, `functions/node_modules` 히스토리 내 잔존 여부 및 재작성(BFG 등) 필요성 별도 논의.
 - **TMS 배포 버전 갱신 자동화** — 현재는 `APP_VERSION` 상수와 Firebase `settings/appVersion`을 사람이 수동으로 맞춰야 함(`DEPLOY_CHECKLIST.md` "4-1" 절차 참고). 배포 스크립트가 배포 시각 기반 값을 자동 생성해 양쪽에 동시에 써주는 방식으로 자동화하면 수동 누락 리스크 제거 가능. 이번 라운드에서는 범위 밖으로 유보.
 - **PWA manifest/sw 경로 불일치** — `saas/driver.html`이 `/hat-delivery/manifest.json`, `/hat-delivery/sw.js`를 참조하는데 실제 배포 루트(`hatdelivery-saas.web.app/`)에서 둘 다 404 확인됨(`manifest.json`은 저장소에 파일 자체가 없음). PWA 설치/오프라인 캐시 갱신 흐름이 현재 완전히 미동작 상태(콘솔에서 조용히 실패, 기능상 악영향은 없음). 실제 PWA 기능이 필요한지 확인 후 (a) 경로를 `/manifest.json`, `/sw.js`로 고치고 `manifest.json`을 새로 작성하거나 (b) 불필요하면 관련 태그/등록 스크립트를 제거하는 방향 결정 필요.
+- **OCR 원문 괄호 안 출입정보 자동 분리 미지원** — `parseAddressComponents`는 "(현관 비밀번호 1234)" 같은 괄호 텍스트를 여전히 `detailAddress`로 합침(기존 테스트로 고정된 동작). `accessInfo`는 학습주소 자동 채움 또는 기사의 수동 입력으로만 채워짐 — Gemini 프롬프트/파싱을 바꿔 괄호 안 출입정보 키워드를 자동으로 `accessInfo`로 분리하는 건 별도 라운드로 유보(리스크가 있는 정규식/프롬프트 변경).
+- **학습주소 이름 키 레거시 데이터 미마이그레이션** — phone-priority 저장으로 전환(dual-write 포함)했지만, 이전에 이름 키로만 쌓인 과거 운영 데이터는 그대로 남아있음. 실제 고객 데이터라 이번 라운드에서 건드리지 않음 — 필요 시 별도로 마이그레이션 스크립트 논의.
 
 ## 백로그 (P2, 장기)
 
