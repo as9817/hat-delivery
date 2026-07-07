@@ -15,6 +15,19 @@ function resolveLearnKey(phone, name) {
 }
 
 /**
+ * 로그에 개인정보(주소/이름/전화번호 등)를 원문으로 남기지 않기 위한 마스킹
+ * 헬퍼. 값이 있었는지와 길이만 남기고 실제 내용은 남기지 않는다 — 운영
+ * 디버깅에 필요한 최소 신호(비어있었는지, 길이가 비정상적으로 짧은지 등)만
+ * 남기고 원문 노출은 하지 않는다는 원칙.
+ * @param {*} value
+ * @returns {string}
+ */
+function maskForLog(value) {
+  if (value === null || value === undefined || value === '') return '(없음)';
+  return `[len:${String(value).length}]`;
+}
+
+/**
  * 카카오 주소 검색 (지번/도로명). 마트 좌표가 있으면 거리순 정렬 후
  * 가장 가까운 후보를 선택하고, 반경(martRadius, 기본 5km) 초과 시 null 반환(reject).
  * 실제 네트워크 호출은 global.fetch를 사용 — 테스트 시 모킹 대상.
@@ -36,14 +49,15 @@ async function kakaoAddrSearch(query, kakaoKey, martLat, martLng, martRadius) {
       return dA - dB;
     });
     const bestDist = haversineKm(martLat, martLng, parseFloat(pool[0].y), parseFloat(pool[0].x));
-    logger.info('kakaoAddrSearch 거리순:', pool.map(d => {
+    // 주소 원문은 로그에 남기지 않고 거리(km)만 남김 — PII 노출 방지
+    logger.info('kakaoAddrSearch 후보 거리순(주소 마스킹):', pool.map(d => {
       const km = haversineKm(martLat, martLng, parseFloat(d.y), parseFloat(d.x)).toFixed(2);
-      return `${d.road_address?.address_name || d.address?.address_name}(${km}km)`;
+      return `${km}km`;
     }).join(' / '));
     // 가장 가까운 결과도 설정 반경 초과면 reject → 키워드 검색으로 넘김
     const rejectThreshold = martRadius || 5;
     if (bestDist > rejectThreshold) {
-      logger.info(`kakaoAddrSearch '${query}': 최근접 ${bestDist.toFixed(1)}km > ${rejectThreshold}km → reject`);
+      logger.info(`kakaoAddrSearch 쿼리 ${maskForLog(query)}: 최근접 ${bestDist.toFixed(1)}km > ${rejectThreshold}km → reject`);
       return null;
     }
   }
@@ -75,8 +89,8 @@ async function kakaoKeywordSearch(query, kakaoKey, martLat, martLng, martRadius)
     const score = matchCount * 100 - dist;
     if (score > bestScore) { bestScore = score; bestDoc = doc; }
   });
-  logger.info('kakaoKeywordSearch 선택:', bestDoc.place_name,
-    '/ 후보:', docs.map(d => d.place_name).join(', '));
+  // 건물명/place_name은 로그에 남기지 않고 후보 수/점수만 남김 — PII 노출 방지
+  logger.info('kakaoKeywordSearch: 후보', docs.length, '건 중 최고점 선택 (score:', bestScore, ')');
   return { road_address: bestDoc.road_address_name || bestDoc.address_name || query, lat: parseFloat(bestDoc.y), lng: parseFloat(bestDoc.x) };
 }
 
@@ -197,22 +211,25 @@ function isSimilarAddress(a, b) {
 
 /**
  * 학습주소(settings/learnedLocations 레코드)를 processReceipt 응답의 location으로
- * 변환. access_info는 현재 영수증 주소(currentAddress)와 학습된 road_address가
- * 유사할 때만 포함하고, 그렇지 않으면 빈 값을 반환해 오적용을 방지한다.
- * (road_address/detail_address는 기존 동작 그대로 유지 — 이 함수가 바꾸는 건
- * access_info 포함 여부뿐)
+ * 변환. 영수증은 매번 새로 읽는 것이 원칙이므로, 이번 영수증 주소(currentAddress)와
+ * 학습된 road_address가 유사할 때만 road_address/detail_address/access_info를
+ * 통째로 적용한다. 주소가 다르면(애매한 경우 포함) null을 반환해 호출부가
+ * standardizeAddress()로 이번 영수증 주소 기준 표준화를 계속 진행하도록 한다 —
+ * 학습주소가 "이번 영수증 결과를 대체하는 원본"이 되지 않도록 하는 게 핵심.
  * @param {string} currentAddress - 이번 영수증에서 Gemini가 추출한 원본 주소
  * @param {object|null} learned - settings/learnedLocations/{key} 레코드
  * @returns {{road_address:string, detail_address:string, access_info:string, lat:number|null, lng:number|null}|null}
+ *          주소가 유사하지 않으면 null(=학습주소 미적용, 표준화 폴백 신호)
  */
 function buildLearnedLocationResponse(currentAddress, learned) {
   if (!learned || !learned.road_address) return null;
   const addressMatches = isSimilarAddress(currentAddress, learned.road_address);
+  if (!addressMatches) return null;
   // 학습 레코드의 detail_address 자체가 과거(이 기능 도입 전)에 괄호가 안 분리된
   // 채로 저장됐을 수 있어 여기서도 한 번 더 분리를 시도 — 이미 access_info가
   // 저장돼 있으면 그 값이 우선(덮어쓰지 않음), 없을 때만 분리 결과로 채움.
   const split = splitDetailAndAccessInfo(learned.detail_address || '');
-  const accessInfo = addressMatches ? (learned.access_info || split.accessInfo || '') : '';
+  const accessInfo = learned.access_info || split.accessInfo || '';
   return {
     road_address: learned.road_address,
     detail_address: split.detailAddress,
@@ -262,4 +279,5 @@ module.exports = {
   isSimilarAddress,
   buildLearnedLocationResponse,
   splitDetailAndAccessInfo,
+  maskForLog,
 };

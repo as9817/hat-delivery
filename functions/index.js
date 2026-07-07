@@ -19,6 +19,7 @@ const {
   parseAddressComponents,
   buildLearnedLocationResponse,
   splitDetailAndAccessInfo,
+  maskForLog,
 } = require('./lib/receipt-utils');
 
 
@@ -100,19 +101,27 @@ exports.processReceipt = functions
 
       logger.info('STEP 3: Kakao API');
       // 학습주소 먼저 확인 (전화번호 우선, 없으면 성명으로 fallback)
+      // 영수증은 매번 새로 읽는 게 원칙이므로, 학습주소는 이번 영수증 주소와
+      // 유사할 때만(buildLearnedLocationResponse 내부 게이트) 적용되고, 아니면
+      // null을 반환해 아래 standardizeAddress()로 이번 영수증 기준 표준화가
+      // 이어지도록 함 — 학습주소가 이번 결과를 무조건 덮어쓰지 않도록 하는 핵심 지점.
       const learnKey = resolveLearnKey(parsed.phone, parsed.name);
       if (learnKey) {
         const learnedSnap = await db.ref((dbBase ? dbBase + '/' : '') + 'settings/learnedLocations/' + learnKey).once('value').catch(() => null);
         const learned = learnedSnap?.val();
         const learnedLocation = buildLearnedLocationResponse(parsed.address, learned);
         if (learnedLocation) {
-          logger.info('학습주소 적용:', learnKey, learnedLocation.road_address, '/ access_info 적용:', !!learnedLocation.access_info);
+          // PII(전화번호/성명/주소 원문)는 로그에 남기지 않음 — 적용 여부만 기록
+          logger.info('학습주소 적용됨(주소 유사도 일치) / access_info 포함:', !!learnedLocation.access_info);
           res.status(200).json({ status: 'success', data: {
             customer: { name: parsed.name, phone: parsed.phone || '' },
             location: learnedLocation,
             totalAmount: parsed.totalAmount || '',
           }});
           return;
+        }
+        if (learned?.road_address) {
+          logger.info('학습주소 존재하지만 주소 불일치로 미적용 → 이번 영수증 기준 표준화 진행');
         }
       }
       const martSnap = await db.ref((dbBase ? dbBase + '/' : '') + 'settings/martLocation').once('value').catch(() => null);
@@ -178,9 +187,10 @@ async function extractTextWithVision(base64Image, apiKey) {
 async function parseWithGemini(rawText, apiKey) {
   // OCR 줄바꿈 오분리 보정: 숫자 뒤에서 끊긴 층/호/동 합치기
   // 예) "737-42 1\n층" → "737-42 1층"
-  logger.info('[DEBUG] Vision rawText:', JSON.stringify(rawText));
+  // 영수증 원문(고객 성명/전화번호/주소 포함 가능)은 로그에 남기지 않고 길이만 기록
+  logger.info('[DEBUG] Vision rawText length:', rawText.length);
   rawText = preprocessOcrText(rawText);
-  logger.info('[DEBUG] preprocessed rawText:', JSON.stringify(rawText));
+  logger.info('[DEBUG] preprocessed rawText length:', rawText.length);
   const prompt = `너는 마트 영수증 데이터 파싱 전문가야. 아래 OCR 텍스트에서 다음 4가지를 추출해:
 1. name: 고객명 ('성명:' 옆 텍스트. '합계금액' 키워드 자체는 이름이 아님)
 2. phone: 연락처 (전화번호. 010 없이 국번만 있어도 그대로 추출. 없으면 null)
@@ -201,7 +211,13 @@ async function parseWithGemini(rawText, apiKey) {
   const m = raw.replace(/```json|```/gi, '').match(/\{[\s\S]*\}/);
   if (!m) throw new Error('Gemini: JSON 없음');
   const parsed = JSON.parse(m[0]);
-  logger.info('[DEBUG] Gemini parsed:', JSON.stringify(parsed));
+  // 고객 성명/전화번호/주소는 로그에 원문으로 남기지 않고 존재 여부/길이만 기록
+  logger.info('[DEBUG] Gemini parsed (마스킹):', {
+    name: maskForLog(parsed.name),
+    phone: maskForLog(parsed.phone),
+    address: maskForLog(parsed.address),
+    totalAmount: parsed.totalAmount || null,
+  });
   return parsed;
 }
 
@@ -493,9 +509,9 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
   if (!rawAddress?.trim()) {
     // 주소 없으면 상호명/고객명으로 키워드 검색
     if (fallbackName) {
-      logger.info('주소 없음 → 상호명 키워드 검색:', fallbackName);
+      logger.info('주소 없음 → 상호명 키워드 검색:', maskForLog(fallbackName));
       const rk = await kakaoKeywordSearch(fallbackName, kakaoKey, martLat, martLng, martRadius);
-      if (rk) { logger.info('상호명 검색 성공:', rk.road_address); return { ...rk, detail_address: '' }; }
+      if (rk) { logger.info('상호명 검색 성공:', maskForLog(rk.road_address)); return { ...rk, detail_address: '' }; }
     }
     return { road_address: '', detail_address: '', lat: null, lng: null };
   }
@@ -522,15 +538,15 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
       );
       const r2Idx = r2Results.findIndex(r => r !== null);
       if (r2Idx !== -1) {
-        logger.info('주변동 병렬 검색 성공:', nearbyDongs[r2Idx], r2Results[r2Idx].road_address);
+        logger.info('주변동 병렬 검색 성공:', nearbyDongs[r2Idx], maskForLog(r2Results[r2Idx].road_address));
         return { ...r2Results[r2Idx], detail_address: [bldgName, daFinal].filter(Boolean).join(' ') };
       }
     }
     // 3차: 건물명 있으면 키워드 검색
     if (bldgName) {
-      logger.info('지번+건물명 키워드 검색:', bldgName);
+      logger.info('지번+건물명 키워드 검색:', maskForLog(bldgName));
       const rk3 = await kakaoKeywordSearch(bldgName, kakaoKey, martLat, martLng, martRadius);
-      if (rk3) { logger.info('건물명 키워드 검색 성공:', rk3.road_address); return { ...rk3, detail_address: daFinal }; }
+      if (rk3) { logger.info('건물명 키워드 검색 성공:', maskForLog(rk3.road_address)); return { ...rk3, detail_address: daFinal }; }
     }
     // 4차: 지번만으로 주소 검색 (마트 좌표 있을 때만 — haversine으로 가장 가까운 결과 선택)
     // nearbyDongs 없어도 마트 좌표가 있으면 "211-14" → 마트 근처 매칭 가능
@@ -538,7 +554,7 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
       const r4 = await kakaoAddrSearch(jibunOnly, kakaoKey, martLat, martLng, martRadius);
       if (r4) {
         const detailParts = [bldgName, daFinal].filter(Boolean).join(' ');
-        logger.info('4차 지번 단독 검색 성공:', r4.road_address, '/ 세부:', detailParts);
+        logger.info('4차 지번 단독 검색 성공:', maskForLog(r4.road_address), '/ 세부:', maskForLog(detailParts));
         return { ...r4, detail_address: detailParts };
       }
     }
@@ -551,17 +567,17 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
 
     // 건물명/아파트 → 키워드 검색 (괄호 제거, APT→아파트 치환 후 검색)
     const qClean = searchQ.replace(/\(.*?\)/g, '').replace(/\bAPT\b/gi, '아파트').replace(/@/g, '아파트').trim();
-    logger.info('건물명 키워드 검색:', qClean);
+    logger.info('건물명 키워드 검색:', maskForLog(qClean));
     const rk = await kakaoKeywordSearch(qClean, kakaoKey, martLat, martLng, martRadius);
-    if (rk) { logger.info('키워드 검색 성공:', rk.road_address); return { ...rk, detail_address: finalDa }; }
+    if (rk) { logger.info('키워드 검색 성공:', maskForLog(rk.road_address)); return { ...rk, detail_address: finalDa }; }
 
     // 주소 검색 실패 시 고객명(상호명)으로 2차 시도
     // 지하/층 등 위치 설명어 제거 후 순수 상호명만 사용
     if (fallbackName && fallbackName !== q) {
       const pureName = fallbackName.replace(/(지하|[0-9]+층|B[0-9]+|옥상)$/g, '').trim();
-      logger.info('고객명으로 2차 키워드 검색:', pureName);
+      logger.info('고객명으로 2차 키워드 검색:', maskForLog(pureName));
       const rk2 = await kakaoKeywordSearch(pureName, kakaoKey, martLat, martLng, martRadius);
-      if (rk2) { logger.info('고객명 검색 성공:', rk2.road_address); return { ...rk2, detail_address: daFinal }; }
+      if (rk2) { logger.info('고객명 검색 성공:', maskForLog(rk2.road_address)); return { ...rk2, detail_address: daFinal }; }
     }
   }
 

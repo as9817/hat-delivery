@@ -178,12 +178,10 @@ describe('buildLearnedLocationResponse (학습주소 응답 변환 + access_info
     });
   });
 
-  it('현재 주소와 학습 주소가 다름 → access_info는 빈 값(road_address/detail_address는 유지, 기존 동작 보존)', () => {
+  it('현재 주소와 학습 주소가 다름 → null 반환(road_address/detail_address/access_info 전부 미적용, standardizeAddress 폴백 신호)', () => {
     const learned = { road_address: '서울 용산구 가상로 100', detail_address: '101동 202호', access_info: '현관 104열쇠 2634종', lat: 37.5, lng: 127.0 };
     const result = buildLearnedLocationResponse('서울 강남구 가상로 999', learned);
-    assert.equal(result.road_address, '서울 용산구 가상로 100');
-    assert.equal(result.detail_address, '101동 202호');
-    assert.equal(result.access_info, '');
+    assert.equal(result, null);
   });
 
   it('학습 레코드에 access_info 자체가 없음 → 빈 값', () => {
@@ -235,7 +233,7 @@ describe('학습주소 키 일치성(전화번호 우선 저장 → 조회 → a
     assert.equal(resolveLearnKey(undefined, name), name);
   });
 
-  it('전화번호 키로 저장된 레코드라도 이번 영수증 주소가 다르면 access_info는 빈 값(오적용 방지 유지)', () => {
+  it('전화번호 키로 저장된 레코드라도 이번 영수증 주소가 다르면 null(road_address/detail_address/access_info 전부 오적용 방지)', () => {
     const phone = '010-0000-5678';
     const name = '가상고객3';
     const learnKey = resolveLearnKey(phone, name);
@@ -248,7 +246,57 @@ describe('학습주소 키 일치성(전화번호 우선 저장 → 조회 → a
     };
     const result = buildLearnedLocationResponse('서울 강남구 다른로 999', learnedRecordSavedUnderPhoneKey);
     assert.equal(learnKey, phone);
-    assert.equal(result.access_info, '');
+    assert.equal(result, null);
+  });
+
+  it('전화번호가 있으면 phone이 키 → 같은 전화번호 + 같은 주소면 road_address/detail_address/access_info 전부 적용됨', () => {
+    const phone = '010-0000-9012';
+    const name = '가상고객4';
+    const learnKey = resolveLearnKey(phone, name);
+    const learned = {
+      road_address: '서울 마포구 가상로 200',
+      detail_address: '301동 501호',
+      access_info: '공동현관 5678',
+      name, phone,
+      lat: 37.55, lng: 126.9,
+    };
+    const result = buildLearnedLocationResponse('서울 마포구 가상로 200', learned);
+    assert.equal(learnKey, phone);
+    assert.deepEqual(result, {
+      road_address: '서울 마포구 가상로 200',
+      detail_address: '301동 501호',
+      access_info: '공동현관 5678',
+      lat: 37.55,
+      lng: 126.9,
+    });
+  });
+
+  it('전화번호가 없어 name이 키가 된 경우 — 같은 이름이라도 주소가 다르면 null(road_address/detail_address/access_info 전부 미적용)', () => {
+    const name = '가상고객5';
+    const learnKey = resolveLearnKey(null, name);
+    const learnedRecordSavedUnderNameKey = {
+      road_address: '서울 종로구 가상로 300',
+      detail_address: '5층',
+      access_info: '경비실 호출',
+      name,
+      lat: 37.57, lng: 126.98,
+    };
+    const result = buildLearnedLocationResponse('서울 종로구 완전다른로 777', learnedRecordSavedUnderNameKey);
+    assert.equal(learnKey, name);
+    assert.equal(result, null, '이름이 같아도 주소가 다르면 학습값을 적용하면 안 됨');
+  });
+
+  it('주소가 유사하지 않으면(전혀 다른 주소) access_info만 따로 남지 않고 통째로 미적용됨', () => {
+    const phone = '010-0000-3456';
+    const learned = {
+      road_address: '부산 해운대구 가상로 1',
+      detail_address: '10층',
+      access_info: '문 앞 호출',
+      phone,
+      lat: 35.16, lng: 129.16,
+    };
+    const result = buildLearnedLocationResponse('서울 노원구 완전다른동네 999', learned);
+    assert.equal(result, null, '주소가 유사하지 않으면 access_info만 남기지 않고 전체를 미적용해야 함');
   });
 });
 
@@ -337,14 +385,13 @@ describe('buildLearnedLocationResponse + splitDetailAndAccessInfo 연동 (병합
     assert.equal(result.access_info, '기존에 저장된 진짜 출입정보', '기존 access_info가 우선');
   });
 
-  it('주소가 다르면(오적용 방지 게이트) 괄호에서 분리된 accessInfo도 적용하지 않음', () => {
+  it('주소가 다르면(오적용 방지 게이트) null 반환 — 괄호에서 분리됐을 detail_address/accessInfo도 통째로 미적용', () => {
     const learned = {
       road_address: '서울 용산구 가상로 100',
       detail_address: '1903동 104호 (현관 비번 9999)',
       lat: 37.5, lng: 127.0,
     };
     const result = buildLearnedLocationResponse('서울 강남구 다른로 999', learned);
-    assert.equal(result.detail_address, '1903동 104호', 'detail_address는 게이트와 무관하게 분리됨');
-    assert.equal(result.access_info, '', '주소 불일치 시 분리된 accessInfo도 미적용');
+    assert.equal(result, null, '주소 불일치 시 road_address/detail_address/access_info 전부 미적용(null)');
   });
 });

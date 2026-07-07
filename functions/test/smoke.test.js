@@ -134,3 +134,34 @@ describe('database.rules.json', () => {
     assert.equal(rules.rules?.settings?.['.write'], false);
   });
 });
+
+// ── processReceipt PII 로그 노출 방지 (정적 검사) ──────────
+// Vision 원문/Gemini 파싱 결과/학습주소 키/주소 등을 logger.info로 그대로
+// 남기던 걸 마스킹으로 바꾼 회귀 방지 테스트. 코드 실행 없이 소스 문자열
+// 패턴만 확인하므로 실제 고객 데이터는 전혀 다루지 않는다.
+describe('processReceipt PII 로그 노출 방지 (정적 검사)', () => {
+  it('functions/index.js: Vision 원문/Gemini 파싱 결과를 그대로 로그에 남기지 않음', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
+    assert.ok(!src.includes("logger.info('[DEBUG] Vision rawText:', JSON.stringify(rawText))"), 'Vision 원문이 그대로 로그에 남음');
+    assert.ok(!src.includes("logger.info('[DEBUG] preprocessed rawText:', JSON.stringify(rawText))"), '전처리된 원문이 그대로 로그에 남음');
+    assert.ok(!src.includes("logger.info('[DEBUG] Gemini parsed:', JSON.stringify(parsed))"), 'Gemini 파싱 결과 원문이 그대로 로그에 남음');
+  });
+
+  it('functions/index.js: 학습주소 적용 로그에 learnKey/road_address 원문을 직접 넘기지 않음', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
+    assert.ok(!src.includes("logger.info('학습주소 적용:', learnKey, learnedLocation.road_address"), '학습주소 적용 로그에 learnKey/road_address 원문이 그대로 남음');
+  });
+
+  it('functions/index.js: maskForLog 헬퍼를 실제로 사용함 (로그 마스킹 적용 확인)', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
+    const count = (src.match(/maskForLog\(/g) || []).length;
+    assert.ok(count >= 8, `maskForLog 사용 횟수가 예상보다 적음 (count=${count})`);
+  });
+
+  it('functions/lib/receipt-utils.js: kakaoAddrSearch/kakaoKeywordSearch가 주소/건물명 원문을 로그에 남기지 않음', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'lib', 'receipt-utils.js'), 'utf8');
+    assert.ok(!src.includes('d.road_address?.address_name || d.address?.address_name}(${km}km)'), 'kakaoAddrSearch 거리순 로그에 주소 원문이 남음');
+    assert.ok(!src.includes("'kakaoKeywordSearch 선택:', bestDoc.place_name"), 'kakaoKeywordSearch 로그에 place_name 원문이 남음');
+    assert.ok(src.includes('function maskForLog'), 'maskForLog 헬퍼가 정의되어 있지 않음');
+  });
+});
