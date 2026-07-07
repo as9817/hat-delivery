@@ -161,3 +161,22 @@
   7. 이 Playwright 브라우저 프로필의 로그아웃 확인 다이얼로그가 자동 처리되지 않아 `localStorage`/`sessionStorage`를 직접 초기화해 세션 정리(실제 Firebase 데이터와 무관, 로컬 브라우저 상태만 정리)
 - **Result**: 학습주소 오적용 방지 게이트가 실제 배포 엔드포인트에서 road_address/detail_address/access_info 전부에 대해 정확히 동작하고, Cloud Functions 로그에서 고객 PII가 더 이상 평문으로 남지 않음을 확인.
 - **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소/출입정보). 실제 고객 데이터 미노출, 검증 데이터 전부 삭제 확인.
+
+## 2026-07-07 — receiveOrder/parseOrderWithGemini PII 로그 마스킹 배포 검증
+
+- **대상**: `functions/index.js`의 `exports.receiveOrder`, `parseOrderWithGemini`(SMS·카톡 자동 주문 접수 흐름)
+- **배경**: 이전 라운드(학습주소 게이트 + processReceipt PII 마스킹)에서 `receiveOrder`에도 동일한 원문 로깅 문제가 있음을 발견해 백로그로만 등록해뒀음(원본 메시지, Gemini 원본 응답, 고객명, 전화번호, 주소, 파싱 결과 전체가 `logger.info`/`warn`에 그대로 남던 문제).
+- **Fix**: 원본 메시지/Gemini 응답 등 긴 텍스트 블롭은 `.length`만 기록, 고객명/전화번호/주소는 기존 `maskForLog()` 재사용. **응답 바디**(`res.json({success,orderId,parsed})`)와 **Firebase 저장 필드**(`rawMessage`, `customerName` 등)는 MacroDroid 등 호출측 기능 유지를 위해 변경하지 않음 — 로그 호출부만 수정.
+- **커밋**: `9db0c18`
+- **테스트**: `node --test` **101/101 pass** (기존 97 + 신규 정적 검사 4건 — 원본 메시지/Gemini 응답 미노출, 최종이름/고객DB보완/품목/접수완료 로그 미노출, STEP Kakao 로그 미노출, 응답 바디 불변 확인)
+- **배포**: `firebase deploy --only functions --project hatdelivery-saas`만 실행. Hosting/`database.rules.json` 미변경.
+- **배포 전 확인**: git status clean, `node --test` 101/101 재확인.
+- **배포 후 라이브 검증** (합성 데이터만 사용, 검증 직후 전부 삭제):
+  1. 로컬 `.env`의 `ORDER_AUTH_TOKEN` 값을 셸 변수로만 로드(대화 응답/로그에 미노출)해 실제 배포된 `receiveOrder` 엔드포인트를 합성 SMS 메시지로 호출
+  2. **정상 주문 1건**: `{message:"합성테스트고객 010-9990-0001 서울 은평구 가상로 999 감자2개 계란1판 배달해주세요", channel:"sms", sender:"010-9990-0001"}` → 응답 `{success:true, orderId, parsed:{type:"order", name, address, phone, items, memo}}` — 기존과 동일한 스키마로 정상 파싱됨을 확인(첫 시도는 bash 명령줄 UTF-8 인코딩 문제로 한글이 깨져 재전송 — 파일 기반 페이로드로 재시도해 해결, 서버 로직 문제 아님)
+  3. **스팸성 메시지 1건**: 인증번호 안내 문자 형태로 호출 → 응답 `{success:false, skipped:true, reason:"not_an_order"}` — 기존과 동일하게 저장 없이 스킵됨을 확인
+  4. `gcloud logging read`로 배포 이후 전체 함수 `severity>=ERROR` 로그 **0건** 확인
+  5. 로그 원문(JSON/텍스트 페이로드)을 직접 조회해 마스킹 확인: `Gemini 원본 응답 길이: N`, `원본 메시지 길이: N`, `최종 이름(마스킹): [len:N]`/`(없음)`, `STEP Kakao: 주소 검색 쿼리(마스킹): [len:N]`, `주문 접수 완료: {orderId} / 파싱 결과(마스킹): {name:"[len:N]", phone:"[len:N]", address:"[len:N]", itemsCount:N}` 등 — 실제 성명/전화번호/주소/원본 메시지 문자열이 로그 어디에도 없음을 확인
+  6. 테스트 중 생성된 주문 2건(`orders/ext_1783409735462`, `orders/ext_1783409763495` — receiveOrder는 테넌트 스코프 없이 루트 `orders/`에 저장하는 기존 구조, 이번 라운드에서 변경하지 않음) 전부 삭제, 재조회로 잔존 없음 확인
+- **Result**: receiveOrder의 PII 로그 노출 문제가 실제 배포본에서 해결됨을 확인. processReceipt에 이어 이 세션에서 다뤘던 두 주문 접수 경로(영수증 OCR, SMS·카톡 자동접수) 모두 Cloud Functions 로그의 PII 마스킹이 완료됨.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/주소/품목/메모). `ORDER_AUTH_TOKEN`은 셸 변수로만 다뤄 노출 없음. 검증용 주문 2건 전부 삭제 확인.

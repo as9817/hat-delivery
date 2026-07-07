@@ -123,6 +123,14 @@
 - **Evidence**: `node --test` 97/97 pass. 배포 후 실제 `processReceipt` 엔드포인트를 합성 영수증 이미지로 호출해 3가지 케이스(같은 전화번호+같은 주소 → 학습값 전부 적용 / 같은 전화번호+다른 주소 → 학습값 완전 미적용 & 이번 영수증 주소 기준 표준화 진행 / 같은 이름(전화번호 없음)+다른 주소 → 이름 fallback 오적용 없음) 전부 요청된 그대로 확인. `gcloud logging read`로 배포 이후 ERROR 로그 0건, Gemini parsed 로그가 `[len:N]`/`(없음)` 형태로 마스킹되어 실제 이름/전화번호/주소 원문이 로그에 없음을 JSON 페이로드로 직접 확인.
 - **Sensitive data policy**: 합성 데이터만 사용, 검증 후 학습주소 레코드 2건 전부 삭제(주문 데이터는 생성되지 않음 — processReceipt만 호출, confirmAdd 미호출). 로그 확인은 배포 이후 시간대(`timestamp>="2026-07-07T07:00:00Z"`)로 한정, 실제 고객 데이터 미노출 확인.
 
+### receiveOrder/parseOrderWithGemini PII 로그 마스킹 배포/검증
+- **Status**: ✅ Deployed / Verified (Functions만 배포, Hosting/DB rules 미변경)
+- **Commit**: `9db0c18`
+- **Scope**: `functions/index.js`(`receiveOrder`/`parseOrderWithGemini`의 `logger.info`/`warn` 호출을 `maskForLog`/길이/카운트 기반으로 마스킹, 응답 바디·Firebase 저장 필드는 변경 없음), `functions/test/smoke.test.js`(정적 검사 4케이스 추가). 위 "학습주소 게이트" 라운드에서 등록했던 백로그 항목(receiveOrder PII 로그 노출) 해결.
+- **Deploy**: `firebase deploy --only functions --project hatdelivery-saas`만 실행.
+- **Evidence**: `node --test` 101/101 pass. 배포 후 실제 `receiveOrder` 엔드포인트를 합성 SMS 메시지로 2회 호출(정상 주문 1건, 스팸 메시지 1건) — 응답 바디(`success`/`orderId`/`parsed` 스키마)가 기존과 동일하게 유지됨을 확인. `gcloud logging read`로 배포 이후 ERROR 로그 0건, `Gemini 원본 응답 길이`/`원본 메시지 길이`/`최종 이름(마스킹)`/`주문 접수 완료` 등 모든 관련 로그가 `[len:N]`/`(없음)` 형태로만 남고 실제 성명/전화번호/주소/원문 메시지가 로그 어디에도 없음을 JSON 페이로드로 직접 확인.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/주소/품목). 검증 중 생성된 테스트 주문 2건(`orders/ext_...`, 테넌트 스코프 밖 루트 경로) 전부 삭제 확인. `ORDER_AUTH_TOKEN` 값은 로컬 `.env`에서 셸 변수로만 로드해 사용, 대화 응답이나 로그에 출력하지 않음.
+
 ---
 
 ## 진행 대기 (P1)
@@ -148,4 +156,4 @@
 
 - **테넌트 내부 역할 분리** — 기사 계정이 `settings`/`driverAccounts` 등 민감 경로를 직접 쓰지 못하게 제한 (SEC-001은 테넌트 *간* 격리만 다룸, 테넌트 *내부* 역할 분리는 범위 밖).
 - **평문 비밀번호 레거시 폴백 제거** — `functions/index.js`의 `issueDriverToken`에 남아있는 `driver.password === password` 폴백.
-- **`receiveOrder`/`parseOrderWithGemini`(SMS·카톡 주문 접수) PII 로그 노출** — `processReceipt`와 동일한 문제가 남아있음: `logger.info('Gemini 원본 응답:', raw)`, `logger.info('원본 메시지:', message, ...)`, `logger.info('최종 이름:', finalName, ...)`, `logger.info('주문 접수 완료:', orderId, parsed)` 등이 고객 성명/전화번호/주소/원본 메시지를 그대로 로그에 남김. `processReceipt` 쪽은 커밋 `50fec90`에서 `maskForLog`로 마스킹 완료했으나, `receiveOrder`는 별도 Cloud Function/코드 경로라 이번 라운드 범위 밖으로 남겨둠 — 동일한 `maskForLog` 헬퍼를 재사용해 다음 라운드에서 처리 필요.
+- ~~**`receiveOrder`/`parseOrderWithGemini`(SMS·카톡 주문 접수) PII 로그 노출**~~ → **해결 완료**: 커밋 `9db0c18`에서 `maskForLog`로 마스킹 완료, 배포/라이브 검증 완료(위 "receiveOrder/parseOrderWithGemini PII 로그 마스킹 배포/검증" 항목 참고).
