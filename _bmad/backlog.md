@@ -140,3 +140,4 @@
 
 - **테넌트 내부 역할 분리** — 기사 계정이 `settings`/`driverAccounts` 등 민감 경로를 직접 쓰지 못하게 제한 (SEC-001은 테넌트 *간* 격리만 다룸, 테넌트 *내부* 역할 분리는 범위 밖).
 - **평문 비밀번호 레거시 폴백 제거** — `functions/index.js`의 `issueDriverToken`에 남아있는 `driver.password === password` 폴백.
+- **`receiveOrder`/`parseOrderWithGemini`(SMS·카톡 주문 접수) PII 로그 노출** — `processReceipt`와 동일한 문제가 남아있음: `logger.info('Gemini 원본 응답:', raw)`, `logger.info('원본 메시지:', message, ...)`, `logger.info('최종 이름:', finalName, ...)`, `logger.info('주문 접수 완료:', orderId, parsed)` 등이 고객 성명/전화번호/주소/원본 메시지를 그대로 로그에 남김. `processReceipt` 쪽은 커밋 `50fec90`에서 `maskForLog`로 마스킹 완료했으나, `receiveOrder`는 별도 Cloud Function/코드 경로라 이번 라운드 범위 밖으로 남겨둠 — 동일한 `maskForLog` 헬퍼를 재사용해 다음 라운드에서 처리 필요.
