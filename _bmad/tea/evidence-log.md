@@ -138,3 +138,26 @@
   - 학습주소 레코드 4건(`010-9800-0001~0004`) 전부 삭제, 재조회로 잔존 없음 확인. `processReceipt` 호출만 사용해 배송 주문은 생성되지 않았음(추가 삭제 불필요) — 단, 이전 라운드에서 Firebase는 이미 삭제됐지만 이 Playwright 브라우저 프로필의 `localStorage`에 "오늘 날짜" 필터로 남아있던 이전 회차 테스트 주문 4건(`배포검증A~D`)이 화면에 재노출되는 것을 발견 → Firebase 데이터가 아닌 순수 로컬 캐시임을 직접 확인 후 `localStorage` 초기화로 정리(실제 운영/다른 기기에는 영향 없음)
 - **Result**: OCR 괄호 출입정보 자동 분리 기능이 실제 배포된 `processReceipt`에서 요청된 4가지 케이스 전부(분리/포함/애매 미분리/괄호없음) 정확히 의도대로 동작함을 확인. 병합 규칙(기존 학습값 우선, 오적용 게이트 유지)도 코드 경로상 함께 적용됨.
 - **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소/출입정보). 실제 고객 데이터 미노출.
+
+## 2026-07-07 — TMS: 학습주소 주소-유사도 게이트(road_address/detail_address/access_info) + Cloud Functions PII 로그 마스킹 배포 검증
+
+- **대상**: `functions/lib/receipt-utils.js`(`buildLearnedLocationResponse`, `maskForLog`), `functions/index.js`(`parseWithGemini`, `standardizeAddress`, 학습주소 적용 로그)
+- **배경**: 기존 `buildLearnedLocationResponse`는 `access_info`만 주소 유사도(`isSimilarAddress`)로 게이트하고 `road_address`/`detail_address`는 무조건 학습값을 반환해, 같은 전화번호/이름의 고객이 다른 주소로 주문하면 이번 영수증의 실제 주소가 무시되고 예전 학습 주소로 치환될 위험이 있었음(read-only 분석 라운드에서 발견). 또한 Cloud Functions 로그에 Vision 원문/Gemini 파싱 결과/학습주소 키(전화번호 포함 가능)/Kakao 검색 과정의 주소·건물명이 평문으로 남아있었음.
+- **Fix**: `buildLearnedLocationResponse`가 주소 불일치 시 `null`을 반환하도록 변경(→ `processReceipt`가 자동으로 `standardizeAddress()` 폴백 진행). `maskForLog(value)` 헬퍼(`(없음)` 또는 `[len:N]`)를 도입해 `parseWithGemini`/학습주소 적용 로그/`standardizeAddress`/`kakaoAddrSearch`/`kakaoKeywordSearch`의 PII성 로그를 전부 마스킹.
+- **커밋**: `50fec90`(코드+테스트), `44ba8b2`(receiveOrder PII 백로그 등록, docs만)
+- **테스트**: `node --test` **97/97 pass** (기존 90 + 신규/보강 7 — 같은 전화번호+같은 주소 전체 적용, 같은 전화번호+다른 주소 null, 같은 이름(전화번호 없음)+다른 주소 null, 완전히 다른 주소 null, PII 로그 노출 방지 정적 검사 4건)
+- **배포**: `firebase deploy --only functions --project hatdelivery-saas`만 실행. Hosting/`database.rules.json` 미변경.
+- **배포 전 확인**: git status clean, `node --test` 97/97 재확인.
+- **배포 후 라이브 검증** (testmart 테넌트, 합성 데이터만 사용, 검증 직후 전부 삭제):
+  1. testmart/test1 계정으로 실제 프로덕션 TMS 로그인, `_authHeader()`로 실제 Firebase ID 토큰 확보
+  2. `settings/learnedLocations`에 합성 레코드 2건 시드 — `010-9900-0001`(전화번호 키, road_address/detail_address/access_info 전부 포함), `분리검증B`(이름 키, 전화번호 없음)
+  3. 실제 `processReceipt` 엔드포인트를 합성 영수증 이미지(canvas로 "성명/연락처/주소/합계금액" 렌더링)로 직접 호출해 3가지 케이스 확인:
+     - **같은 전화번호 + 같은 주소** → 응답의 `road_address`/`detail_address`/`access_info` 전부 학습값 그대로 적용됨
+     - **같은 전화번호 + 다른 주소** → 응답의 `road_address`가 이번 영수증의 새 주소 그대로(학습된 옛 주소로 치환되지 않음), `detail_address`/`access_info`는 빈 값(완전 미적용)
+     - **같은 이름(전화번호 없음) + 다른 주소** → 응답의 `road_address`가 이번 영수증의 새 주소 그대로, `detail_address`/`access_info` 빈 값(이름 fallback 오적용 없음)
+  4. `gcloud logging read`로 배포 이후(`timestamp>="2026-07-07T07:00:00Z"`) 전체 함수 `severity>=ERROR` 로그 **0건** 확인
+  5. 서버 로그 직접 조회로 마스킹 확인: `[DEBUG] Vision rawText length: N`(원문 없음), `[DEBUG] Gemini parsed (마스킹): {name:"[len:N]", phone:"[len:N]"/"(없음)", address:"[len:N]", totalAmount:"실제값"}`(name/phone/address 원문 전혀 없음, totalAmount만 유지), `학습주소 적용됨.../access_info 포함: true` 및 `학습주소 존재하지만 주소 불일치로 미적용 → 이번 영수증 기준 표준화 진행`(학습키/주소 원문 없이 상태만 기록) — JSON 페이로드를 직접 파싱해 실제 성명/전화번호/주소 문자열이 로그 어디에도 없음을 확인
+  6. 학습주소 레코드 2건 전부 삭제, 재조회로 잔존 없음 확인. `processReceipt`만 호출했으므로(confirmAdd 미호출) 배송 주문 데이터는 애초에 생성되지 않음.
+  7. 이 Playwright 브라우저 프로필의 로그아웃 확인 다이얼로그가 자동 처리되지 않아 `localStorage`/`sessionStorage`를 직접 초기화해 세션 정리(실제 Firebase 데이터와 무관, 로컬 브라우저 상태만 정리)
+- **Result**: 학습주소 오적용 방지 게이트가 실제 배포 엔드포인트에서 road_address/detail_address/access_info 전부에 대해 정확히 동작하고, Cloud Functions 로그에서 고객 PII가 더 이상 평문으로 남지 않음을 확인.
+- **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소/출입정보). 실제 고객 데이터 미노출, 검증 데이터 전부 삭제 확인.

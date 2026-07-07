@@ -115,6 +115,14 @@
 - **Evidence**: `node --test` 90/90 pass. 배포 후 라이브 검증은 아래 evidence-log 참고 — `processReceipt` 실제 엔드포인트를 합성 영수증 이미지로 호출해 4가지 케이스(동/호+출입정보 분리, #기호 포함 분리, 애매한 케이스 미분리, 괄호 없음) 전부 요청된 그대로 확인.
 - **Sensitive data policy**: 합성 데이터만 사용, 검증 후 학습주소 레코드 4건 전부 삭제. Functions 로그 확인 시 배포 이후 시간대(`timestamp>="2026-07-07T05:00:00Z"`)로 한정.
 
+### TMS: 학습주소 주소-유사도 게이트 + Cloud Functions PII 로그 마스킹 배포/검증
+- **Status**: ✅ Deployed / Verified (Functions만 배포, Hosting/DB rules 미변경)
+- **Commits**: `50fec90`(게이트 수정 + PII 마스킹 + 테스트), `44ba8b2`(receiveOrder PII 백로그 등록, docs만)
+- **Scope**: `functions/lib/receipt-utils.js`(`buildLearnedLocationResponse` 게이트, `maskForLog` 신규), `functions/index.js`(로그 마스킹 적용), `functions/test/receipt-utils.test.js`+`smoke.test.js`(신규/보강 11케이스). `saas/driver.html`/`database.rules.json`/Hosting 변경 없음.
+- **Deploy**: `firebase deploy --only functions --project hatdelivery-saas`만 실행.
+- **Evidence**: `node --test` 97/97 pass. 배포 후 실제 `processReceipt` 엔드포인트를 합성 영수증 이미지로 호출해 3가지 케이스(같은 전화번호+같은 주소 → 학습값 전부 적용 / 같은 전화번호+다른 주소 → 학습값 완전 미적용 & 이번 영수증 주소 기준 표준화 진행 / 같은 이름(전화번호 없음)+다른 주소 → 이름 fallback 오적용 없음) 전부 요청된 그대로 확인. `gcloud logging read`로 배포 이후 ERROR 로그 0건, Gemini parsed 로그가 `[len:N]`/`(없음)` 형태로 마스킹되어 실제 이름/전화번호/주소 원문이 로그에 없음을 JSON 페이로드로 직접 확인.
+- **Sensitive data policy**: 합성 데이터만 사용, 검증 후 학습주소 레코드 2건 전부 삭제(주문 데이터는 생성되지 않음 — processReceipt만 호출, confirmAdd 미호출). 로그 확인은 배포 이후 시간대(`timestamp>="2026-07-07T07:00:00Z"`)로 한정, 실제 고객 데이터 미노출 확인.
+
 ---
 
 ## 진행 대기 (P1)
