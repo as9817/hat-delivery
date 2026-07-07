@@ -106,6 +106,15 @@
   - 테스트 주문 4건 + 학습주소 레코드 3건 전부 삭제, 잔존 없음 확인
 - **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소/출입정보). Functions 로그 확인 중 무관한 실제 고객 영수증 로그가 우연히 노출됐으나 본 기록에도 대화 응답에도 옮겨 적지 않음.
 
+### TMS: OCR 괄호 출입정보 자동 분리(splitDetailAndAccessInfo) 배포/검증
+- **Status**: ✅ Deployed / Verified (Functions만 배포, Hosting/DB rules 미변경)
+- **Commit**: `39f77b8`
+- **Scope**: `functions/lib/receipt-utils.js`(`splitDetailAndAccessInfo` 신규, `buildLearnedLocationResponse` 병합 로직 반영), `functions/index.js`(학습주소 미적용 경로에도 분리 적용), `functions/test/receipt-utils.test.js`(신규 13케이스). `saas/driver.html` 변경 없음 — 서버가 미리 분리해 보내면 기존 "화면 입력값 우선" 구조로 충분.
+- **키워드 조정**: "종" 단독 매칭 제거(승인받은 수정) — "종로" 등 지명과 겹칠 오탐 리스크 때문. "현관 104열쇠 2634종"은 "열쇠" 키워드로 여전히 분리됨을 회귀 테스트로 확인.
+- **Deploy**: `firebase deploy --only functions --project hatdelivery-saas`만 실행. Hosting/`database.rules.json`은 건드리지 않음(`saas/driver.html` 변경 없어서 불필요).
+- **Evidence**: `node --test` 90/90 pass. 배포 후 라이브 검증은 아래 evidence-log 참고 — `processReceipt` 실제 엔드포인트를 합성 영수증 이미지로 호출해 4가지 케이스(동/호+출입정보 분리, #기호 포함 분리, 애매한 케이스 미분리, 괄호 없음) 전부 요청된 그대로 확인.
+- **Sensitive data policy**: 합성 데이터만 사용, 검증 후 학습주소 레코드 4건 전부 삭제. Functions 로그 확인 시 배포 이후 시간대(`timestamp>="2026-07-07T05:00:00Z"`)로 한정.
+
 ---
 
 ## 진행 대기 (P1)
@@ -124,7 +133,7 @@
 - **git 저장소 정리** — `orders.json`, `functions.zip`, `functions/node_modules` 히스토리 내 잔존 여부 및 재작성(BFG 등) 필요성 별도 논의.
 - **TMS 배포 버전 갱신 자동화** — 현재는 `APP_VERSION` 상수와 Firebase `settings/appVersion`을 사람이 수동으로 맞춰야 함(`DEPLOY_CHECKLIST.md` "4-1" 절차 참고). 배포 스크립트가 배포 시각 기반 값을 자동 생성해 양쪽에 동시에 써주는 방식으로 자동화하면 수동 누락 리스크 제거 가능. 이번 라운드에서는 범위 밖으로 유보.
 - **PWA manifest/sw 경로 불일치** — `saas/driver.html`이 `/hat-delivery/manifest.json`, `/hat-delivery/sw.js`를 참조하는데 실제 배포 루트(`hatdelivery-saas.web.app/`)에서 둘 다 404 확인됨(`manifest.json`은 저장소에 파일 자체가 없음). PWA 설치/오프라인 캐시 갱신 흐름이 현재 완전히 미동작 상태(콘솔에서 조용히 실패, 기능상 악영향은 없음). 실제 PWA 기능이 필요한지 확인 후 (a) 경로를 `/manifest.json`, `/sw.js`로 고치고 `manifest.json`을 새로 작성하거나 (b) 불필요하면 관련 태그/등록 스크립트를 제거하는 방향 결정 필요.
-- **OCR 원문 괄호 안 출입정보 자동 분리 미지원** — `parseAddressComponents`는 "(현관 비밀번호 1234)" 같은 괄호 텍스트를 여전히 `detailAddress`로 합침(기존 테스트로 고정된 동작). `accessInfo`는 학습주소 자동 채움 또는 기사의 수동 입력으로만 채워짐 — Gemini 프롬프트/파싱을 바꿔 괄호 안 출입정보 키워드를 자동으로 `accessInfo`로 분리하는 건 별도 라운드로 유보(리스크가 있는 정규식/프롬프트 변경).
+- ~~**OCR 원문 괄호 안 출입정보 자동 분리 미지원**~~ → **해결 완료**: `splitDetailAndAccessInfo()`로 구현/배포됨(위 "TMS: OCR 괄호 출입정보 자동 분리" 항목 참고). 단, 괄호 없이 자유서술된 출입정보(예: "3층 경비실 호출")는 여전히 미지원 — 필요성 확인되면 별도 라운드.
 - **학습주소 이름 키 레거시 데이터 미마이그레이션** — phone-priority 저장으로 전환(dual-write 포함)했지만, 이전에 이름 키로만 쌓인 과거 운영 데이터는 그대로 남아있음. 실제 고객 데이터라 이번 라운드에서 건드리지 않음 — 필요 시 별도로 마이그레이션 스크립트 논의.
 
 ## 백로그 (P2, 장기)

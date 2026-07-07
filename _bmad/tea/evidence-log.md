@@ -114,3 +114,27 @@
   9. 테스트 주문 4건(배포검증A~D) + 학습주소 레코드 3건(`010-9500-0001`, `010-9700-0001`, `배포학습검증`) 전부 삭제, 재조회로 잔존 없음 확인
 - **Result**: accessInfo 기능이 저장 → 실시간 동기화 → 새로고침 → 학습주소 자동 적용(오적용 방지 게이트 포함)까지 전 구간에서 프로덕션 배포본으로 정상 동작함을 확인. 특히 `processReceipt`의 access_info 게이팅은 실제 이미지 기반 E2E 호출로 검증해, 단위테스트만으로는 확인할 수 없었던 Vision/Gemini 파싱 단계까지 포함한 전체 파이프라인이 의도대로 동작함을 확인.
 - **Sensitive data policy**: 전 과정 합성 데이터만 사용. `firebase functions:log` 확인 중 이번 검증과 무관한 실제 고객 영수증 로그 일부가 우연히 노출됐으나(다른 시각대 실사용 트래픽), 본 로그와 대화 응답 어디에도 옮겨 적지 않고 배포 이후 시간대(`2026-07-07T02:30:00Z` 이후)로 한정해 조회.
+
+## 2026-07-07 — TMS: OCR 괄호 출입정보 자동 분리(splitDetailAndAccessInfo) 설계/구현/배포 검증
+
+- **대상**: `functions/lib/receipt-utils.js`(`splitDetailAndAccessInfo` 신규, `buildLearnedLocationResponse` 병합 로직 반영), `functions/index.js`(학습주소 미적용 경로에도 분리 적용). `saas/driver.html`은 변경 없음.
+- **배경**: OCR 원문/Gemini 파싱 결과의 상세주소에 "1903동 104호 (현관 비번 1234)"처럼 괄호로 출입정보가 섞이는 경우, 기존에는 이 전체가 `detailAddress`로 합쳐졌음. `detailAddress`와 `accessInfo`를 자동으로 분리하기 위한 순수함수 신규 도입.
+- **설계 결정**: `parseAddressComponents`/`standardizeAddress` 내부는 건드리지 않음 — 코드 흐름을 추적한 결과 어느 분기를 타든 괄호는 항상 최종 `detail_address` 문자열 맨 끝에 남는 구조라, `processReceipt` 응답 생성 직전에 한 번만 분리해도 전 분기를 안전하게 커버함. `driver.html`은 이미 "화면 입력값 우선, OCR 값은 fallback" 구조라 변경 불필요.
+- **키워드 목록**: `공동현관/비밀번호/비번/호출/경비실/문 앞/출입/열쇠/#/*` — 1차 구현 때 포함했던 `종`은 커밋 전 사용자 승인 하에 제거(`"종로"` 등 지명과 겹칠 오탐 리스크, `"104열쇠 2634종"` 케이스도 `열쇠` 키워드만으로 충분히 커버되어 불필요 판단).
+- **병합 규칙**: 학습주소(`learned.access_info`)가 이미 있으면 분리 결과로 덮어쓰지 않음(기존 값 우선). 주소 불일치 게이트(`isSimilarAddress`)에 걸리면 분리된 accessInfo도 함께 차단(기존 오적용 방지 원칙 유지). `detail_address`는 게이트와 무관하게 항상 분리.
+- **테스트**: `node --test` **90/90 pass** (신규 13개 — `splitDetailAndAccessInfo` 9케이스 사용자 지정 예시 전부 + `buildLearnedLocationResponse` 연동 3케이스 + `종` 제거 회귀 확인 1케이스)
+- **커밋**: `39f77b8`(구현+테스트, `종` 키워드 제거 반영)
+- **배포**: `firebase deploy --only functions --project hatdelivery-saas`만 실행. Hosting/`database.rules.json`은 변경 대상이 없어 건드리지 않음.
+- **배포 전 확인**: git status clean, `node --test` 90/90 재확인.
+- **배포 후 라이브 검증** (testmart 테넌트, 합성 데이터만 사용, 검증 직후 전부 삭제):
+  - testmart/test1 계정으로 실제 프로덕션 TMS 로그인, `_authHeader()`로 실제 Firebase ID 토큰 확보
+  - 학습주소 경로(`buildLearnedLocationResponse`)를 이용해 `detail_address` 값을 정밀 통제 — `settings/learnedLocations/{phone}` 4건을 아래 값으로 시드 후, 동일 전화번호·동일 road_address의 합성 영수증 이미지(canvas로 "성명/연락처/주소/합계금액" 렌더링)를 실제 `processReceipt` 엔드포인트로 호출:
+    - `"1903동 104호 (현관 비번 1234)"` → 응답 `detail_address: "1903동 104호"`, `access_info: "현관 비번 1234"` (요청된 그대로 일치)
+    - `"101동 202호 (공동현관 #1234)"` → `access_info: "공동현관 #1234"` 포함
+    - `"상가 2층 (왼쪽 문)"` → `access_info: ""`, `detail_address`는 원문("상가 2층 (왼쪽 문)") 그대로 유지
+    - `"101동 202호"` → `access_info: ""`
+  - 서버 로그(`학습주소 적용: {phone} {road_address} / access_info 적용: true/false`)로 4건 모두 클라이언트 관측 결과와 정확히 일치함을 교차 확인
+  - `gcloud logging read`로 배포 이후(`timestamp>="2026-07-07T05:00:00Z"`) 전체 함수 `severity>=ERROR` 로그 0건 확인
+  - 학습주소 레코드 4건(`010-9800-0001~0004`) 전부 삭제, 재조회로 잔존 없음 확인. `processReceipt` 호출만 사용해 배송 주문은 생성되지 않았음(추가 삭제 불필요) — 단, 이전 라운드에서 Firebase는 이미 삭제됐지만 이 Playwright 브라우저 프로필의 `localStorage`에 "오늘 날짜" 필터로 남아있던 이전 회차 테스트 주문 4건(`배포검증A~D`)이 화면에 재노출되는 것을 발견 → Firebase 데이터가 아닌 순수 로컬 캐시임을 직접 확인 후 `localStorage` 초기화로 정리(실제 운영/다른 기기에는 영향 없음)
+- **Result**: OCR 괄호 출입정보 자동 분리 기능이 실제 배포된 `processReceipt`에서 요청된 4가지 케이스 전부(분리/포함/애매 미분리/괄호없음) 정확히 의도대로 동작함을 확인. 병합 규칙(기존 학습값 우선, 오적용 게이트 유지)도 코드 경로상 함께 적용됨.
+- **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소/출입정보). 실제 고객 데이터 미노출.
