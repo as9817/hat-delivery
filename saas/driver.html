@@ -838,9 +838,34 @@ let TENANT_NAME = '';
 const FUNCTION_API_KEY = 'd955ba17588f3ec9057caffaa8dd874467efe84852194988c7363ed4cfa732bc';
 
 // SEC-002: Cloud Functions 호출용 Firebase ID Token 헤더
+// 세션이 만료됐거나 로그인 안 된 상태(currentUser null)면 cryptic한
+// TypeError 대신 사용자가 이해할 수 있는 안내 메시지로 던짐.
 async function _authHeader() {
+  if (!_fbAuth?.currentUser) {
+    throw new Error('로그인이 만료되었습니다. 다시 로그인해주세요.');
+  }
   const token = await _fbAuth.currentUser.getIdToken();
   return { 'Authorization': 'Bearer ' + token };
+}
+
+// processReceipt/geocodeAddress 등 Cloud Function 실패 시 서버가 준 message를
+// 버리지 않고, 상태 코드별로 사용자가 이해할 수 있는 안내 문구로 변환.
+// context: 'ocr'(영수증 인식) | 'geocode'(주소 변환) — 500 일반 오류 문구만 구분.
+function friendlyErrorMessage(status, serverMessage, context) {
+  if (status === 401) return '로그인이 만료되었거나 인증에 실패했습니다. 다시 로그인해주세요.';
+  if (status === 403) return '이 마트에 대한 권한이 없습니다. 마트 정보를 확인해주세요.';
+  if (status === 500) {
+    if (serverMessage && serverMessage.startsWith('Vision:')) {
+      return '영수증 사진을 인식하지 못했습니다. 더 밝고 선명하게 다시 촬영해주세요.';
+    }
+    if (serverMessage && serverMessage.startsWith('Gemini:')) {
+      return '영수증 정보를 분석하지 못했습니다. 다시 촬영하거나 직접 입력해주세요.';
+    }
+    return context === 'geocode'
+      ? '주소 변환 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      : '영수증 인식 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+  }
+  return serverMessage || `요청 처리 중 오류가 발생했습니다. (코드: ${status})`;
 }
 
 function getSession() {
@@ -2508,9 +2533,12 @@ async function startOCR(file) {
 
     // 3단계: 응답 파싱
     setStep('step-ocr', 'active');
-    if (!response.ok) throw new Error('서버 오류: ' + response.status);
-    const result = await response.json();
-    if (result.status !== 'success') throw new Error(result.message || '인식 실패');
+    // 실패(4xx/5xx) 시에도 서버가 보낸 message를 읽어서 상태 코드별 안내로 변환
+    // (기존엔 !response.ok면 바로 "서버 오류: {코드}"만 던지고 message를 버렸음)
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result || result.status !== 'success') {
+      throw new Error(friendlyErrorMessage(response.status, result?.message, 'ocr'));
+    }
     setStep('step-ocr', 'done');
 
     // 4단계: 정보 추출
@@ -2575,8 +2603,11 @@ async function startOCR(file) {
     }
 
   } catch(e) {
-    console.error('OCR 오류:', e);
-    alert('영수증 인식 실패: ' + e.message);
+    console.error('OCR 오류:', e.message);
+    // e.message가 이미 완결된 안내 문장이면(예: 세션 만료, 상태코드별 안내) 그대로 표시,
+    // 아니면 기존처럼 "영수증 인식 실패: " 접두어를 붙임
+    const msg = e.message || '알 수 없는 오류가 발생했습니다.';
+    alert(/해주세요[.!]?$|바랍니다[.!]?$/.test(msg) ? msg : ('영수증 인식 실패: ' + msg));
     goTab('scan');
   }
 }
@@ -2652,8 +2683,9 @@ async function regeocodeAddr() {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
       body: JSON.stringify({ address: addr, martLat: mart?.lat || null, martLng: mart?.lng || null })
     });
-    if (geo.ok) {
-      const d = (await geo.json()).data || {};
+    const geoBody = await geo.json().catch(() => null);
+    if (geo.ok && geoBody) {
+      const d = geoBody.data || {};
       if (d.road_address) {
         // 변환 결과를 바로 적용하지 않고 비교 영역에 표시
         const compareWrap = document.getElementById('addr-compare-wrap');
@@ -2664,8 +2696,12 @@ async function regeocodeAddr() {
         window._convertedAddr = { road_address: d.road_address, detail_address: d.detail_address || '', lat: d.lat || null, lng: d.lng || null };
         showToast('🔄 변환 결과를 확인해 주세요');
       } else { showToast('❌ 주소를 찾을 수 없습니다. 직접 수정해 주세요'); }
-    } else { showToast('변환 실패 (서버 오류)'); }
-  } catch(e) { showToast('변환 실패: ' + e.message); }
+    } else {
+      // 실패 시 서버 message를 읽어서 상태 코드별 안내로 변환
+      // (기존엔 항상 "변환 실패 (서버 오류)"로만 뭉뚱그려졌음)
+      showToast(friendlyErrorMessage(geo.status, geoBody?.message, 'geocode'));
+    }
+  } catch(e) { showToast(e.message || '변환 실패'); }
   finally { btn.textContent = '🔄 도로명 주소 변환'; btn.disabled = false; }
 }
 
