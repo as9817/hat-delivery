@@ -165,3 +165,42 @@ describe('processReceipt PII 로그 노출 방지 (정적 검사)', () => {
     assert.ok(src.includes('function maskForLog'), 'maskForLog 헬퍼가 정의되어 있지 않음');
   });
 });
+
+// ── receiveOrder/parseOrderWithGemini PII 로그 노출 방지 (정적 검사) ──
+// SMS·카톡 자동 주문 접수 흐름에서 원본 메시지/Gemini 파싱 결과/고객명/전화번호/
+// 주소가 그대로 로그에 남던 걸 마스킹으로 바꾼 회귀 방지 테스트.
+describe('receiveOrder PII 로그 노출 방지 (정적 검사)', () => {
+  it('functions/index.js: 원본 메시지/Gemini 응답 원문을 그대로 로그에 남기지 않음', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
+    assert.ok(!src.includes("logger.info('스팸/비주문 메시지 무시:', message.slice(0, 50))"), '스팸 메시지 앞부분이 그대로 로그에 남음');
+    assert.ok(!src.includes("logger.info('원본 메시지:', message, '/ 길이:', message.length)"), '원본 메시지가 그대로 로그에 남음');
+    assert.ok(!src.includes("logger.info('Gemini 원본 응답:', raw)"), 'Gemini 원본 응답이 그대로 로그에 남음');
+    assert.ok(!src.includes("logger.warn('JSON 추출 실패. raw:', raw)"), 'JSON 추출 실패 로그에 원문이 남음');
+    assert.ok(!src.includes("logger.warn('JSON 파싱 실패:', m[0])"), 'JSON 파싱 실패 로그에 원문이 남음');
+  });
+
+  it('functions/index.js: 최종 이름/품목/고객 DB 보완/주문 접수 완료 로그에 고객명·전화번호·주소 원문을 직접 넘기지 않음', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
+    assert.ok(!src.includes("logger.info('최종 이름:', finalName, '/ 최종 품목:', JSON.stringify(finalItems))"), '최종 이름/품목이 그대로 로그에 남음');
+    assert.ok(!src.includes("logger.info('고객 DB 주소 보완:', finalName, '→', lookedUpAddress)"), '고객 DB 주소 보완 로그에 이름/주소 원문이 남음');
+    assert.ok(!src.includes("logger.info('고객 DB 전화 보완:', finalName, '→', lookedUpPhone)"), '고객 DB 전화 보완 로그에 이름/전화번호 원문이 남음');
+    assert.ok(!src.includes("logger.info('품목 추가 처리:', addId, parsed.items)"), '품목 추가 처리 로그에 items 원문이 남음');
+    assert.ok(!src.includes("logger.info('주문 접수 완료:', orderId, parsed)"), '주문 접수 완료 로그에 parsed 원문이 남음');
+  });
+
+  it('functions/index.js: receiveOrder 관련 STEP Kakao 로그가 주소 원문을 남기지 않음', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
+    assert.ok(!src.includes("logger.info('STEP Kakao: 주소 검색 쿼리:', queryAddr)"), 'STEP Kakao 쿼리 로그에 주소 원문이 남음');
+    assert.ok(!src.includes("logger.info('STEP Kakao: 결과:', JSON.stringify(loc))"), 'STEP Kakao 결과 로그에 주소 원문이 남음');
+    assert.ok(!src.includes("logger.info('STEP Kakao: 변환 완료:', finalAddress)"), 'STEP Kakao 변환 완료 로그에 주소 원문이 남음');
+    assert.ok(!src.includes("logger.warn('STEP Kakao: 주소 못 찾음, 원본 사용:', parsed.address)"), 'STEP Kakao 실패 로그에 주소 원문이 남음');
+  });
+
+  it('functions/index.js: receiveOrder 응답 바디(parsed)는 그대로 반환하되(기능 유지) 로그에는 마스킹된 값만 남김', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
+    // 기능 변경 없음 확인: MacroDroid 등 호출측이 쓰는 응답 바디는 그대로 유지
+    assert.ok(src.includes('res.status(200).json({ success: true, orderId, parsed })'), 'receiveOrder 응답 바디(parsed)가 변경됨 — 기능 유지 위반');
+    // 로그는 마스킹된 요약만 남기는지 확인
+    assert.ok(src.includes("logger.info('주문 접수 완료:', orderId, '/ 파싱 결과(마스킹):'"), '주문 접수 완료 로그가 마스킹된 형태로 바뀌지 않음');
+  });
+});

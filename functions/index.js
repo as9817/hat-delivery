@@ -260,7 +260,8 @@ exports.receiveOrder = functions
 
       // 스팸 — 저장 없이 리턴
       if (msgType === 'spam') {
-        logger.info('스팸/비주문 메시지 무시:', message.slice(0, 50));
+        // 원본 메시지는 고객 개인정보를 포함할 수 있어 로그에 남기지 않고 길이만 기록
+        logger.info('스팸/비주문 메시지 무시 (길이):', message.length);
         res.status(200).json({ success: false, skipped: true, reason: 'not_an_order' });
         return;
       }
@@ -307,7 +308,7 @@ exports.receiveOrder = functions
               const [addId, addOrder] = active[0];
               const mergedItems = [...(addOrder.items||[]), ...parsed.items.map(it => ({ name: it.name||'', qty: it.qty||1, price: 0 }))];
               await db.ref('orders/' + addId).update({ items: mergedItems, updatedAt: Date.now() });
-              logger.info('품목 추가 처리:', addId, parsed.items);
+              logger.info('품목 추가 처리:', addId, '/ 추가 품목 수:', parsed.items.length);
               added = true;
               res.status(200).json({ success: true, type: 'add', updatedOrderId: addId, addedItems: parsed.items });
               return;
@@ -344,15 +345,16 @@ exports.receiveOrder = functions
           const queryAddr = (martDistrict && parsed.address.match(/^\d+-?\d*$/))
             ? martDistrict + ' ' + parsed.address
             : parsed.address;
-          logger.info('STEP Kakao: 주소 검색 쿼리:', queryAddr);
+          // 주소 원문은 로그에 남기지 않고 마스킹(존재여부/길이)만 기록
+          logger.info('STEP Kakao: 주소 검색 쿼리(마스킹):', maskForLog(queryAddr));
           const loc = await standardizeAddress(queryAddr, KAKAO_KEY);
-          logger.info('STEP Kakao: 결과:', JSON.stringify(loc));
+          logger.info('STEP Kakao: 결과(마스킹):', { road_address: maskForLog(loc.road_address), hasLat: loc.lat !== null });
           // lat이 있을 때만 실제로 찾은 것 (없으면 Kakao가 원본 쿼리를 그대로 반환한 것)
           if (loc.road_address && loc.lat !== null) {
             finalAddress = loc.road_address + (loc.detail_address ? ' ' + loc.detail_address : '');
-            logger.info('STEP Kakao: 변환 완료:', finalAddress);
+            logger.info('STEP Kakao: 변환 완료(마스킹):', maskForLog(finalAddress));
           } else {
-            logger.warn('STEP Kakao: 주소 못 찾음, 원본 사용:', parsed.address);
+            logger.warn('STEP Kakao: 주소 못 찾음, 원본 사용(마스킹):', maskForLog(parsed.address));
             finalAddress = (parsed.address || '') + ' ⚠️주소확인필요';
           }
         } catch (e) {
@@ -363,7 +365,7 @@ exports.receiveOrder = functions
       }
 
       // 3. 정규식 보조 파서 (Gemini가 ?? 또는 null 반환 시 보완)
-      logger.info('원본 메시지:', message, '/ 길이:', message.length);
+      logger.info('원본 메시지 길이:', message.length);
 
       // 이름: 토큰 분리 후 첫 번째 한글 단어 (유니코드 범위 사용)
       const koreanWord = /^[가-힣]+$/;
@@ -384,7 +386,7 @@ exports.receiveOrder = functions
         ? parsed.items.map(it => ({ name: it.name || '', qty: it.qty || 1, price: 0 }))
         : (itemsFromMsg.length > 0 ? itemsFromMsg : []);
 
-      logger.info('최종 이름:', finalName, '/ 최종 품목:', JSON.stringify(finalItems));
+      logger.info('최종 이름(마스킹):', maskForLog(finalName), '/ 최종 품목 수:', finalItems.length);
 
       // 3-1. 기존 고객 조회: 주소 또는 전화번호 누락 시 과거 주문에서 보완
       const needAddress = !parsed.address;
@@ -419,11 +421,11 @@ exports.receiveOrder = functions
               const best = sorted[0];
               if (needAddress && best.address) {
                 lookedUpAddress = best.address;
-                logger.info('고객 DB 주소 보완:', finalName, '→', lookedUpAddress);
+                logger.info('고객 DB 주소 보완(마스킹):', maskForLog(finalName), '→', maskForLog(lookedUpAddress));
               }
               if (needPhone && best.phone && best.phone !== '-') {
                 lookedUpPhone = best.phone;
-                logger.info('고객 DB 전화 보완:', finalName, '→', lookedUpPhone);
+                logger.info('고객 DB 전화 보완(마스킹):', maskForLog(finalName), '→', maskForLog(lookedUpPhone));
               }
             }
           }
@@ -438,7 +440,7 @@ exports.receiveOrder = functions
       }
       const finalPhone = parsed.phone || sender || lookedUpPhone || '-';
 
-      logger.info('최종 이름:', finalName, '/ 최종 품목:', JSON.stringify(finalItems));
+      logger.info('최종 이름(마스킹):', maskForLog(finalName), '/ 최종 품목 수:', finalItems.length);
 
       // 4. Firebase RTDB에 주문 저장
       const orderId = 'ext_' + Date.now();
@@ -459,7 +461,14 @@ exports.receiveOrder = functions
 
       await db.ref('orders/' + orderId).set(order);
 
-      logger.info('주문 접수 완료:', orderId, parsed);
+      // 응답 바디(parsed)는 MacroDroid 등 호출측이 실제로 사용하는 데이터라 그대로 반환하되,
+      // 로그에는 원문 대신 마스킹된 요약만 남김
+      logger.info('주문 접수 완료:', orderId, '/ 파싱 결과(마스킹):', {
+        name: maskForLog(parsed.name),
+        phone: maskForLog(parsed.phone),
+        address: maskForLog(parsed.address),
+        itemsCount: (parsed.items || []).length,
+      });
       res.status(200).json({ success: true, orderId, parsed });
 
     } catch (err) {
@@ -496,10 +505,11 @@ async function parseOrderWithGemini(message, apiKey) {
   });
 
   const raw = response.text || '{}';
-  logger.info('Gemini 원본 응답:', raw);
+  // Gemini 응답에는 고객 성명/전화번호/주소가 포함될 수 있어 원문 대신 길이만 기록
+  logger.info('Gemini 원본 응답 길이:', raw.length);
   const m = raw.replace(/```json|```/gi, '').match(/\{[\s\S]*\}/);
-  if (!m) { logger.warn('JSON 추출 실패. raw:', raw); return {}; }
-  try { return JSON.parse(m[0]); } catch (e) { logger.warn('JSON 파싱 실패:', m[0]); return {}; }
+  if (!m) { logger.warn('JSON 추출 실패. raw 길이:', raw.length); return {}; }
+  try { return JSON.parse(m[0]); } catch (e) { logger.warn('JSON 파싱 실패. 매치된 문자열 길이:', m[0].length); return {}; }
 }
 
 // kakaoAddrSearch, kakaoKeywordSearch는 lib/receipt-utils.js로 이동
