@@ -74,3 +74,4 @@
 > 테넌트 내부 역할 분리, 평문 비밀번호 폴백 제거, `ORDER_AUTH_TOKEN` 로테이션, `X-Api-Key` 제거는 SEC-002 후속 작업 항목 참고.
 
 - git 저장소 정리: `orders.json`, `functions.zip`, `functions/node_modules` 추적 해제 (히스토리 재작성 여부 별도 논의)
+- **Firebase Storage 보안 규칙이 코드베이스에서 전혀 관리되지 않음** — `storage.rules` 파일이 저장소에 없고, `firebase.json`에도 `storage` 배포 설정 자체가 없음(`database`/`hosting`/`functions`만 있음). 즉 실제 운영 중인 Storage 규칙이 Firebase Console에서 직접 설정된 값인지, 프로젝트 생성 시 기본값이 그대로인지 코드만으로는 알 수 없음. read-only 검증(2026-07-08, "이전 배송완료 사진 보기" 설계 라운드) 결과, 최소한 **미인증 임의 경로 다운로드·버킷 List는 403으로 막혀 있음**을 실측 확인했으나(존재하지 않는 가짜 경로로만 테스트, 실제 파일 미접촉), 정확한 규칙 원문은 Console에서 직접 확인 필요. `delivery-photos/{tenantId}/{deliveryId}.jpg`에 저장되는 배송완료 사진의 `getDownloadURL()` 다운로드 URL은 토큰 포함 방식이라 규칙과 무관하게 "URL을 아는 사람은 접근 가능"한 구조라는 점도 별개로 인지 필요(Firebase Storage 다운로드 토큰의 기본 동작). **조치**: `firebase storage:rules:get` 또는 Console에서 현재 규칙을 확인해 `storage.rules`로 코드베이스에 옮기고 CI/배포 흐름에 편입.

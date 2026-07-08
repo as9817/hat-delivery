@@ -611,6 +611,9 @@
         <div style="font-size:14px;font-weight:600;color:#222" id="complete-addr"></div>
       </div>
       <div style="font-size:13px;color:#888" id="complete-name"></div>
+      <div id="prev-photo-link-wrap" style="display:none;margin-top:8px">
+        <span style="font-size:12px;color:#1a237e;text-decoration:underline;cursor:pointer">🖼 이전 배송사진 보기</span>
+      </div>
     </div>
 
     <div class="card">
@@ -2324,6 +2327,17 @@ function openCompleteScreen(id) {
   document.getElementById('complete-photo-preview').src = '';
   _completePhotoData = null;
   goTab('complete');
+
+  // "이전 배송사진 보기" — 비동기 조회, 완료 화면 진입/흐름을 막지 않음
+  const prevLinkWrap = document.getElementById('prev-photo-link-wrap');
+  if (prevLinkWrap) prevLinkWrap.style.display = 'none';
+  findPreviousDeliveryPhoto(d).then(hist => {
+    if (!hist || !prevLinkWrap) return;
+    // 화면이 이미 다른 배송건으로 넘어간 뒤 늦게 도착한 응답이면 무시
+    if (document.getElementById('complete-delivery-id').value !== id) return;
+    prevLinkWrap.style.display = 'block';
+    prevLinkWrap.onclick = () => viewPhotoUrl(hist.photoUrl);
+  }).catch(() => {}); // findPreviousDeliveryPhoto는 내부적으로 이미 실패를 삼키지만 이중 방어
 }
 
 function captureCompletePhoto() {
@@ -2388,9 +2402,48 @@ async function submitComplete() {
   if (_completePhotoData) {
     uploadPhotoToStorage(id, _completePhotoData).then(photoUrl => {
       if (photoUrl && _fbDb) {
-        tref('orders/' + id).update({ photoUrl }).catch(()=>{});
+        tref('orders/' + id).update({ photoUrl }).then(() => {
+          // "이전 배송사진 보기" 인덱스 갱신 — 신규 Storage 업로드 없이 방금 저장한
+          // photoUrl을 그대로 재사용, 최근 1장만 덮어씀(별도 이력 배열 관리 안 함)
+          saveDeliveryPhotoHistory(d, photoUrl);
+        }).catch(()=>{});
       }
     });
+  }
+}
+
+// "이전 배송사진 보기" 인덱스 저장 — 조회 실패/오류가 배송완료 흐름에 영향 주지
+// 않도록 별도 함수로 분리하고 내부에서 오류를 삼킴(throw 안 함)
+function saveDeliveryPhotoHistory(d, photoUrl) {
+  if (!_fbDb || !d) return;
+  const learnKey = resolveLearnKey(d.phone, d.customerName);
+  if (!learnKey) return;
+  tref('deliveryPhotoHistory/' + learnKey).set({
+    photoUrl,
+    address: d.address || '',
+    completedAt: Date.now(),
+    orderId: d.id
+  }).catch(() => {});
+}
+
+// "이전 배송사진 보기" 조회 — 같은 학습키(전화번호 우선)의 최근 완료사진이 있고,
+// 이번 배송 주소와 유사할 때만 결과를 반환. 조회 실패/데이터 없음은 전부 null로
+// 처리해 배송완료 화면 진입 자체엔 영향 주지 않음.
+async function findPreviousDeliveryPhoto(d) {
+  if (!_fbDb || !d) return null;
+  const learnKey = resolveLearnKey(d.phone, d.customerName);
+  if (!learnKey) return null;
+  try {
+    const snap = await tref('deliveryPhotoHistory/' + learnKey).once('value');
+    const hist = snap.val();
+    if (!hist || !hist.photoUrl) return null;
+    // 같은 주문을 자기 자신과 비교하는 경우(방금 이 배송을 완료해 인덱스가 이미
+    // 갱신된 뒤 화면을 다시 연 경우 등) 제외
+    if (hist.orderId === d.id) return null;
+    if (!isSimilarAddress(d.address, hist.address)) return null;
+    return hist;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -2887,6 +2940,19 @@ function resolveLearnKey(phone, name) {
   return phone || name || null;
 }
 
+// 주소 유사도 판정 — functions/lib/receipt-utils.js의 isSimilarAddress와 동일 규칙
+// (공백 제거 + 소문자화 후 완전일치 또는 포함관계). "이전 배송사진 보기"가 같은
+// 전화번호라도 다른 주소로 오적용되지 않도록 하는 게 목적 — 학습주소 오적용 방지와
+// 동일한 이유. 별도 모듈 공유가 안 되는 구조라 로직을 그대로 복제함(수정 시 양쪽 확인).
+function isSimilarAddress(a, b) {
+  if (!a || !b) return false;
+  const norm = s => String(s).replace(/\s+/g, '').toLowerCase();
+  const na = norm(a), nb = norm(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  return na.includes(nb) || nb.includes(na);
+}
+
 function saveLearnedAddress() {
   const name   = document.getElementById('res-name').value.trim();
   const addr   = document.getElementById('res-addr').value.trim();
@@ -3160,6 +3226,21 @@ async function viewPhoto(deliveryId) {
   const url = await getPhoto(deliveryId);
   if (!url) { showToast('사진이 없습니다'); return; }
   document.getElementById('photo-viewer-img').src = url;
+  const delBtn = document.getElementById('btn-delete-photo');
+  if (delBtn) delBtn.style.display = '';
+  document.getElementById('photo-viewer').classList.add('open');
+}
+
+// 이전 배송사진 보기 전용 — IndexedDB가 아니라 Storage photoUrl을 직접 표시.
+// 다른(과거) 주문의 사진이라 이 화면에서 삭제할 수 없어야 하므로 삭제 버튼을
+// 숨기고 currentPhotoId도 비워 deletePhotoConfirm()이 엉뚱한 배송건을 건드리지
+// 않게 함(#photo-viewer 모달은 그대로 재사용, 새 모달 생성 안 함).
+function viewPhotoUrl(url) {
+  if (!url) return;
+  currentPhotoId = null;
+  document.getElementById('photo-viewer-img').src = url;
+  const delBtn = document.getElementById('btn-delete-photo');
+  if (delBtn) delBtn.style.display = 'none';
   document.getElementById('photo-viewer').classList.add('open');
 }
 
