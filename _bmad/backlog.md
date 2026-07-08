@@ -142,6 +142,20 @@
   - 업데이트 배너/appVersion 동기화: 배포 전부터 열려있던 탭(구버전 코드, `APP_VERSION='5'` in-memory)에서 로그인 시 배너가 정상 표시됨을 확인, 새로 로드한 탭(`APP_VERSION='6'`)에서는 배너가 뜨지 않음을 확인
 - **Sensitive data policy**: 합성 데이터만 사용. `startOCR()`/오류 테스트 호출은 `confirmAdd()`를 거치지 않아 Firebase에 아무 데이터도 생성되지 않음 — 재조회로 잔존 없음 확인.
 
+### OMS/TMS ETA 계산 기준 통일 + TMS 배송카드 ETA 배지 + app.html sendToDelivery() ReferenceError 수정
+- **Status**: ✅ Deployed / Verified (Hosting만 배포, Functions/DB rules 미변경)
+- **Commits**: `08e77d3`(ETA 통일 + 배지 + 버그수정), `c9df2af`(APP_VERSION 7 범프)
+- **배경**: read-only 분석 라운드에서 OMS(`app.html`)와 TMS(`driver.html`)에 서로 다른 3개의 ETA/정차시간 계산식이 흩어져 있는 것을 발견(`app.html`의 `_calcStopMinutes`, `driver.html`의 `fetchTrafficTime()` 내부 인라인 로직, `driver.html`의 `launchNav()` 개별 기록용 고정상수). 사용자가 "TMS 단독 신규 기능이 아니라 OMS/TMS ETA 기준 통일"로 스코프를 재정의하고 통일 기준(35km/h, 거리×1.4, 금액 5단계, 건물키워드 7개)을 직접 지정.
+- **Scope**:
+  - `saas/app.html`: 공용 상수(`ETA_AVG_SPEED_KMH`/`ETA_DISTANCE_FACTOR`/`ETA_BUILDING_KEYWORDS`) 신설, `_calcStopMinutes()`를 금액 5구간+건물키워드 방식으로 교체, `_calcEstimatedMinutes()`(카카오 API 실패 시 haversine 폴백)에 1.4배 거리보정 추가, `sendToDelivery()`의 미정의 변수(`ROUTE_AVG_SPEED_KMH`/`STOP_MINUTES_PER_ORDER`) 참조로 인한 ReferenceError 버그를 공용 상수로 교체해 수정. `_kakaoRouteOptimize()`/`_calcEstimatedMinutesAsync()`/`_swapOptimizeClusters()` 등 자동배정/Swap 최적화 알고리즘 구조 자체는 변경 없음(입력값만 변경).
+  - `saas/driver.html`: 동일 상수/`_calcStopMinutes` 복제(동기화 필요 주석 포함, `resolveLearnKey`와 동일 패턴), 배송카드용 ETA 배지 신규(`_calcEtaMinutesTo`/`_buildEtaDisplayMap`/`_renderEtaBadge`) — 좌표없음/위치공유필요/계산값(단독 추정 "약 N분 후" 또는 경로최적화 후 누적 "대략 HH:MM 도착 예상") 3상태 구분. `fetchTrafficTime()`의 3번째 divergent 정차시간 공식을 공용 `_calcStopMinutes()`로 통일.
+  - `launchNav()`의 개별 Firebase `eta` 기록(자체 고정상수 사용)은 이번 라운드에서 미변경 — 잔존 불일치, 필요 시 별도 라운드.
+- **영향도(사용자에게 사전 설명 완료)**: 15만~20만원 구간 정차시간 10분→8분, haversine 폴백 경로에 1.4배 거리보정 신규 적용(카카오 실시간 경로 성공 케이스는 영향 없음), 건물키워드 목록 변경(숫자패턴 `\d+동\s*\d+호`/소문자 `apt` 제거, 맨션/주공/타운/하이츠 신규 추가) — 자동배정 큐/Swap 알고리즘 구조는 그대로이나 비용 함수 입력값이 바뀌어 근소한 동률 케이스의 배정 결과가 달라질 수 있음.
+- **테스트**: `node --test "test/*.test.js"` **101/101 pass**(functions/ 미변경, 영향 없음 확인용 재실행). `saas/app.html`은 이 세션에 OMS Firebase 로그인 정보가 없어 브라우저 실행 불가 → 실제 커밋된 소스를 Node로 추출해 샌드박스에서 실행: 금액 5구간 경계값 전부(0~500000원 전 구간), 건물키워드 7개 전부(아파트/빌라/맨션/주공/타운/하이츠/오피스텔) 매칭 확인, 순수 "101동 202호" 패턴 비매칭 확인(요청대로 동/호 단독 키워드 미사용), `sendToDelivery()` 수정 블록이 ReferenceError 없이 정상 동작함을 확인.
+- **Deploy**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. `DEPLOY_CHECKLIST.md` "4-1" 절차대로 배포 전 `APP_VERSION` 6→7 범프(커밋에 포함), 배포 후 Firebase `settings/appVersion`도 "7"로 갱신.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-08 — OMS/TMS ETA 통일 배포 검증" 참고. TMS는 testmart 실계정으로 카드 배지 4개 상태(좌표있음/건물키워드/좌표없음/GPS꺼짐-마트위치대체/경로최적화 누적) 전부 실브라우저 확인, 모바일 폭 겹침 없음 확인, 완료체크/취소 플로우 회귀 없음 확인, 업데이트 배너 정상 동작 확인. OMS는 로그인 정보 부재로 샌드박스 소스 검증으로 대체(사용자 승인).
+- **Sensitive data policy**: 합성 데이터만 사용. 검증 중 생성한 TMS 테스트 배송 3건은 로컬스토리지에만 존재(Firebase 미기록), 검증 종료 후 전부 정리 확인.
+
 ---
 
 ## 진행 대기 (P1)
@@ -162,6 +176,7 @@
 - **PWA manifest/sw 경로 불일치** — `saas/driver.html`이 `/hat-delivery/manifest.json`, `/hat-delivery/sw.js`를 참조하는데 실제 배포 루트(`hatdelivery-saas.web.app/`)에서 둘 다 404 확인됨(`manifest.json`은 저장소에 파일 자체가 없음). PWA 설치/오프라인 캐시 갱신 흐름이 현재 완전히 미동작 상태(콘솔에서 조용히 실패, 기능상 악영향은 없음). 실제 PWA 기능이 필요한지 확인 후 (a) 경로를 `/manifest.json`, `/sw.js`로 고치고 `manifest.json`을 새로 작성하거나 (b) 불필요하면 관련 태그/등록 스크립트를 제거하는 방향 결정 필요.
 - ~~**OCR 원문 괄호 안 출입정보 자동 분리 미지원**~~ → **해결 완료**: `splitDetailAndAccessInfo()`로 구현/배포됨(위 "TMS: OCR 괄호 출입정보 자동 분리" 항목 참고). 단, 괄호 없이 자유서술된 출입정보(예: "3층 경비실 호출")는 여전히 미지원 — 필요성 확인되면 별도 라운드.
 - **학습주소 이름 키 레거시 데이터 미마이그레이션** — phone-priority 저장으로 전환(dual-write 포함)했지만, 이전에 이름 키로만 쌓인 과거 운영 데이터는 그대로 남아있음. 실제 고객 데이터라 이번 라운드에서 건드리지 않음 — 필요 시 별도로 마이그레이션 스크립트 논의.
+- **`driver.html`의 `launchNav()` 개별 ETA 기록이 공용 ETA 기준(`ETA_AVG_SPEED_KMH`/`_calcStopMinutes`)과 미통일** — OMS/TMS ETA 통일 라운드(위 항목 참고)에서 카드 배지와 `fetchTrafficTime()`은 통일했지만, `launchNav()`가 개별 주문마다 Firebase에 기록하는 `eta` 값은 자체 고정상수(`SPEED_KMH=35, STOP_MIN=8`)를 여전히 사용 중 — 3번째 계산식이 하나 더 남은 상태. 필요성 확인되면 별도 라운드로 통일.
 
 ## 백로그 (P2, 장기)
 
