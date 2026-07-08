@@ -168,6 +168,17 @@
 - **Sensitive data policy**: 합성 계정(`pwtest1`, `pwtest_inactive`, 가짜 전화번호)만 사용, 실제 고객/기사 데이터 미접촉. 검증 중 생성된 합성 계정 2건과 관련 감사 로그 9건 전부 삭제, `curl`로 재조회해 잔존 없음(`null`) 확인. 임시 비밀번호/해시 값은 파일에 기록하되 대화 응답에는 노출하지 않음.
 - **후속(이번 범위 밖)**: IP 기반 레이트리밋, 테넌트 내부 역할 분리(기존 백로그 항목).
 
+### TMS: "이전 배송완료 사진 보기" MVP (배송완료 화면 참고용)
+- **Status**: ✅ Deployed / Verified (Hosting만 배포, Functions/DB rules 미변경)
+- **Commits**: `07ed9b8`(기능 구현 + `SECURITY_ISSUES.md` Storage 규칙 기록), `bc4980f`(APP_VERSION 11 범프)
+- **배경**: 배송기사가 오배송 방지를 위해 이전 배송완료 사진(도어록/문 앞 위치 확인용)을 참고하고 싶다는 요청. 강제 확인/체크박스 없이 "선택형 참고"로 1차 MVP 범위를 좁혀 진행(read-only 분석 2라운드 후 구현).
+- **핵심 변경**: `saas/driver.html`에 `isSimilarAddress()`(`functions/lib/receipt-utils.js`와 동일 규칙 클라이언트 이식), `saveDeliveryPhotoHistory()`(완료사진 Storage 업로드 성공 후 `tenants/{tenantId}/deliveryPhotoHistory/{learnKey}`에 최근 1장만 overwrite, 신규 Storage 업로드 없이 기존 `photoUrl` 재사용), `findPreviousDeliveryPhoto()`(learnKey 조회 + 주소 유사도 재검증 + 자기 자신 제외, 실패 시 전부 null), `viewPhotoUrl()`(기존 `#photo-viewer` 모달 재사용, 삭제 버튼 숨김 처리) 신규 추가. 배송완료 화면(`openCompleteScreen()`)에만 노출, 배송카드 목록은 변경 없음. `database.rules.json`/`storage.rules` 변경 없음(신규 경로가 기존 `tenants/{tenantId}` 규칙을 그대로 상속).
+- **테스트**: `node --test "test/*.test.js"` **109/109 pass**(functions 미변경). 로컬 정적 서버 + Playwright로 실제 커밋 소스의 매칭 로직 8개 시나리오(이력없음/같은주소/다른주소/유사주소/자기자신제외/조회예외/키없음/저장필드) 전부 mock DB로 검증, 검증 중 `openCompleteScreen()`의 `.then()`에 `.catch()`가 빠져있던 실제 방어 코딩 허점을 발견해 수정.
+- **Deploy**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. `DEPLOY_CHECKLIST.md` §4-1 절차대로 배포 전 `APP_VERSION` 10→11 범프, 배포 후 `settings/appVersion`도 "11"로 갱신.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-08 — 이전 배송완료 사진 보기 MVP 배포 검증" 참고. testmart 실계정으로 실제 `submitComplete()` 완료 플로우를 3회 수행(합성 데이터)해 이력없음/같은주소 표시/다른주소 미표시 3개 케이스 전부 실제 Firebase 조회로 확인, photo-viewer 모달·삭제버튼 숨김·모바일 375px 레이아웃·업데이트 배너 전부 정상, 콘솔 에러 0건.
+- **남은 리스크**: Storage 규칙이 코드베이스에서 관리되지 않는 기존 이슈(`SECURITY_ISSUES.md` 참고, 이번 기능은 기존 `photoUrl` 메커니즘을 재사용할 뿐 새 리스크를 추가하지 않음), 테넌트 내부 역할 분리 미해결(같은 테넌트 기사 간 상호 열람 가능한 기존 신뢰 경계 그대로), `openCompleteScreen()`을 거치지 않는 대체 완료 경로(`capturePhoto()`/`toggleDone()`)는 이번 라운드에서 손대지 않아 해당 경로로 완료된 배송은 `deliveryPhotoHistory`가 갱신되지 않음(필요 시 별도 라운드).
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/주소). 검증 중 실제 완료 플로우로 생성된 테스트 orders 3건, `deliveryPhotoHistory` 1건, Storage 사진 1건 전부 REST/Storage API로 삭제, 재조회로 잔존 없음(`null`/`404`) 확인.
+
 ---
 
 ## 진행 대기 (P1)

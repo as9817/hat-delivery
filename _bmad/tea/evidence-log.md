@@ -253,3 +253,24 @@
   9. 업데이트 배너: `settings/appVersion`을 일시적으로 "11"로 바꿔 불일치 유발 → 배너 노출 확인 → "10"으로 원복 후 새로고침 → `APP_VERSION` 유지되며 배너 사라짐 확인
 - **Result**: `resetDriverPassword`가 계정 존재 유추를 방지하는 통일된 실패 메시지, 레이트리밋, PII 없는 감사 로그 요구사항을 전부 만족하며 실제 배포본에서 정상 동작함을 확인. `mustChangePassword` 강제 변경 흐름(로그인 직후/세션 복원 양쪽)이 정상 동작하고, 새 비밀번호 재로그인 시 강제 화면이 재노출되지 않으며, 기존 일반 로그인에는 회귀가 없음을 확인. 검증 과정에서 이번 작업과 무관하게 존재하던 두 건의 사전 버그(모달 z-index, bcryptjs CDN 경로)를 발견해 함께 수정하지 않았다면 방금 만든 기능 자체가 실제 사용자에게는 여전히 작동하지 않는 상태로 남았을 것.
 - **Sensitive data policy**: 합성 계정(`pwtest1`, `pwtest_inactive`, 가짜 전화번호 `010-5555-9999`/`010-5555-1111`)만 사용, 실제 운영 기사 계정/비밀번호는 전혀 접촉하지 않음. 임시 비밀번호/새 비밀번호 값은 스크린샷/스냅샷 텍스트에 일시적으로 노출됐으나 합성 계정의 값이며 검증 직후 계정 자체를 삭제. 검증 종료 후 합성 계정 2건과 관련 감사 로그 9건 전부 REST로 삭제, `curl`로 재조회해 `null`(잔존 없음) 확인. TMS 로컬스토리지 테스트 배송 데이터도 모두 정리.
+
+## 2026-07-08 — 이전 배송완료 사진 보기 MVP 배포 검증
+
+- **대상**: `saas/driver.html` — `isSimilarAddress()`(신규, 클라이언트 이식), `saveDeliveryPhotoHistory()`/`findPreviousDeliveryPhoto()`(신규), `viewPhotoUrl()`(신규), `openCompleteScreen()`(연동)
+- **커밋**: `07ed9b8`(기능 구현 + SECURITY_ISSUES.md Storage 규칙 기록), `bc4980f`(APP_VERSION 11 범프)
+- **배포 전 확인**: `git status` clean(2개 파일: `saas/driver.html`, `SECURITY_ISSUES.md`), `node --test "test/*.test.js"` **109/109 pass**(functions 미변경), `database.rules.json`/`firebase.json`/`storage.rules` 변경 없음 확인.
+- **로직 검증(배포 전, Node 샌드박스로 실제 커밋 소스 추출 + mock DB)**: 이력 없음→null, 같은 전화번호+같은 주소→반환, 같은 전화번호+다른 주소→null, 유사주소(공백/포함관계)→반환, 자기 자신(같은 orderId) 제외→null, 조회 중 예외 발생→에러 없이 null, phone/name 둘 다 없음→조회 자체 미시도, `saveDeliveryPhotoHistory` 저장 필드(`photoUrl`/`address`/`completedAt`/`orderId`) 정확성 — 8개 시나리오 전부 통과.
+- **UI 배선 검증(배포 전, 로컬 정적 서버 + Playwright, 실제 Firebase 미접촉)**: `findPreviousDeliveryPhoto`를 스텁으로 교체해 있음/없음/조회실패 3케이스의 링크 노출·숨김 확인, 모달 오픈 시 삭제버튼 숨김·`currentPhotoId:null` 확인. 조회실패 스텁 테스트 중 `openCompleteScreen()`의 `.then()`에 `.catch()`가 없어 unhandled rejection이 기존 전역 에러 핸들러(`logSystemError`)를 거쳐 `system_logs/errors`에 write를 시도하다 미로그인 상태라 `permission_denied`로 거부되는 것을 발견(실제 데이터 저장은 없었음, 쓰기 "시도"만 거부됨) → `.catch(()=>{})` 방어 코드 추가 후 재검증, 콘솔 에러 0건 확인.
+- **배포**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. 배포 직후 `settings/appVersion`을 "11"로 갱신.
+- **배포 후 라이브 검증(testmart 실계정, 실제 `submitComplete()` 완료 플로우로 합성 데이터 3건 생성)**:
+  1. 라이브 페이지 하드 리로드 후 `APP_VERSION==='11'` 확인
+  2. testmart/test1 계정으로 실제 로그인 성공
+  3. 합성 배송 1건(가짜 전화번호+가짜 주소, 이전 이력 없음) → 완료화면에서 링크 미표시 확인 → 캔버스로 생성한 합성 이미지를 첨부해 실제 `submitComplete()` 호출 → Storage 업로드 완료 후 `tenants/testmart/deliveryPhotoHistory/{합성 전화번호}`에 `photoUrl`(실제 Storage 다운로드 URL)/`address`/`completedAt`/`orderId` 4개 필드가 정확히 생성됨을 RTDB 직접 조회로 확인
+  4. 같은 전화번호+같은 주소의 합성 배송 2건째 → 완료화면 진입 시 실제 Firebase 조회로 "🖼 이전 배송사진 보기" 링크 노출 확인 → 클릭 → `#photo-viewer` 모달에 실제 Storage URL 이미지 표시, 삭제 버튼(`btn-delete-photo`) `display:none`, `currentPhotoId:null` 확인(다른 배송 사진을 이 경로로 삭제할 수 없음을 재확인)
+  5. 같은 전화번호+완전히 다른 주소의 합성 배송 3건째 → 링크 미표시 확인(주소 유사도 재검증이 실제로 오적용을 막음)
+  6. 모바일 폭(375×812) 스크린샷 — 링크가 주소 카드 안에 위치, 수령방법/사진첨부/결제여부/완료버튼 어느 것과도 안 겹침
+  7. 업데이트 배너: `settings/appVersion`을 일시적으로 "12"로 바꿔 불일치 유발 → 배너 노출 확인 → "11"로 원복 후 새로고침 → 배너 사라짐, `APP_VERSION` 유지 확인
+  8. 전 과정 콘솔 에러 0건
+  9. 로컬스토리지 테스트 배송 데이터 정리. Firebase에 생성된 합성 orders 3건을 RTDB REST로 삭제, `deliveryPhotoHistory` 1건 삭제, Storage에 업로드된 합성 사진 1건을 Storage REST API로 삭제(`HTTP 204`) — 재조회로 orders/`deliveryPhotoHistory` 전부 `null`, Storage 파일 재삭제 시도 `HTTP 404`(이미 없음)로 잔존 없음 확인
+- **Result**: "이전 배송완료 사진 보기"가 설계대로 동작함을 실제 라이브 환경에서 확인 — 같은 전화번호라도 주소가 다르면 절대 표시되지 않고, 조회 실패/이력 없음은 조용히 링크만 숨겨 배송완료 흐름을 방해하지 않으며, 다른 배송의 사진을 실수로 삭제할 수 있는 경로가 없음. 신규 Storage 업로드 없이 기존 `photoUrl`을 재사용해 설계 시 예상한 대로 추가 저장 비용이 발생하지 않음을 실제 배포본에서 재확인.
+- **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름 "합성고객A", 가짜 전화번호 `010-9900-1111`, 가짜 주소 "마포구/종로구 합성·완전히다른동네 테스트로"). 실제 고객명/전화번호/주소/photoUrl 원문은 본 로그에도, 대화 응답에도 기록하지 않음. 검증 종료 후 orders 3건/`deliveryPhotoHistory` 1건/Storage 사진 1건 전부 삭제 및 재조회로 잔존 없음 확인.
