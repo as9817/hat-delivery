@@ -21,12 +21,12 @@
     html, body { height: 100%; background: #F4F6F9; }
 
     /* ── 로그인 화면 ── */
-    #login-screen {
+    #login-screen, #force-pw-screen {
       position: fixed; inset: 0; background: linear-gradient(160deg, #FF6B00, #FF9040);
       z-index: 9999; display: flex; flex-direction: column;
       align-items: center; justify-content: center; padding: 32px 24px;
     }
-    #login-screen.hidden { display: none; }
+    #login-screen.hidden, #force-pw-screen.hidden { display: none; }
     .login-logo { font-size: 36px; font-weight: 900; color: #fff; margin-bottom: 6px; }
     .login-sub  { font-size: 14px; color: rgba(255,255,255,.8); margin-bottom: 40px; }
     .login-box  {
@@ -425,6 +425,21 @@
       <button onclick="closeFindPwModal()" style="flex:1;padding:11px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-size:14px;cursor:pointer">닫기</button>
       <button id="fp-btn" onclick="doFindPw()" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1a237e;color:#fff;font-size:14px;font-weight:700;cursor:pointer">확인</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════ 비밀번호 강제 변경 화면 (임시 비밀번호 로그인 직후) ══════════════ -->
+<div id="force-pw-screen" class="hidden">
+  <div class="login-box">
+    <div style="font-size:17px;font-weight:700;margin-bottom:6px">🔒 새 비밀번호 설정</div>
+    <div style="font-size:13px;color:#666;margin-bottom:18px">임시 비밀번호로 로그인하셨습니다. 계속하려면 새 비밀번호를 설정하세요.</div>
+    <label>새 비밀번호</label>
+    <input id="fpw-new" type="password" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password" />
+    <label>새 비밀번호 확인</label>
+    <input id="fpw-confirm" type="password" placeholder="새 비밀번호 확인" autocomplete="new-password"
+           onkeydown="if(event.key==='Enter') doForceChangePw()" />
+    <div class="login-err" id="fpw-err"></div>
+    <button class="btn btn-orange" id="fpw-btn" onclick="doForceChangePw()">변경하고 계속하기</button>
   </div>
 </div>
 
@@ -921,31 +936,21 @@ async function doFindPw() {
   msg.textContent = '';
 
   try {
-    const snap = await _fbDb
-      .ref('tenants/' + tenantId + '/driverAccounts/' + driverId)
-      .once('value');
-    const driver = snap.val();
-
-    if (!driver) {
-      msg.textContent = '아이디를 찾을 수 없습니다';
+    // 로그인 전 상태라 RTDB 직접 접근이 불가능 — Cloud Function(Admin SDK)을 통해
+    // 서버 측에서 본인 확인(전화번호 대조) 및 임시 비밀번호 발급을 처리
+    const res = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/resetDriverPassword', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId, driverId, phone })
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== 'success') {
+      msg.textContent = data.message || '비밀번호 재설정에 실패했습니다';
       msg.style.color = '#e53935';
       return;
     }
 
-    const storedPhone = (driver.phone || '').replace(/\D/g, '');
-    if (storedPhone !== phone) {
-      msg.textContent = '전화번호가 일치하지 않습니다';
-      msg.style.color = '#e53935';
-      return;
-    }
-
-    // 임시 비밀번호 생성 (숫자 6자리)
-    const tempPw = String(Math.floor(100000 + Math.random() * 900000));
-    const tempHash = await dcodeIO.bcrypt.hash(tempPw, 10);
-    await _fbDb
-      .ref('tenants/' + tenantId + '/driverAccounts/' + driverId)
-      .update({ password: tempHash });
-
+    const tempPw = data.tempPassword;
     document.getElementById('fp-tempw').textContent = tempPw;
     document.getElementById('fp-result').style.display = 'block';
     msg.textContent = '임시 비밀번호가 발급되었습니다';
@@ -999,7 +1004,7 @@ async function doLogin() {
     currentDriver = { id, name: data.driverName, tenantId: TENANT_ID, tenantName: TENANT_NAME };
     saveSession(currentDriver);
     localStorage.setItem('hd_driver_tenant_code', tenantCode);
-    showApp();
+    enterAppOrForceChange(data.mustChangePassword === true);
   } catch(e) {
     err.textContent = '로그인 중 오류가 발생했습니다: ' + e.message;
     err.style.display = 'block';
@@ -1037,8 +1042,57 @@ function doLogout() {
 }
 
 let _versionListenerStarted = false;
+// 로그인 직후 mustChangePassword 플래그에 따라 메인 화면 진입 전 강제 변경 화면을 끼워 넣음
+function enterAppOrForceChange(mustChangePassword) {
+  if (mustChangePassword) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('force-pw-screen').classList.remove('hidden');
+  } else {
+    showApp();
+  }
+}
+
+async function doForceChangePw() {
+  const pw1 = document.getElementById('fpw-new').value;
+  const pw2 = document.getElementById('fpw-confirm').value;
+  const err = document.getElementById('fpw-err');
+  const btn = document.getElementById('fpw-btn');
+  err.style.display = 'none';
+
+  if (!pw1 || pw1.length < 4) {
+    err.textContent = '비밀번호는 4자 이상 입력하세요';
+    err.style.display = 'block';
+    return;
+  }
+  if (pw1 !== pw2) {
+    err.textContent = '비밀번호가 일치하지 않습니다';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '변경 중...';
+  try {
+    // 이 시점엔 이미 issueDriverToken으로 로그인 완료(auth != null, 본인 테넌트) 상태라
+    // 기존 database.rules.json 규칙 그대로 클라이언트에서 직접 write 가능 (OMS 강제변경과 동일 패턴)
+    const hash = await dcodeIO.bcrypt.hash(pw1, 10);
+    await tref('driverAccounts/' + currentDriver.id).update({ password: hash, mustChangePassword: false });
+    document.getElementById('force-pw-screen').classList.add('hidden');
+    document.getElementById('fpw-new').value = '';
+    document.getElementById('fpw-confirm').value = '';
+    showApp();
+  } catch (e) {
+    err.textContent = '오류: ' + e.message;
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '변경하고 계속하기';
+  }
+}
+
 function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('force-pw-screen').classList.add('hidden');
   const el = document.getElementById('header-driver-name');
   if (el && currentDriver) el.textContent = currentDriver.name + ' 기사님';
   renderHome();              // 저장된 주문 즉시 표시
@@ -1163,7 +1217,7 @@ function checkSession() {
       const driver = snap.val();
       if (driver && driver.active !== false) {
         currentDriver = { id: s.id, name: driver.name || s.name, tenantId: TENANT_ID, tenantName: TENANT_NAME };
-        showApp();
+        enterAppOrForceChange(driver.mustChangePassword === true);
       } else {
         clearSession();
       }

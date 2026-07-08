@@ -37,7 +37,7 @@ describe('firebase.json', () => {
 
 // ── index.js exports ─────────────────────────────────────
 describe('functions/index.js exports', () => {
-  it('필수 엔드포인트 6개 모두 exports', () => {
+  it('필수 엔드포인트 7개 모두 exports', () => {
     const src = fs.readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8');
     const required = [
       'processReceipt',
@@ -46,6 +46,7 @@ describe('functions/index.js exports', () => {
       'reverseGeocode',
       'kakaoWaypoints',
       'issueDriverToken',
+      'resetDriverPassword',
     ];
     required.forEach(fn => {
       assert.ok(src.includes(`exports.${fn}`), `exports.${fn} 없음`);

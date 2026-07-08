@@ -10,6 +10,7 @@ const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const { GoogleGenAI } = require('@google/genai');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 require('./lib/utils'); // haversineKm/scoreKeywordMatch는 lib/receipt-utils.js가 내부적으로 사용
 const {
   resolveLearnKey,
@@ -749,9 +750,95 @@ exports.issueDriverToken = functions
         token,
         tenantName: settings.martName || tenantId,
         driverName: driver.name || driverId,
+        mustChangePassword: driver.mustChangePassword === true,
       });
     } catch (err) {
       logger.error('issueDriverToken 오류:', err);
+      res.status(500).json({ status: 'error', message: err.message });
+    }
+  });
+
+// ══════════════════════════════════════════════════════
+// resetDriverPassword: 기사 비밀번호 찾기 → 임시 비밀번호 발급
+// (로그인 전 상태라 인증 토큰이 없으므로, 등록된 전화번호 대조로 본인 확인)
+// ══════════════════════════════════════════════════════
+const DRIVER_PW_RESET_MAX_ATTEMPTS = 5;
+const DRIVER_PW_RESET_WINDOW_MS = 60 * 60 * 1000; // 1시간
+const DRIVER_PW_RESET_GENERIC_FAIL = '입력하신 정보와 일치하는 계정을 찾을 수 없습니다';
+
+async function logDriverPwResetAttempt(tenantId, driverId, success, reason) {
+  try {
+    await db.ref('system_logs/driverPwReset').push({
+      timestamp: Date.now(),
+      tenantId,
+      driverId,
+      success,
+      reason,
+    });
+  } catch (e) {
+    logger.error('driverPwReset 감사 로그 기록 실패:', e);
+  }
+}
+
+exports.resetDriverPassword = functions
+  .region('asia-northeast3')
+  .runWith({ timeoutSeconds: 15, memory: '128MB' })
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ status: 'error', message: 'POST only' }); return; }
+
+    const { tenantId, driverId, phone } = req.body || {};
+    if (!tenantId || !driverId || !phone) {
+      res.status(400).json({ status: 'error', message: '필수 파라미터 없음' }); return;
+    }
+
+    try {
+      const ref = db.ref(`tenants/${tenantId}/driverAccounts/${driverId}`);
+      const snap = await ref.once('value');
+      const driver = snap.val();
+
+      if (!driver || !driver.active) {
+        await logDriverPwResetAttempt(tenantId, driverId, false, !driver ? 'not_found' : 'inactive');
+        res.status(401).json({ status: 'error', message: DRIVER_PW_RESET_GENERIC_FAIL }); return;
+      }
+
+      // 레이트리밋: driverAccounts 레코드 자체에 시도 횟수/윈도우 시작 시각 보관(Admin SDK 전용 필드)
+      const now = Date.now();
+      let attempts = driver.pwResetAttempts || 0;
+      let windowStart = driver.pwResetWindowStart || 0;
+      if (now - windowStart > DRIVER_PW_RESET_WINDOW_MS) {
+        attempts = 0;
+        windowStart = now;
+      }
+      if (attempts >= DRIVER_PW_RESET_MAX_ATTEMPTS) {
+        await logDriverPwResetAttempt(tenantId, driverId, false, 'rate_limited');
+        res.status(429).json({ status: 'error', message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요' }); return;
+      }
+
+      const storedPhone = (driver.phone || '').replace(/\D/g, '');
+      const inputPhone = String(phone).replace(/\D/g, '');
+      if (!storedPhone || storedPhone !== inputPhone) {
+        await ref.update({ pwResetAttempts: attempts + 1, pwResetWindowStart: windowStart });
+        await logDriverPwResetAttempt(tenantId, driverId, false, 'phone_mismatch');
+        res.status(401).json({ status: 'error', message: DRIVER_PW_RESET_GENERIC_FAIL }); return;
+      }
+
+      // 본인 확인 통과 → 임시 비밀번호 발급
+      const tempPassword = String(crypto.randomInt(100000, 1000000));
+      const hash = await bcrypt.hash(tempPassword, 10);
+      await ref.update({
+        password: hash,
+        mustChangePassword: true,
+        pwResetAttempts: 0,
+        pwResetWindowStart: 0,
+      });
+      await logDriverPwResetAttempt(tenantId, driverId, true, 'ok');
+      res.status(200).json({ status: 'success', tempPassword });
+    } catch (err) {
+      logger.error('resetDriverPassword 오류:', err);
       res.status(500).json({ status: 'error', message: err.message });
     }
   });
