@@ -179,6 +179,20 @@
 - **남은 리스크**: Storage 규칙이 코드베이스에서 관리되지 않는 기존 이슈(`SECURITY_ISSUES.md` 참고, 이번 기능은 기존 `photoUrl` 메커니즘을 재사용할 뿐 새 리스크를 추가하지 않음), 테넌트 내부 역할 분리 미해결(같은 테넌트 기사 간 상호 열람 가능한 기존 신뢰 경계 그대로), `openCompleteScreen()`을 거치지 않는 대체 완료 경로(`capturePhoto()`/`toggleDone()`)는 이번 라운드에서 손대지 않아 해당 경로로 완료된 배송은 `deliveryPhotoHistory`가 갱신되지 않음(필요 시 별도 라운드).
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/주소). 검증 중 실제 완료 플로우로 생성된 테스트 orders 3건, `deliveryPhotoHistory` 1건, Storage 사진 1건 전부 REST/Storage API로 삭제, 재조회로 잔존 없음(`null`/`404`) 확인.
 
+### TMS 기사 사용률 개선 1차 — OCR 빠른 확인모드 + 반복배송 학습 체감 UX
+- **Status**: ✅ Deployed / Verified (Functions + Hosting 배포, `database.rules.json` 미변경)
+- **Commits**: `ac046e9`(핵심 기능: 결과화면 신호등 상태 + 자동학습 + 카드 배지), `2876dd5`(APP_VERSION 12 범프)
+- **배경**: 와마트 민락점 기사 피드백 — OCR이 틀릴 때마다 전체 폼을 다시 확인해야 해서 느리고, 자주 가는 주소도 매번 새로 처리되는 느낌. 후보 주소 목록 UI는 만들지 않는다는 전제 하에(시스템이 이미 최선의 주소 1개를 자동 선택하는 기존 구조를 그대로 활용), read-only 분석 2라운드를 거쳐 구현.
+- **핵심 변경**:
+  - `functions/index.js`: `processReceipt` 응답의 `location`에 `source` 필드 추가(`'learned'`/`'standardized'`/`'raw_fallback'`) — 클라이언트가 신호등 상태를 판정하는 유일한 신규 서버 신호. `standardizeAddress()` 내부 로직 자체는 변경 없음.
+  - `saas/driver.html`: `computeResultStatus()`/`renderResultStatus()` 신규(필드별+화면 전체 초록/파랑/노랑/빨강 판정), 값 있는 필드는 잠금(탭하면 즉시 편집), 값 없는 필드는 처음부터 편집 가능. 기존에 초기 `readOnly`를 설정하지 않아 동작이 뒤집혀 있던 죽은 코드 `toggleEdit()`/`setEditMode()`를 이 로직으로 대체. `startOCR()`의 `showRetakePrompt()` 자동 호출 제거 — 필드 일부가 비어도 곧장 결과화면으로 진입하고, 완전 실패(주소 없음, 빨강)일 때만 화면 안 링크로 재촬영 안내. 결과화면에 원본 영수증 사진 확대 보기(기존 `#photo-viewer`/`viewPhotoUrl()` 재사용, 신규 모달 없음) 추가. `confirmAdd()`가 기사의 수정 여부와 무관하게 성공적으로 표준화된 주소를 조용히 `learnedLocations`에 자동 학습(`autoSaveLearnedAddressIfSafe()`, `isSimilarAddress` 게이트로 오적용 방지). 배송카드에 반복배송 배지(학습주소 적용/이전 배송사진 있음/출입정보 있음/길찾기 가능)를 `confirmAdd()` 시점에 저장해둔 필드만으로 렌더링(카드 렌더링 시 Firebase 추가 조회 없음). 카드/결과화면 버튼 개수는 기존 그대로 유지, 라벨/역할만 상태별 전환.
+- **테스트**: `node --test "test/*.test.js"` **109/109 pass**. 배포 전 Node 샌드박스로 실제 커밋 소스 검증 — `computeResultStatus()` 8개 시나리오, `autoSaveLearnedAddressIfSafe()` 4개 시나리오(신규저장/유사주소갱신/**다른주소 오적용 방지**/좌표없으면 미저장) 전부 통과. 로컬 Playwright로 4개 상태 UI·사진뷰어 재사용·모바일 375px 확인.
+- **Deploy**: `firebase deploy --only functions,hosting --project hatdelivery-saas`. `DEPLOY_CHECKLIST.md` §4-1 절차대로 배포 전 `APP_VERSION` 11→12 범프, 배포 후 `settings/appVersion`도 "12"로 갱신.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-08 — OCR 빠른 확인모드 배포 검증" 참고. testmart 실계정으로 실제 `processReceipt` 엔드포인트를 3가지 합성 영수증(캔버스 렌더링)으로 호출해 `standardized`(초록)/`raw_fallback`(노랑)/`learned`(파랑) 3개 `source` 값 전부 실제로 확인, `showRetakePrompt` 없이 결과화면 진입 확인, 자동 학습 실제 저장 확인, **같은 전화번호 다른 주소 덮어쓰기 방지 실측 확인**, 배송카드 배지 실제 렌더링 확인, 모바일 375px 겹침 없음, 콘솔 에러 0건.
+- **부수 발견(버그 아님)**: 처음 테스트한 원거리 주소(강남구/중구)가 예상과 달리 `raw_fallback`으로 나와 원인을 Cloud Functions 로그로 추적한 결과, testmart 마트 반경(3km) 밖이라 카카오 검색 결과가 의도적으로 거부되고 있었음(`kakaoAddrSearch 쿼리: 최근접 X.Xkm > 3km → reject`) — 기존 원거리 오배송 방지 설계가 정상 작동한 것으로 확인.
+- **남은 리스크/후속**: `isSimilarAddress`가 카카오 표준화 과정에서 단어가 추가/변형되는 경우(예: "지하" 삽입) 원본 OCR 텍스트와 문자열이 달라져 학습주소가 미적용될 수 있음 — 실제 라이브 테스트에서 재현됨. 다만 이는 오적용 방지를 우선하는 기존 "애매하면 미적용" 원칙과 일치하므로 즉시 수정 대상은 아니며, 운영 중 발생 빈도를 모니터링해 필요 시 별도 개선(예: 표준화 후 주소로 재비교) 검토. "이전 배송사진 있음" 카드 배지는 이번 라운드에서 완료 사진 업로드까지 가는 전체 플로우 재검증은 생략(직전 라운드에서 이미 검증된 기능이라 카드 렌더링 로직만 확인). `capturePhoto()`/`toggleDone()` 등 `openCompleteScreen()`을 거치지 않는 대체 완료 경로는 이번 범위 밖(기존 "이전 배송사진" 라운드와 동일한 한계).
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/실제 존재하지만 무관한 공개 도로명 주소). 검증 중 실제 `confirmAdd()`로 생성된 테스트 orders 4건, `learnedLocations`(전화번호 키+이름 키), Storage 영수증 사진 3건 전부 REST/Storage API로 삭제, 재조회로 잔존 없음(`null`/`404`) 확인.
+
 ---
 
 ## 진행 대기 (P1)

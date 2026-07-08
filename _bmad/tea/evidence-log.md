@@ -274,3 +274,27 @@
   9. 로컬스토리지 테스트 배송 데이터 정리. Firebase에 생성된 합성 orders 3건을 RTDB REST로 삭제, `deliveryPhotoHistory` 1건 삭제, Storage에 업로드된 합성 사진 1건을 Storage REST API로 삭제(`HTTP 204`) — 재조회로 orders/`deliveryPhotoHistory` 전부 `null`, Storage 파일 재삭제 시도 `HTTP 404`(이미 없음)로 잔존 없음 확인
 - **Result**: "이전 배송완료 사진 보기"가 설계대로 동작함을 실제 라이브 환경에서 확인 — 같은 전화번호라도 주소가 다르면 절대 표시되지 않고, 조회 실패/이력 없음은 조용히 링크만 숨겨 배송완료 흐름을 방해하지 않으며, 다른 배송의 사진을 실수로 삭제할 수 있는 경로가 없음. 신규 Storage 업로드 없이 기존 `photoUrl`을 재사용해 설계 시 예상한 대로 추가 저장 비용이 발생하지 않음을 실제 배포본에서 재확인.
 - **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름 "합성고객A", 가짜 전화번호 `010-9900-1111`, 가짜 주소 "마포구/종로구 합성·완전히다른동네 테스트로"). 실제 고객명/전화번호/주소/photoUrl 원문은 본 로그에도, 대화 응답에도 기록하지 않음. 검증 종료 후 orders 3건/`deliveryPhotoHistory` 1건/Storage 사진 1건 전부 삭제 및 재조회로 잔존 없음 확인.
+
+## 2026-07-08 — OCR 빠른 확인모드(TMS 기사 사용률 개선 1차) 배포 검증
+
+- **대상**: `functions/index.js`(`processReceipt`의 `location.source` 필드), `saas/driver.html`(`computeResultStatus()`/`renderResultStatus()`, `startOCR()`, `confirmAdd()`/`autoSaveLearnedAddressIfSafe()`, `renderHome()`의 카드 배지)
+- **커밋**: `ac046e9`(핵심), `2876dd5`(APP_VERSION 12 범프)
+- **배포 전 확인**: `git status` clean(2개 파일만), `node --test "test/*.test.js"` **109/109 pass**, `database.rules.json`/`firebase.json`/`storage.rules` diff 0줄 확인.
+- **배포 전 로직 검증(Node 샌드박스, 실제 커밋 소스 + mock DOM/DB)**:
+  - `computeResultStatus()` 8개 시나리오(OCR 정상/주소없음/학습적용/최초영수증표준화성공/raw_fallback/상세주소누락/출입정보감지/이름누락) 전부 통과
+  - `autoSaveLearnedAddressIfSafe()` 4개 시나리오(신규저장/기존 유사주소 갱신/**기존 비유사 주소 덮어쓰기 방지**/좌표 없으면 저장 미시도) 전부 통과
+- **배포**: `firebase deploy --only functions,hosting --project hatdelivery-saas`(7개 함수 업데이트, Hosting 배포). 배포 직후 `settings/appVersion`을 "12"로 갱신.
+- **배포 후 라이브 검증(testmart 실계정, 실제 `processReceipt` 엔드포인트를 캔버스 렌더링 합성 영수증 이미지로 호출)**:
+  1. 하드 리로드 후 `APP_VERSION==='12'` 확인, testmart/test1 계정 실제 로그인 성공
+  2. **`raw_fallback`(노랑) 확인**: 마트 반경 밖 주소(강남구/중구)로 합성 영수증 2건 스캔 → `source:'raw_fallback'`, 상태바 "🟡 주소 확인 필요" 정상 표시. Cloud Functions 로그(`gcloud functions logs read`)로 원인이 "최근접 X.Xkm > 3km → reject"(마트 반경 밖이라 의도적으로 거부)임을 직접 확인 — 버그 아님, 기존 원거리 오배송 방지 설계가 정상 동작
+  3. **`standardized`(초록) 확인**: 마트 반경 내 실제 도로명 주소로 합성 영수증 스캔 → `source:'standardized'`, lat/lng 정상 확정, 상태바 "🟢 바로 추가 가능", 배지 "🗺 길찾기 가능" 확인
+  4. 위 영수증을 실제 `confirmAdd()`로 배송목록에 추가(기사가 아무것도 수정하지 않은 성공 케이스) → 2초 후 RTDB 직접 조회로 `settings/learnedLocations/{합성 전화번호}`(테넌트 스코프: `tenants/testmart/settings/learnedLocations/...`)에 `road_address`/`lat`/`lng`/`name`/`phone` 필드가 정확히 자동 저장됨을 확인(토스트 없이 조용히 저장 — 설계대로)
+  5. **`learned`(파랑) 확인**: 방금 학습된 것과 동일한 전화번호+표준화된 주소 문자열로 재스캔 → `source:'learned'`, 상태바 "🔵 학습주소 적용됨", 배지 4종(학습주소 적용/길찾기 가능 등) 동시 노출 확인
+  6. **같은 전화번호 다른 주소 오적용 방지 실측**: 같은 전화번호로 마트 반경 내의 완전히 다른 주소를 스캔 → 서버가 `학습주소 존재하지만 주소 불일치로 미적용` 로그와 함께 `source:'standardized'`로 신규 표준화 응답(정상). 이 결과를 실제 `confirmAdd()`로 추가한 뒤 학습주소를 재조회 → **`road_address`/`updatedAt`이 기존 값 그대로 유지됨을 확인**(다른 주소로 덮어써지지 않음 — 핵심 안전장치 실측 확인)
+  7. `showRetakePrompt` 관련: 위 5회의 스캔(raw_fallback 2회 포함) 전부 팝업 없이 곧장 결과화면(빠른 확인모드)으로 진입함을 확인
+  8. 배송목록 화면에서 학습주소 적용 건에 "📚 학습주소 적용" + "🗺 길찾기 가능" 카드 배지가 정확히 렌더링되고, 카드 버튼(길찾기/완료체크/✏️)은 3개 그대로 유지됨을 확인
+  9. 모바일 폭(375×812) 스크린샷 — 결과화면 상태바/배지/사진썸네일/필드, 배송카드 배지 전부 겹침 없음
+  10. 전 과정 콘솔 에러 0건
+  11. 로컬스토리지 정리. Firebase에 생성된 합성 orders 4건(이전 라운드 잔존 1건 포함), `learnedLocations`(전화번호 키+이름 키, 테넌트 스코프), Storage 영수증 사진 3건 전부 REST/Storage API로 삭제 — 재조회로 orders/학습주소 전부 `null`, Storage 파일 삭제 응답 `HTTP 204` 확인
+- **Result**: `location.source` 3가지 값(`learned`/`standardized`/`raw_fallback`) 전부가 실제 배포본에서 정확한 신호등 상태로 이어지고, `showRetakePrompt` 팝업 없이 결과화면에 항상 진입하며, 성공 케이스에서도 조용한 자동 학습이 실제로 발생하고, 같은 전화번호를 쓰는 다른 주소 고객에게 절대 오적용되지 않음을 확인. 배송카드 배지가 추가 Firebase 조회 없이 정확히 렌더링됨을 확인.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름, 가짜 전화번호, 실제 존재하지만 개인과 무관한 공개 도로명 주소만 테스트 입력으로 사용 — 학습주소 자체는 합성 전화번호로만 저장). 실제 고객명/전화번호/주소/photoUrl 원문은 본 로그에도 대화 응답에도 기록하지 않음. 검증 종료 후 생성된 모든 합성 데이터(orders 4건, learnedLocations 2건, Storage 사진 3건) 전부 삭제 및 재조회로 잔존 없음 확인.
