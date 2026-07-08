@@ -116,7 +116,7 @@ exports.processReceipt = functions
           logger.info('학습주소 적용됨(주소 유사도 일치) / access_info 포함:', !!learnedLocation.access_info);
           res.status(200).json({ status: 'success', data: {
             customer: { name: parsed.name, phone: parsed.phone || '' },
-            location: learnedLocation,
+            location: { ...learnedLocation, source: 'learned' },
             totalAmount: parsed.totalAmount || '',
           }});
           return;
@@ -145,6 +145,10 @@ exports.processReceipt = functions
       // 최종 응답 직전에 한 번만 분리한다(학습주소 없는 신규 주소라 기존 access_info
       // 값과 충돌할 여지가 없음).
       const splitResult = splitDetailAndAccessInfo(location.detail_address || '');
+      // 카카오가 좌표까지 확정한 경우만 'standardized'(확신), 좌표 없이 원문/파싱
+      // 결과만 남은 경우는 'raw_fallback'(기사 확인 필요) — 클라이언트가 이 값으로
+      // 신호등 상태(초록/노랑)를 판정하는 유일한 근거이므로 lat/lng 존재 여부로만 결정.
+      const source = (location.lat && location.lng) ? 'standardized' : 'raw_fallback';
 
       res.status(200).json({
         status: 'success',
@@ -156,6 +160,7 @@ exports.processReceipt = functions
             access_info: splitResult.accessInfo, // OCR 괄호에서 자동 분리(학습값 없는 신규 주소)
             lat: location.lat || null,
             lng: location.lng || null,
+            source,
           },
           totalAmount: parsed.totalAmount || '',
         },

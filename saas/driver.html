@@ -178,6 +178,28 @@
     }
     .form-input:focus { border-color: #FF6B00; }
 
+    /* ── OCR 빠른 확인모드: 신호등 상태 ── */
+    .result-status-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px; border-radius: 12px; margin-bottom: 12px;
+      font-size: 15px; font-weight: 800;
+    }
+    .result-status-bar.status-green  { background: #e8f5e9; color: #2e7d32; }
+    .result-status-bar.status-blue   { background: #e3f2fd; color: #1565c0; }
+    .result-status-bar.status-yellow { background: #fff8e1; color: #f57f17; }
+    .result-status-bar.status-red    { background: #ffebee; color: #c62828; }
+    .result-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .info-badge-pill { /* 반복배송 정보 배지 — 결과화면 상단 + 배송카드 공용 */
+      font-size: 11px; font-weight: 700; color: #1565c0; background: #e3f2fd;
+      border-radius: 8px; padding: 4px 9px; white-space: nowrap;
+    }
+    .dl-badges { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+    .field-status-green  { border-color: #a5d6a7 !important; background: #f4faf5; }
+    .field-status-blue   { border-color: #90caf9 !important; background: #f2f8ff; }
+    .field-status-yellow { border-color: #ffe082 !important; background: #fffdf5; }
+    .field-status-red    { border-color: #ef9a9a !important; background: #fff6f6; }
+    .field-status-neutral{ }
+
     /* ── OCR 스캐너 ── */
     #scan-btn {
       width: 100%; background: #1a1a2e;
@@ -672,22 +694,24 @@
   <!-- ══════════════ OCR 결과 ══════════════ -->
   <div id="result" class="screen">
     <div class="card">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <div style="font-size:28px">📷</div>
-        <div>
-          <div style="font-weight:700;font-size:15px">고객 정보 확인</div>
-          <div style="font-size:12px;color:#f39c12" id="ocr-warn">⚠️ 일부 정보를 인식하지 못했습니다. 직접 수정해 주세요.</div>
-        </div>
+      <div id="result-status-bar" class="result-status-bar status-green">
+        <span id="result-status-icon">🟢</span>
+        <span id="result-status-label">바로 추가 가능</span>
+      </div>
+      <div id="result-badges" class="result-badges" style="display:none"></div>
+      <div id="result-photo-row" style="display:none;margin-bottom:12px">
+        <img id="result-photo-thumb" onclick="viewOcrPhoto()" src="" alt="영수증 사진"
+             style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;border:1.5px solid #e0e0e0">
       </div>
       <label class="form-label">고객명</label>
-      <input class="form-input" id="res-name" type="text" placeholder="고객명">
+      <input class="form-input" id="res-name" type="text" placeholder="고객명" onfocus="this.readOnly=false">
       <label class="form-label">배송 주소</label>
-      <input class="form-input" id="res-addr" placeholder="배송 주소">
+      <input class="form-input" id="res-addr" placeholder="배송 주소" onfocus="this.readOnly=false">
       <div id="res-detail-wrap" style="display:none;margin-top:6px">
         <label class="form-label">상세주소 (동·호수, 층 등)</label>
-        <input class="form-input" id="res-detail-badge" type="text" placeholder="상세주소">
+        <input class="form-input" id="res-detail-badge" type="text" placeholder="상세주소" onfocus="this.readOnly=false">
         <label class="form-label" style="margin-top:8px">출입정보</label>
-        <input class="form-input" id="res-access-info" type="text" placeholder="공동현관 비밀번호 / 출입정보">
+        <input class="form-input" id="res-access-info" type="text" placeholder="공동현관 비밀번호 / 출입정보" onfocus="this.readOnly=false">
       </div>
       <div class="row-btns" style="margin-top:6px">
         <button id="regeo-btn" onclick="regeocodeAddr()" class="btn" style="background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9">🔄 도로명 주소 변환</button>
@@ -705,10 +729,10 @@
         </div>
       </div>
       <label class="form-label">연락처</label>
-      <input class="form-input" id="res-phone" type="tel" placeholder="연락처">
+      <input class="form-input" id="res-phone" type="tel" placeholder="연락처" onfocus="this.readOnly=false">
       <div id="res-amount-wrap" style="display:none;margin:10px 0 4px">
         <label class="form-label">합계금액</label>
-        <input class="form-input" id="res-amount" type="text" placeholder="금액 (예: 45000)" style="font-weight:700;color:#e65100">
+        <input class="form-input" id="res-amount" type="text" placeholder="금액 (예: 45000)" style="font-weight:700;color:#e65100" onfocus="this.readOnly=false">
       </div>
       <label class="form-label" style="margin-top:10px">💳 결제 방식</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="pay-btns">
@@ -717,8 +741,11 @@
         <button class="pay-btn" data-pay="unpaid" onclick="selectPay(this)">📋 미불(외상)</button>
       </div>
       <div class="row-btns" style="margin-top:4px">
-        <button class="btn btn-outline" onclick="toggleEdit()">✏️ 정보 수정하기</button>
-        <button class="btn btn-orange" onclick="confirmAdd()">+ 배송 목록에 추가</button>
+        <button id="result-btn-1" class="btn btn-outline" onclick="resultBtn1Click()">✏️ 수정</button>
+        <button id="result-btn-2" class="btn btn-orange" onclick="resultBtn2Click()">✅ 바로 배송목록에 추가</button>
+      </div>
+      <div id="result-retake-link" style="display:none;text-align:center;margin-top:12px">
+        <span onclick="goTab('scan')" style="font-size:13px;color:#888;text-decoration:underline;cursor:pointer">📷 사진이 잘 안 나왔다면 다시 촬영하기</span>
       </div>
     </div>
   </div>
@@ -1432,6 +1459,8 @@ function saveToFirebase(item) {
     totalAmount: item.totalAmount ? Number(item.totalAmount) : 0,
     createdAt: item.addedAt || Date.now(),
     source: 'tms', // TMS에서 생성한 주문 표시
+    addressSource: item.addressSource || '', // learned/standardized/raw_fallback/edited — 카드 배지용
+    hasPreviousPhoto: !!item.hasPreviousPhoto, // 카드 배지용(confirmAdd 시점에 1회만 조회한 결과)
     // 기사 앱에서 등록한 주문 → 해당 기사 자동 배정
     assignedDriverId:   currentDriver?.id   || '',
     assignedDriverName: currentDriver?.name || ''
@@ -1608,6 +1637,19 @@ function _renderEtaBadge(d, etaInfo) {
   return `<div class="dl-eta-badge">⏱ 약 ${mins}분 후</div>`;
 }
 
+// 배송카드용 반복배송 정보 배지 — 전부 이미 저장된 필드만 사용(카드 렌더링 시
+// Firebase 추가 조회 없음). hasPreviousPhoto/addressSource는 confirmAdd() 시점에
+// 1회만 조회해 주문 객체에 저장해 둔 값을 그대로 재사용.
+function _renderCardInfoBadges(d, accessInfo) {
+  const items = [];
+  if (d.addressSource === 'learned') items.push('📚 학습주소 적용');
+  if (d.hasPreviousPhoto) items.push('🖼 이전 배송사진 있음');
+  if (accessInfo) items.push('🔐 출입정보 있음');
+  if (d.lat && d.lng) items.push('🗺 길찾기 가능');
+  if (!items.length) return '';
+  return `<div class="dl-badges">${items.map(t => `<span class="info-badge-pill">${t}</span>`).join('')}</div>`;
+}
+
 // ══════════════════════════════════════════════════════
 // 홈 렌더링
 // ══════════════════════════════════════════════════════
@@ -1665,6 +1707,7 @@ function renderHome() {
           ${detailAddr ? `<div class="dl-detail-addr">${detailAddr}</div>` : ''}
           ${accessInfo ? `<div class="dl-access-info">🔐 ${accessInfo}</div>` : ''}
           <div class="dl-phone">📞 ${d.phone}${d.totalAmount ? `<span style="margin-left:8px;font-size:12px;color:#e65100;font-weight:700">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
+          ${!isCancelled ? _renderCardInfoBadges(d, accessInfo) : ''}
         </div>
         ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : etaBadge}
       </div>
@@ -2773,31 +2816,31 @@ async function startOCR(file) {
       detailAddress: detailAddr,
       accessInfo: accessInfoVal,
       totalAmount: totalAmount || '',
+      source: location?.source || 'standardized', // 'learned'/'standardized'/'raw_fallback'
+      hasPreviousPhoto: false, // findPreviousDeliveryPhoto 완료 시 갱신(비동기, 아래 참고)
       // 학습용: 원본 OCR 결과 보관 (수정 여부 판단에 사용)
       ocrName:    customer?.name || '',
       ocrAddress: roadAddr,
       // 영수증 사진 (OMS에서 볼 수 있도록 Storage 업로드용)
       receiptDataUrl: 'data:image/jpeg;base64,' + base64
     };
-    const warn = document.getElementById('ocr-warn');
-    if (warn) warn.style.display = 'none';
+    renderResultStatus(); // 필드 값이 채워진 직후 신호등 상태 계산(탭 전환 전에도 미리 반영)
     setStep('step-parse', 'done');
 
     // 5단계: 완료 → 결과 화면으로
+    // 이름/주소/전화 일부가 비어도 재촬영 팝업으로 막지 않고 곧장 결과(빠른 확인모드)
+    // 화면으로 이동 — 어떤 값이 부족한지는 화면의 신호등 상태/필드 강조로 안내.
+    // 완전 실패(주소 자체가 없음, 빨강 상태)일 때만 화면 안의 "다시 촬영하기" 링크로 안내.
     setStep('step-done', 'active');
+    setTimeout(() => goTab('result'), 500);
 
-    // 필수 필드 검증 → 성명/주소 없으면 재촬영 팝업, 나머지는 경고만
-    const criticalMissing = [];
-    if (!customer?.name) criticalMissing.push('성명');
-    if (!roadAddr) criticalMissing.push('배송 주소');
-    const phoneDigits = (customer?.phone || '').replace(/\D/g, '');
-    if (!phoneDigits) criticalMissing.push('연락처');
-
-    if (criticalMissing.length > 0) {
-      setTimeout(() => showRetakePrompt(criticalMissing), 500);
-    } else {
-      setTimeout(() => goTab('result'), 500);
-    }
+    // "이전 배송사진 있음" 배지 — 비동기 조회, 결과 화면 진입/흐름을 막지 않음.
+    // 아직 주문이 생성되지 않은 시점이라 id는 없음(자기 자신 제외 로직은 자연히 통과됨).
+    findPreviousDeliveryPhoto({ phone: customer?.phone || '', customerName: customer?.name || '', address: roadAddr, id: null })
+      .then(hist => {
+        if (window._pendingOCR) window._pendingOCR.hasPreviousPhoto = !!hist;
+        renderResultStatus();
+      }).catch(() => {});
 
   } catch(e) {
     console.error('OCR 오류:', e.message);
@@ -2861,8 +2904,7 @@ function showResult(parsed) {
   // 좌표 임시 저장
   window._ocrLat = parsed.lat  || null;
   window._ocrLng = parsed.lng  || null;
-  const warn = document.getElementById('ocr-warn');
-  warn.style.display = (!parsed.name || !parsed.addr) ? 'block' : 'none';
+  renderResultStatus();
   console.log('goTab result 호출');
   goTab('result');
   console.log('goTab result 완료');
@@ -2902,17 +2944,175 @@ async function regeocodeAddr() {
   finally { btn.textContent = '🔄 도로명 주소 변환'; btn.disabled = false; }
 }
 
-function toggleEdit() {
-  const inputs = ['res-name','res-addr','res-phone'].map(id => document.getElementById(id));
-  const readOnly = inputs[0].readOnly;
-  inputs.forEach(inp => inp.readOnly = !readOnly);
-  if (!readOnly) inputs[0].focus();
+// ══════════════════════════════════════════════════════
+// OCR 빠른 확인모드 — 신호등 상태 계산/렌더링
+// (구 toggleEdit()/setEditMode()는 "읽기전용↔편집" 토글을 의도했으나 초기
+//  readOnly 상태를 설정하지 않아 실제로는 동작이 뒤집혀 있던 죽은/버그 코드였음.
+//  아래 필드별 상태 계산 + "값 있으면 잠금, 없으면 편집 가능" 규칙으로 대체.)
+// ══════════════════════════════════════════════════════
+
+// 이번 영수증 결과의 신호등 상태 계산. 화면 상단 최종 상태는 주소 신뢰도 기준
+// 4단계(파랑/초록/노랑/빨강)만 사용 — 후보 목록 없이 시스템이 이미 골라준
+// 결과(location.source)를 그대로 신뢰도 신호로 변환하는 게 핵심.
+function computeResultStatus() {
+  const name  = document.getElementById('res-name').value.trim();
+  const phone = document.getElementById('res-phone').value.trim().replace(/\D/g, '');
+  const addr  = document.getElementById('res-addr').value.trim();
+  const detail = document.getElementById('res-detail-badge')?.value.trim() || '';
+  const access = document.getElementById('res-access-info')?.value.trim() || '';
+  const amount = document.getElementById('res-amount')?.value.trim() || '';
+  const ocr = window._pendingOCR || {};
+  const isLearned = ocr.source === 'learned';
+  const coordsOk  = !!(ocr.lat && ocr.lng);
+
+  let overall, overallLabel, overallIcon;
+  if (isLearned) {
+    overall = 'blue'; overallLabel = '학습주소 적용됨'; overallIcon = '🔵';
+  } else if (!addr) {
+    overall = 'red'; overallLabel = '주소 입력 필요'; overallIcon = '🔴';
+  } else if (!coordsOk) {
+    overall = 'yellow'; overallLabel = '주소 확인 필요'; overallIcon = '🟡';
+  } else if (name && phone) {
+    overall = 'green'; overallLabel = '바로 추가 가능'; overallIcon = '🟢';
+  } else {
+    overall = 'yellow'; overallLabel = '확인 필요'; overallIcon = '🟡';
+  }
+
+  return {
+    overall, overallLabel, overallIcon,
+    fields: {
+      name:   name  ? 'green' : 'red',
+      phone:  phone ? 'green' : 'red',
+      addr:   isLearned ? 'blue' : (!addr ? 'red' : (coordsOk ? 'green' : 'yellow')),
+      detail: (detail || access) ? 'blue' : 'neutral',
+      amount: amount ? 'green' : 'yellow',
+    },
+    badges: {
+      learned: isLearned,
+      access: !!access,
+      nav: coordsOk,
+      previousPhoto: !!ocr.hasPreviousPhoto,
+    }
+  };
 }
 
-function setEditMode(on) {
-  ['res-name','res-addr','res-phone'].forEach(id => {
-    document.getElementById(id).readOnly = !on;
+const FIELD_STATUS_CLASSES = ['field-status-green', 'field-status-blue', 'field-status-yellow', 'field-status-red', 'field-status-neutral'];
+function applyFieldStatus(id, status) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  FIELD_STATUS_CLASSES.forEach(c => el.classList.remove(c));
+  el.classList.add('field-status-' + status);
+  // 값이 있는(=확정된) 필드만 잠금 → 탭하면 바로 편집(onfocus에서 readOnly 해제).
+  // 노랑/빨강/중립(빈값)은 처음부터 편집 가능하게 열어둠.
+  el.readOnly = (status === 'green' || status === 'blue');
+}
+
+function renderResultBadges(badges) {
+  const el = document.getElementById('result-badges');
+  if (!el) return;
+  const items = [];
+  if (badges.learned) items.push('📚 학습주소 적용');
+  if (badges.previousPhoto) items.push('🖼 이전 배송사진 있음');
+  if (badges.access) items.push('🔐 출입정보 있음');
+  if (badges.nav) items.push('🗺 길찾기 가능');
+  if (!items.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'flex';
+  el.innerHTML = items.map(t => `<span class="info-badge-pill">${t}</span>`).join('');
+}
+
+// 결과 화면 진입 시 + OCR 이후 비동기 정보(이전 배송사진)가 도착할 때마다 재호출.
+// 실패해도(필드가 아직 없거나 등) 예외를 던지지 않고 조용히 반환 — 화면 진입 자체를 막지 않음.
+function renderResultStatus() {
+  try {
+    const status = computeResultStatus();
+    window._resultStatus = status;
+
+    const iconEl  = document.getElementById('result-status-icon');
+    const labelEl = document.getElementById('result-status-label');
+    const barEl   = document.getElementById('result-status-bar');
+    if (iconEl)  iconEl.textContent  = status.overallIcon;
+    if (labelEl) labelEl.textContent = status.overallLabel;
+    if (barEl) {
+      ['status-green','status-blue','status-yellow','status-red'].forEach(c => barEl.classList.remove(c));
+      barEl.classList.add('status-' + status.overall);
+    }
+
+    applyFieldStatus('res-name', status.fields.name);
+    applyFieldStatus('res-phone', status.fields.phone);
+    applyFieldStatus('res-addr', status.fields.addr);
+    applyFieldStatus('res-detail-badge', status.fields.detail);
+    applyFieldStatus('res-access-info', status.fields.detail);
+    applyFieldStatus('res-amount', status.fields.amount);
+
+    renderResultBadges(status.badges);
+
+    // 버튼 2개는 항상 그대로 유지, 상태에 따라 라벨/역할만 전환
+    const btn1 = document.getElementById('result-btn-1');
+    const btn2 = document.getElementById('result-btn-2');
+    if (status.overall === 'green' || status.overall === 'blue') {
+      if (btn1) btn1.textContent = '✏️ 수정';
+      if (btn2) btn2.textContent = '✅ 바로 배송목록에 추가';
+    } else if (status.overall === 'yellow') {
+      if (btn1) btn1.textContent = '🔍 사진 크게 보기';
+      if (btn2) btn2.textContent = '✅ 수정 후 추가';
+    } else {
+      if (btn1) btn1.textContent = '🔍 사진 크게 보기';
+      if (btn2) btn2.textContent = '📍 주소 입력';
+    }
+
+    // 완전 실패(주소 자체가 없음)일 때만 재촬영 안내를 눈에 띄게 노출
+    const retakeLink = document.getElementById('result-retake-link');
+    if (retakeLink) retakeLink.style.display = status.overall === 'red' ? 'block' : 'none';
+
+    // 원본 사진 썸네일(있으면 항상 노출 — 상태와 무관하게 대조 가능해야 함)
+    const photoRow = document.getElementById('result-photo-row');
+    const photoThumb = document.getElementById('result-photo-thumb');
+    const receiptUrl = window._pendingOCR?.receiptDataUrl;
+    if (photoRow && photoThumb) {
+      if (receiptUrl) { photoThumb.src = receiptUrl; photoRow.style.display = 'block'; }
+      else { photoRow.style.display = 'none'; }
+    }
+  } catch (e) {
+    console.warn('renderResultStatus 실패(화면 진입은 계속 진행):', e.message);
+  }
+}
+
+function viewOcrPhoto() {
+  const url = window._pendingOCR?.receiptDataUrl;
+  if (!url) { showToast('사진을 찾을 수 없습니다'); return; }
+  viewPhotoUrl(url);
+}
+
+function unlockAllFields() {
+  ['res-name','res-addr','res-detail-badge','res-access-info','res-phone','res-amount'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.readOnly = false;
   });
+  document.getElementById('res-name')?.focus();
+}
+
+function handleAddressOrConfirm() {
+  const addrInput = document.getElementById('res-addr');
+  if (!addrInput.value.trim()) {
+    addrInput.readOnly = false;
+    addrInput.focus();
+    addrInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('주소를 입력해주세요');
+    return;
+  }
+  confirmAdd();
+}
+
+// 결과 화면 버튼 2개의 실제 동작 — 상태에 따라 다른 함수로 분기(버튼 개수는 늘리지 않음)
+function resultBtn1Click() {
+  const status = window._resultStatus;
+  if (status && (status.overall === 'green' || status.overall === 'blue')) unlockAllFields();
+  else viewOcrPhoto();
+}
+function resultBtn2Click() {
+  const status = window._resultStatus;
+  if (status && status.overall === 'red') handleAddressOrConfirm();
+  else confirmAdd();
 }
 
 function applyConvertedAddr() {
@@ -2983,6 +3183,33 @@ function saveLearnedAddress() {
     .catch(e => showToast('저장 실패: ' + e.message));
 }
 
+// 기사가 주소를 따로 수정하지 않아도, 시스템이 스스로 표준화에 성공한 주소를
+// 조용히(토스트 없이) learnedLocations에 upsert — "반복배송 체감" 개선의 핵심.
+// 같은 학습키(전화번호 우선)에 이미 다른(유사하지 않은) 주소가 저장돼 있으면
+// 오적용 방지를 위해 절대 덮어쓰지 않고 조용히 건너뜀 — 서버의
+// buildLearnedLocationResponse()와 동일한 "애매하면 미적용" 원칙.
+async function autoSaveLearnedAddressIfSafe(phone, name, addr, detailAddr, accessInfo, lat, lng) {
+  if (!_fbDb || !name || !addr || !lat || !lng) return;
+  const learnKey = resolveLearnKey(phone, name);
+  if (!learnKey) return;
+  try {
+    const snap = await tref('settings/learnedLocations/' + learnKey).once('value');
+    const existing = snap.val();
+    if (existing?.road_address && !isSimilarAddress(addr, existing.road_address)) {
+      return; // 기존 학습주소와 다른 주소 — 같은 전화번호를 쓰는 다른 고객일 수 있어 건너뜀
+    }
+    const learnData = {
+      road_address: addr, detail_address: detailAddr, access_info: accessInfo,
+      name, phone: phone || '', lat, lng, updatedAt: Date.now(),
+    };
+    const writes = [tref('settings/learnedLocations/' + learnKey).set(learnData)];
+    if (learnKey !== name) writes.push(tref('settings/learnedLocations/' + name).set(learnData));
+    await Promise.all(writes);
+  } catch (e) {
+    console.warn('자동 학습 저장 실패(무시):', e.message);
+  }
+}
+
 async function confirmAdd() {
   const name  = document.getElementById('res-name').value.trim();
   const addr  = document.getElementById('res-addr').value.trim();
@@ -2996,6 +3223,8 @@ async function confirmAdd() {
   const accessInfo = (document.getElementById('res-access-info')?.value || ocrData.accessInfo || '').trim();
   const ocrName    = ocrData.ocrName || '';
   const ocrAddress = ocrData.ocrAddress || '';
+  const ocrSource  = ocrData.source || 'standardized';
+  const hasPreviousPhoto = !!ocrData.hasPreviousPhoto;
   const totalAmount = (document.getElementById('res-amount')?.value || ocrData.totalAmount || '').trim();
   const receiptDataUrl = ocrData.receiptDataUrl || null;
   window._pendingOCR = null;
@@ -3041,6 +3270,12 @@ async function confirmAdd() {
         .then(() => showToast(`📚 "${ocrName}" 주소 학습 완료! 다음부터 자동 적용됩니다`))
         .catch(e => console.warn('학습 저장 실패:', e));
     }
+  } else if (ocrSource !== 'learned' && ocrName) {
+    // 기사가 따로 고치지 않아도, 시스템이 스스로 표준화에 성공한 주소는 조용히
+    // 학습 upsert(토스트 없음) — 두 번째 방문부터 자동으로 "학습주소 적용됨"이
+    // 뜨게 하는 게 목적. 기존 학습주소와 다른 주소면(같은 전화번호 다른 고객 등)
+    // 절대 덮어쓰지 않음(autoSaveLearnedAddressIfSafe 내부 게이트).
+    autoSaveLearnedAddressIfSafe(phone, ocrName, addr, detailAddr, accessInfo, lat, lng);
   }
 
   const item = {
@@ -3051,7 +3286,9 @@ async function confirmAdd() {
     phone: phone || '-', lat, lng, status: 'pending',
     paymentMethod: getSelectedPay(),
     totalAmount: totalAmount || '',
-    addedAt: Date.now()
+    addedAt: Date.now(),
+    addressSource: addrChanged ? 'edited' : ocrSource, // 카드 배지("학습주소 적용")용
+    hasPreviousPhoto // 카드 배지("이전 배송사진 있음")용 — 카드 렌더링 시 추가 조회 안 함
   };
   loadDeliveries();
   deliveries.push(item);
