@@ -19,18 +19,21 @@
 
 ## P1-001: 기사앱 비밀번호 찾기 기능 깨짐 (SEC-001 범위 밖)
 
-- **상태**: 🟡 Known Issue / Not fixed in SEC-001
+- **상태**: ✅ Deployed / Verified (2026-07-08)
 - **우선순위**: P1
 - **증상**: `saas/driver.html`의 "비밀번호를 잊으셨나요?" 기능이 라이브 환경에서 100% 실패 (`permission_denied`). SEC-001 배포 이전부터 이미 깨져 있던 상태이며, SEC-001 배포로 인해 새로 발생한 회귀는 아님.
 - **원인**: `doFindPw()`(`saas/driver.html`)가 로그인(Firebase Auth) 완료 전 시점에 클라이언트에서 직접 `tenants/{tenantId}/driverAccounts/{driverId}`를 read(전화번호 대조) 및 update(임시 비밀번호 저장)하려 시도. 이 시점엔 `auth`가 없어 RTDB 규칙(`auth != null` 요구)에 항상 막힘.
-- **해결 방향**: `issueDriverToken`과 동일한 패턴으로 Cloud Function으로 이전 — Admin SDK로 서버 측에서 본인 확인(전화번호 대조) 후 임시 비밀번호를 발급/저장.
-- **보안 요구사항** (Cloud Function 설계 시 반영):
-  - 본인 확인 절차 (전화번호 등록값 대조, 필요 시 추가 인증 수단 검토)
-  - Rate limit (동일 IP/계정에 대한 무차별 대입 방지)
-  - 감사 로그 기록 (요청 시각, tenantId, driverId, 성공/실패)
-  - 임시 비밀번호 발급 후 `mustChangePassword: true` 강제 적용 (기존 OMS 계정 강제 변경 로직과 동일 원칙)
-- **관련 파일**: `saas/driver.html`, `functions/index.js`, `database.rules.json`
-- **비고**: SEC-001에서 다루지 않음. 별도 작업으로 진행.
+- **해결**: `issueDriverToken`과 동일한 패턴으로 신규 Cloud Function `resetDriverPassword`로 이전 — Admin SDK로 서버 측에서 본인 확인(전화번호 대조) 후 임시 비밀번호를 발급/저장(`database.rules.json` 변경 없음, Admin SDK가 규칙을 우회). 아래 보안 요구사항 전항목 반영.
+  - 본인 확인 절차: 등록된 전화번호 대조(계정 미존재/비활성/전화번호 불일치 전부 동일한 일반 실패 메시지로 응답해 계정 존재 유추 방지)
+  - Rate limit: 계정당 1시간 5회, `driverAccounts` 레코드 내부 필드로 관리(IP 기반은 후속 과제로 유보)
+  - 감사 로그: `system_logs/driverPwReset`에 `{timestamp, tenantId, driverId, success, reason}`만 기록(전화번호/이름/임시비밀번호/해시 미기록)
+  - `mustChangePassword: true` 강제 적용 + `issueDriverToken` 응답에 필드 추가 + `driver.html` 로그인 게이트(신규 강제 변경 화면) 신설 — 기존 TMS에는 이 강제 로직 자체가 전혀 없었음(OMS `omsAccounts`에만 존재하던 패턴을 이식)
+- **검증 중 추가로 발견/수정한 두 건의 사전 버그** (이번 작업 범위가 아니었으나, 방금 만든 기능 자체가 도달 불가능해지는 직접적 차단 요인이라 함께 수정):
+  - `#findpw-modal`의 `z-index:3000`이 `#login-screen`의 `z-index:9999`보다 낮아 실제 클릭이 로그인 화면으로 새어나가던 문제(모달 자체가 클릭 불가능) → `z-index:10000`으로 수정
+  - `driver.html`이 로드하는 bcryptjs CDN 경로가 잘못된 패키지명(`bcrypt.js`, 404 → Chrome ORB 차단)이었던 문제 → 올바른 이름(`bcryptjs`)으로 수정 + jsdelivr 폴백 추가(`app.html`과 동일 패턴)
+- **관련 파일**: `saas/driver.html`, `functions/index.js`, `functions/test/driver-pw-reset.test.js`(신규), `functions/test/smoke.test.js`. `database.rules.json` 변경 없음.
+- **커밋**: `1c8c84f`(핵심 기능), `bc098ea`/`639acd2`/`aea2cbb`(APP_VERSION 범프 + 검증 중 발견한 z-index/CDN 버그 수정)
+- **검증**: `_bmad/tea/evidence-log.md`의 "2026-07-08 — 기사앱 비밀번호 찾기 기능 복구(P1-001) 배포 검증" 참고.
 
 ---
 

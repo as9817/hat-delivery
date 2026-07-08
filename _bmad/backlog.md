@@ -156,11 +156,23 @@
 - **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-08 — OMS/TMS ETA 통일 배포 검증" 참고. TMS는 testmart 실계정으로 카드 배지 4개 상태(좌표있음/건물키워드/좌표없음/GPS꺼짐-마트위치대체/경로최적화 누적) 전부 실브라우저 확인, 모바일 폭 겹침 없음 확인, 완료체크/취소 플로우 회귀 없음 확인, 업데이트 배너 정상 동작 확인. OMS는 로그인 정보 부재로 샌드박스 소스 검증으로 대체(사용자 승인).
 - **Sensitive data policy**: 합성 데이터만 사용. 검증 중 생성한 TMS 테스트 배송 3건은 로컬스토리지에만 존재(Firebase 미기록), 검증 종료 후 전부 정리 확인.
 
+### P1-001: 기사앱 비밀번호 찾기 기능 복구 (Cloud Function 이전 + mustChangePassword 강제)
+- **Status**: ✅ Deployed / Verified (Functions + Hosting)
+- **Commits**: `1c8c84f`(핵심 기능: `resetDriverPassword` 신규, `issueDriverToken` 필드 확장, `doFindPw()` 마이그레이션, 강제 변경 게이트), `bc098ea`(APP_VERSION 8), `639acd2`(findpw-modal z-index 버그 수정 + APP_VERSION 9), `aea2cbb`(bcryptjs CDN 경로 버그 수정 + APP_VERSION 10)
+- **배경**: `doFindPw()`가 Firebase Auth 로그인 전 상태에서 클라이언트가 직접 `tenants/{tenantId}/driverAccounts/{driverId}`를 read/write하려 시도해 `database.rules.json`의 `auth != null` 규칙에 항상 막혀 100% 실패하던 문제(`SECURITY_ISSUES.md` P1-001). 상세 설계/구현 내용은 `SECURITY_ISSUES.md` P1-001 항목 참고(중복 방지를 위해 이 항목에는 요약만 기록).
+- **핵심 변경**: `resetDriverPassword` Cloud Function 신규(전화번호 본인확인, 계정 미존재/비활성/불일치 전부 동일 메시지, 계정당 1시간 5회 레이트리밋, 임시비밀번호는 bcrypt 해시로만 저장, `mustChangePassword:true`, PII 없는 감사 로그). `issueDriverToken` 응답에 `mustChangePassword` 필드 추가. `driver.html`에 로그인 직후 강제 비밀번호 변경 화면 신설(`enterAppOrForceChange`/`doForceChangePw`) — 기존 TMS에는 이 강제 로직이 아예 없었음(OMS `omsAccounts`에만 있던 패턴을 이식). `database.rules.json`은 전혀 변경하지 않음(Admin SDK가 규칙을 우회, 로그인 후 비밀번호 변경 write는 기존 규칙으로 이미 허용되는 범위).
+- **검증 중 발견한 두 건의 사전 버그(이번 라운드에 함께 수정, 사용자 승인)**: (1) `#findpw-modal`의 z-index(3000)가 `#login-screen`(9999)보다 낮아 실제 클릭이 로그인 화면으로 새어나가 모달의 "확인" 버튼이 클릭 불가능했던 문제 — `elementFromPoint`로 직접 확인. (2) `driver.html`의 bcryptjs CDN 경로가 잘못된 패키지명(`bcrypt.js`)이라 항상 404 → Chrome ORB 차단 → `dcodeIO` 전역이 절대 정의되지 않던 문제(`curl -I`로 404 확인, 올바른 이름 `bcryptjs`는 200 확인) — `app.html`은 이미 올바른 경로+jsdelivr 폴백을 쓰고 있어 영향 없었음. 두 버그 모두 이번 세션에서 새로 만든 코드가 아니라 기존에 잠재해 있던 문제였고, 방금 만든 기능이 실제로 도달하지 못하게 막고 있어서 함께 고쳤음.
+- **테스트**: `node --test "test/*.test.js"` **109/109 pass**(기존 101 + 신규 8, `functions/test/driver-pw-reset.test.js`에서 실제 커밋된 소스를 mock DB로 추출 검증).
+- **배포**: `firebase deploy --only functions,hosting --project hatdelivery-saas`(1차) + `--only hosting`(z-index/CDN 수정 2회 후속 배포). `database.rules.json` 배포 안 함. `DEPLOY_CHECKLIST.md` §4-1 절차대로 매 배포마다 `APP_VERSION` 범프(8→9→10) + `settings/appVersion` 동기화.
+- **배포 후 라이브 검증** (testmart tenant, `tenants/testmart/driverAccounts/pwtest1`·`pwtest_inactive` 합성 계정만 사용, 실제 운영 기사 계정/비밀번호 미접촉): 존재하지 않는 ID/비활성 계정/전화번호 불일치 → 전부 동일한 401 일반 메시지(REST 직접 호출로 확인) / 레이트리밋 5회 실패 후 6번째 429 확인 / 감사 로그 필드가 `driverId,reason,success,tenantId,timestamp`뿐이고 전화번호 문자열 미포함 확인 / 실제 UI로 비밀번호 찾기 → 임시 비밀번호 발급 및 로그인 필드 자동 입력 확인 / 임시 비밀번호로 로그인 → 강제 변경 화면 노출 확인(로그인 직후 경로 + 세션 복원 경로 양쪽 모두) / 새 비밀번호 저장 → `mustChangePassword:false` 해제 확인(RTDB 직접 조회) / 새 비밀번호로 재로그인 시 강제 화면 재노출 없음 확인 / 기존 일반 계정(test1)은 이번 변경과 무관하게 회귀 없이 정상 로그인 확인 / 업데이트 배너 정상 동작 확인.
+- **Sensitive data policy**: 합성 계정(`pwtest1`, `pwtest_inactive`, 가짜 전화번호)만 사용, 실제 고객/기사 데이터 미접촉. 검증 중 생성된 합성 계정 2건과 관련 감사 로그 9건 전부 삭제, `curl`로 재조회해 잔존 없음(`null`) 확인. 임시 비밀번호/해시 값은 파일에 기록하되 대화 응답에는 노출하지 않음.
+- **후속(이번 범위 밖)**: IP 기반 레이트리밋, 테넌트 내부 역할 분리(기존 백로그 항목).
+
 ---
 
 ## 진행 대기 (P1)
 
-- **P1-001: 기사앱 비밀번호 찾기 기능 복구** — `saas/driver.html`의 `doFindPw()`가 로그인 전 클라이언트에서 직접 RTDB 접근을 시도해 SEC-001 이후 permission_denied로 100% 실패 중. `issueDriverToken`과 동일하게 Cloud Function으로 이전 필요. 상세는 `SECURITY_ISSUES.md`의 P1-001 참고.
+- ~~**P1-001: 기사앱 비밀번호 찾기 기능 복구**~~ → **완료**: 위 "완료" 섹션의 "P1-001: 기사앱 비밀번호 찾기 기능 복구" 항목 참고.
 - **ORDER_AUTH_TOKEN 로테이션** — 현재 값은 기존 하드코딩 값과 동일하게 유지 중(운영 중단 회피 목적). 더 강력한 값으로 교체 시 MacroDroid 쪽 헤더 값도 동시에 변경 필요. 운영 준비 후 별도 진행.
 
 ## 진행 대기 (정리/품질)

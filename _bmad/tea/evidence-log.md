@@ -228,3 +228,28 @@
 - **Result**: TMS는 카드 ETA 배지 4개 상태(좌표있음/건물키워드/좌표없음/GPS꺼짐-대체계산/경로최적화 누적) 전부와 기존 완료체크/취소/업데이트배너 플로우가 실제 배포본에서 회귀 없이 정상 동작함을 확인. OMS는 샌드박스 소스 검증으로 계산 로직(5구간 경계값, 7개 건물키워드, ReferenceError 버그 수정)의 정확성만 확인했고, 실제 화면 회귀는 사용자 수동 확인이 필요함(백로그에 미해결 항목으로 남기지 않고, 이 라운드의 명시적 검증 범위 한계로 기록).
 - **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소). TMS 테스트 배송 3건은 Firebase에 기록되지 않고 로컬스토리지에만 존재했으며 검증 종료 후 전부 제거.
 - **Sensitive data policy**: 전 과정 합성 데이터만 사용(가짜 이름/전화번호/주소). 실제 고객 데이터 미노출.
+
+## 2026-07-08 — 기사앱 비밀번호 찾기 기능 복구(P1-001) 배포 검증
+
+- **대상**: `functions/index.js`(`resetDriverPassword` 신규, `issueDriverToken` 필드 확장), `saas/driver.html`(`doFindPw()`, `enterAppOrForceChange()`, `doForceChangePw()`, `#findpw-modal` z-index, bcryptjs CDN 경로)
+- **커밋**: `1c8c84f`(핵심), `bc098ea`/`639acd2`/`aea2cbb`(APP_VERSION 8→9→10 + 검증 중 발견한 z-index/CDN 버그 수정)
+- **배포 전 확인**: `git status` clean(4개 파일: `functions/index.js`, `saas/driver.html`, `functions/test/driver-pw-reset.test.js`(신규), `functions/test/smoke.test.js`), `node --test "test/*.test.js"` **109/109 pass**(기존 101 + 신규 8), `database.rules.json`/`firebase.json` diff 0줄 확인.
+- **배포**: `firebase deploy --only functions,hosting --project hatdelivery-saas`(핵심 기능, `resetDriverPassword` 신규 생성 + 6개 함수 업데이트) → `settings/appVersion` "8"로 갱신 → 라이브 검증 중 아래 두 건의 사전 버그를 발견해 각각 `--only hosting`으로 추가 배포(버전 9, 10) 및 `settings/appVersion` 동기화.
+- **`resetDriverPassword` 로직 검증(REST 직접 호출, 합성 계정 `tenants/testmart/driverAccounts/pwtest1`·`pwtest_inactive` 사용)**:
+  1. 존재하지 않는 driverId → HTTP 401, "입력하신 정보와 일치하는 계정을 찾을 수 없습니다"
+  2. 비활성 계정(`active:false`) → HTTP 401, **1번과 완전히 동일한 메시지**(계정 존재 유추 방지 확인)
+  3. 전화번호 불일치 → HTTP 401, 동일한 메시지 + `pwResetAttempts` 증가 확인
+  4. 동일 계정에 연속 5회 실패 후 6번째 요청 → HTTP 429, "요청이 너무 많습니다..." (레이트리밋 실제 동작 확인)
+  5. 감사 로그(`system_logs/driverPwReset`) 최근 10건을 직접 조회 → 필드가 정확히 `driverId, reason, success, tenantId, timestamp`뿐이고 전화번호 문자열이 로그 어디에도 없음을 확인
+- **실 UI 플로우 검증(Playwright, testmart 실브라우저)**:
+  1. 최초 시도에서 "확인" 버튼 클릭이 `TimeoutError`로 실패 → `elementFromPoint`로 직접 확인한 결과 `#findpw-modal`(z-index 3000)이 `#login-screen`(z-index 9999)보다 낮아 클릭이 로그인 화면으로 새어나가는 것을 발견 → 사용자 승인 받아 `z-index:10000`으로 수정(app.html에는 없던, driver.html에만 있던 사전 버그, 이번 커밋에 포함되지 않은 기존 코드)
+  2. 수정 배포 후 재시도 → 모달 "확인" 버튼 실제 클릭 성공, "임시 비밀번호가 발급되었습니다" 표시 + 로그인 필드 자동 입력 확인
+  3. 발급된 임시 비밀번호로 로그인 → `issueDriverToken` 200 응답 확인 후 "🔒 새 비밀번호 설정" 강제 화면 진입 시도 → 새 비밀번호 제출 시 "오류: dcodeIO is not defined" 발생 → `curl -I`로 CDN URL을 직접 확인해 `bcrypt.js`(존재하지 않는 패키지명, 404) → `bcryptjs`(정확한 이름, 200)임을 확인, Chrome 콘솔의 `net::ERR_BLOCKED_BY_ORB`가 이 404 응답이 ORB에 의해 스크립트로 실행되지 못하고 차단된 것임을 network 로그로 확인 → 사용자 승인 받아 `app.html`과 동일한 경로 + jsdelivr `onerror` 폴백으로 수정
+  4. 재배포 후 재시도 → `typeof dcodeIO !== 'undefined'` true 확인, 강제 변경 화면에서 새 비밀번호 저장 성공 → 메인 배송목록 화면 정상 진입
+  5. 세션 복원 경로(`checkSession()`, 새로고침 시 재로그인 없이 세션 유지) 확인 → 저장된 세션에서도 `mustChangePassword:true`면 동일하게 강제 화면이 뜨는 것을 확인(로그인 직후 경로와 별개로 검증됨)
+  6. RTDB 직접 조회로 `mustChangePassword:false` 해제 및 `password` 필드가 `$2`로 시작하는 bcrypt 해시 형식임을 확인(평문 아님)
+  7. 로그아웃 → 새 비밀번호로 재로그인 → 강제 화면이 다시 뜨지 않고 바로 메인 화면 진입 확인
+  8. 기존 일반 계정(`test1`/`test1234`, `mustChangePassword` 없음)으로 재로그인 → 강제 화면 없이 정상 진입, 배송목록 정상 표시(회귀 없음 확인)
+  9. 업데이트 배너: `settings/appVersion`을 일시적으로 "11"로 바꿔 불일치 유발 → 배너 노출 확인 → "10"으로 원복 후 새로고침 → `APP_VERSION` 유지되며 배너 사라짐 확인
+- **Result**: `resetDriverPassword`가 계정 존재 유추를 방지하는 통일된 실패 메시지, 레이트리밋, PII 없는 감사 로그 요구사항을 전부 만족하며 실제 배포본에서 정상 동작함을 확인. `mustChangePassword` 강제 변경 흐름(로그인 직후/세션 복원 양쪽)이 정상 동작하고, 새 비밀번호 재로그인 시 강제 화면이 재노출되지 않으며, 기존 일반 로그인에는 회귀가 없음을 확인. 검증 과정에서 이번 작업과 무관하게 존재하던 두 건의 사전 버그(모달 z-index, bcryptjs CDN 경로)를 발견해 함께 수정하지 않았다면 방금 만든 기능 자체가 실제 사용자에게는 여전히 작동하지 않는 상태로 남았을 것.
+- **Sensitive data policy**: 합성 계정(`pwtest1`, `pwtest_inactive`, 가짜 전화번호 `010-5555-9999`/`010-5555-1111`)만 사용, 실제 운영 기사 계정/비밀번호는 전혀 접촉하지 않음. 임시 비밀번호/새 비밀번호 값은 스크린샷/스냅샷 텍스트에 일시적으로 노출됐으나 합성 계정의 값이며 검증 직후 계정 자체를 삭제. 검증 종료 후 합성 계정 2건과 관련 감사 로그 9건 전부 REST로 삭제, `curl`로 재조회해 `null`(잔존 없음) 확인. TMS 로컬스토리지 테스트 배송 데이터도 모두 정리.
