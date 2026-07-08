@@ -141,6 +141,14 @@
       width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
       cursor: pointer; margin-left: auto; border: 1.5px solid #eee;
     }
+    /* 자체 계산 ETA 배지 — 확정정보(상세주소/출입정보)와 톤을 다르게 해 "추정치"임을
+       구분. 카드 상단 우측(사진 썸네일과 같은 자리)에 배치, 좌측 정보/버튼과 안 겹침 */
+    .dl-eta-badge {
+      font-size: 11px; color: #6a1b9a; background: #f3e5f5;
+      padding: 3px 8px; border-radius: 8px; font-weight: 700;
+      margin-left: auto; white-space: nowrap; align-self: flex-start;
+    }
+    .dl-eta-badge.dl-eta-muted { color: #999; background: #f2f2f2; font-weight: 500; }
 
     /* ── 탭바 ── */
     .tab-bar {
@@ -1461,6 +1469,88 @@ function switchDeliveryTab(tab) {
 }
 
 // ══════════════════════════════════════════════════════
+// ETA 공용 상수/함수 — Kakao Mobility(다중경유지/실시간교통) API에 의존하지
+// 않는 자체 추정 기준. saas/app.html에도 동일하게 복제되어 있음 — ⚠️ 한쪽만
+// 고치면 두 화면의 ETA 기준이 어긋나므로, 이 블록을 바꾸면 반드시 app.html의
+// 동일 블록(ETA_AVG_SPEED_KMH ~ _calcStopMinutes)도 같이 수정할 것
+// (resolveLearnKey와 동일한 "복제 후 동기화" 패턴).
+// ══════════════════════════════════════════════════════
+const ETA_AVG_SPEED_KMH = 35;      // 기본 평균 이동속도
+const ETA_DISTANCE_FACTOR = 1.4;   // 직선거리 → 실제 도로거리 보정 배수
+const ETA_BUILDING_KEYWORDS = ['아파트', '빌라', '맨션', '주공', '타운', '하이츠', '오피스텔'];
+
+// 주문별 정차시간(분) — 금액 구간 + 건물 유형 키워드. 정확한 시간이 아니라
+// "예상값"(금액이 높을수록 물량이 많을 가능성 반영, 항상 비례하진 않음).
+// "동"/"호" 단독 키워드는 오탐 위험이 커서 1차 MVP에서는 쓰지 않음.
+function _calcStopMinutes(order) {
+  const amount = Number(order.totalAmount) || 0;
+  let base;
+  if (amount <= 50000)  base = 2;
+  else if (amount <= 100000) base = 4;
+  else if (amount <= 150000) base = 6;
+  else if (amount <= 200000) base = 8;
+  else base = 10;
+  const detail = order.detailAddress || order.detail_address || '';
+  const addr   = order.address || '';
+  const isSpecialBuilding = ETA_BUILDING_KEYWORDS.some(kw => (addr + detail).includes(kw));
+  return base + (isSpecialBuilding ? 5 : 0);
+}
+
+// 출발지(originLoc)→목적지(destD) 단독 ETA(분). 경로 최적화 전, 이 배송지 하나만
+// 봤을 때의 추정치(다른 배송지들과의 순서/누적은 고려 안 함).
+function _calcEtaMinutesTo(originLoc, destD) {
+  if (!originLoc?.lat || !destD?.lat || !destD?.lng) return null;
+  const distKm = haversine(originLoc, { lat: destD.lat, lng: destD.lng });
+  const travelMin = (distKm * ETA_DISTANCE_FACTOR / ETA_AVG_SPEED_KMH) * 60;
+  return travelMin + _calcStopMinutes(destD);
+}
+
+// 배송목록 카드용 ETA 맵 계산.
+// - routeOrder(경로 최적화 결과)에 포함된 배송지는 순서대로 누적 ETA(분)를 계산
+// - 그 외(아직 경로 최적화 전)는 출발지→해당 배송지 단독 추정치로 계산
+// - 출발지가 전혀 없으면(GPS도 마트 위치도 없음) 전부 null
+function _buildEtaDisplayMap(list) {
+  const originLoc = _lastGpsPos || getMartLocation() || null;
+  const map = {};
+  if (!originLoc?.lat) { list.forEach(d => { map[d.id] = null; }); return map; }
+
+  const routeIds = new Set(routeOrder.map(d => d.id));
+  let cursor = originLoc;
+  let cumMin = 0;
+  routeOrder.forEach(d => {
+    if (!d.lat || !d.lng) { map[d.id] = null; return; }
+    const distKm = haversine(cursor, { lat: d.lat, lng: d.lng });
+    cumMin += (distKm * ETA_DISTANCE_FACTOR / ETA_AVG_SPEED_KMH) * 60 + _calcStopMinutes(d);
+    map[d.id] = { minutes: cumMin, mode: 'route' };
+    cursor = { lat: d.lat, lng: d.lng };
+  });
+
+  list.forEach(d => {
+    if (routeIds.has(d.id)) return; // 위에서 이미 처리됨
+    const minutes = _calcEtaMinutesTo(originLoc, d);
+    map[d.id] = minutes === null ? null : { minutes, mode: 'standalone' };
+  });
+  return map;
+}
+
+// 카드에 표시할 ETA 배지 HTML. 좌표 없음/위치 정보 없음/계산됨 3가지 상태를 구분.
+function _renderEtaBadge(d, etaInfo) {
+  if (!d.lat || !d.lng) {
+    return '<div class="dl-eta-badge dl-eta-muted">좌표 없음</div>';
+  }
+  if (!etaInfo) {
+    return '<div class="dl-eta-badge dl-eta-muted">위치 공유 필요</div>';
+  }
+  const mins = Math.max(1, Math.round(etaInfo.minutes));
+  if (etaInfo.mode === 'route') {
+    const arriveAt = new Date(Date.now() + mins * 60000)
+      .toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    return `<div class="dl-eta-badge">⏱ 대략 ${arriveAt} 도착 예상</div>`;
+  }
+  return `<div class="dl-eta-badge">⏱ 약 ${mins}분 후</div>`;
+}
+
+// ══════════════════════════════════════════════════════
 // 홈 렌더링
 // ══════════════════════════════════════════════════════
 function renderHome() {
@@ -1497,6 +1587,8 @@ function renderHome() {
       ? '<div style="text-align:center;padding:32px 0;color:#aaa;font-size:14px">완료된 배송이 없습니다</div>'
       : '<div style="text-align:center;padding:32px 0;color:#aaa;font-size:14px">배송 중인 항목이 없습니다</div>';
   } else {
+  // 배송중 탭에서만 카드별 ETA 배지 계산(완료/취소 건은 의미 없어 제외)
+  const etaMap = _deliveryTab === 'done' ? {} : _buildEtaDisplayMap(filtered);
   list.innerHTML = filtered.map((d, i) => {
     const isCancelled = d.status === 'cancelled';
     const isDone = d.status === 'done';
@@ -1504,6 +1596,7 @@ function renderHome() {
     // 저장된 과거 데이터도 표시되도록 fallback 체인 적용
     const detailAddr = d.detailAddress || d.detail_address || d.location?.detail_address || '';
     const accessInfo = d.accessInfo || d.access_info || d.location?.access_info || '';
+    const etaBadge = (!isDone && !isCancelled) ? _renderEtaBadge(d, etaMap[d.id]) : '';
     return `
     <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
       <div class="dl-top">
@@ -1515,7 +1608,7 @@ function renderHome() {
           ${accessInfo ? `<div class="dl-access-info">🔐 ${accessInfo}</div>` : ''}
           <div class="dl-phone">📞 ${d.phone}${d.totalAmount ? `<span style="margin-left:8px;font-size:12px;color:#e65100;font-weight:700">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
         </div>
-        ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : ''}
+        ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : etaBadge}
       </div>
       ${isCancelled ? '' : `<div class="row-btns">
         <button class="btn btn-blue" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
@@ -1879,12 +1972,8 @@ function fetchTrafficTime(orderedList) {
           for (let i = 0; i < v.length - 1; i += 2) routePath.push({ lng: v[i], lat: v[i+1] });
         });
       });
-      const stopMin = orderedList.reduce((s, d) => {
-        const amt = d.totalAmount || 0;
-        // 금액 기준 정차시간: 5만→2분, 10만→4분, 15만→6분, 20만~→10분
-        let base = amt >= 200000 ? 10 : amt >= 150000 ? 6 : amt >= 100000 ? 4 : 2;
-        return s + base + (/\d+동\s*\d+호|아파트|apt|빌라|오피스텔/.test((d.detailAddress||'')+(d.address||'')) ? 5 : 0);
-      }, 0);
+      // 정차시간 계산은 ETA 공용 기준(_calcStopMinutes)으로 통일 — app.html과 동일 로직
+      const stopMin = orderedList.reduce((s, d) => s + _calcStopMinutes(d), 0);
       const totalMin = Math.round(totalSec / 60) + stopMin;
       const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
       const bannerEl = document.getElementById('time-banner');

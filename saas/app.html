@@ -3223,12 +3223,15 @@ function sendToDelivery(orderId) {
   const itemStr = (o.items||[]).map(it => `${it.name} ${it.qty}개`).join(', ');
   const totalAmt = (o.items||[]).reduce((s, it) => s + (it.price*it.qty||0), 0);
 
-  // ETA 계산 (마트→배달지 거리 기반)
+  // ETA 계산 (마트→배달지 거리 기반, ETA 공용 기준 재사용)
+  // 이전엔 ROUTE_AVG_SPEED_KMH/STOP_MINUTES_PER_ORDER가 이 파일 어디에도
+  // 정의돼 있지 않아 항상 ReferenceError로 이 지점에서 실행이 중단되던 버그가
+  // 있었음 — ETA_AVG_SPEED_KMH/_calcStopMinutes(주문별 금액+건물유형 기반)로 교체.
   let etaTs = null;
   const distKm = calcOrderDistance(o);
   if (distKm >= 0) {
-    const travelMin = (distKm / ROUTE_AVG_SPEED_KMH) * 60;
-    etaTs = Date.now() + Math.round(travelMin + STOP_MINUTES_PER_ORDER) * 60 * 1000;
+    const travelMin = (distKm * ETA_DISTANCE_FACTOR / ETA_AVG_SPEED_KMH) * 60;
+    etaTs = Date.now() + Math.round(travelMin + _calcStopMinutes(o)) * 60 * 1000;
   }
 
   const delivery = {
@@ -6182,18 +6185,34 @@ function toggleAutoAssignBar() {
   }
 }
 
-// ── 주문별 정차시간 계산 (금액 + 아파트/빌라 여부) ──
+// ══════════════════════════════════════════
+// ETA 공용 상수/함수 — Kakao Mobility(다중경유지/실시간교통) API에 의존하지
+// 않는 자체 추정 기준. OMS(app.html)와 TMS(saas/driver.html) 양쪽에 동일하게
+// 복제되어 있음 — ⚠️ 한쪽만 고치면 두 화면의 ETA 기준이 어긋나므로, 이 블록을
+// 바꾸면 반드시 다른 파일의 동일 블록(ETA_AVG_SPEED_KMH ~ _calcStopMinutes)도
+// 같이 수정할 것 (resolveLearnKey와 동일한 "복제 후 동기화" 패턴).
+// ══════════════════════════════════════════
+const ETA_AVG_SPEED_KMH = 35;      // 기본 평균 이동속도
+const ETA_DISTANCE_FACTOR = 1.4;   // 직선거리 → 실제 도로거리 보정 배수
+const ETA_BUILDING_KEYWORDS = ['아파트', '빌라', '맨션', '주공', '타운', '하이츠', '오피스텔'];
+
+// ── 주문별 정차시간 계산 (금액 구간 + 건물 유형 키워드) ──
+// 금액이 높을수록 물량이 많을 가능성을 반영한 "예상값"이며 정확한 시간이
+// 아님(금액과 물량이 항상 비례하진 않음). 건물 키워드는 공동현관/엘리베이터/
+// 동 찾기 등 추가 소요를 보정하는 값 — "동"/"호" 단독 키워드는 오탐 위험이
+// 커서 1차 MVP에서는 쓰지 않고, 위 7개 키워드 포함 여부만 본다.
 function _calcStopMinutes(order) {
-  const amount = order.totalAmount || 0;
-  let base = 2;
-  if (amount >= 150000) base = 10;
-  else if (amount >= 100000) base = 6;
-  else if (amount >= 50000) base = 4;
-  // 아파트/빌라 판단: 상세주소에 동호수 또는 주소에 아파트 키워드
-  const detail = (order.detailAddress || order.detail_address || '').toLowerCase();
-  const addr   = (order.address || '').toLowerCase();
-  const isApt  = /\d+동\s*\d+호|apt|아파트|빌라|오피스텔/.test(detail + addr);
-  return base + (isApt ? 5 : 0);
+  const amount = Number(order.totalAmount) || 0;
+  let base;
+  if (amount <= 50000)  base = 2;
+  else if (amount <= 100000) base = 4;
+  else if (amount <= 150000) base = 6;
+  else if (amount <= 200000) base = 8;
+  else base = 10;
+  const detail = order.detailAddress || order.detail_address || '';
+  const addr   = order.address || '';
+  const isSpecialBuilding = ETA_BUILDING_KEYWORDS.some(kw => (addr + detail).includes(kw));
+  return base + (isSpecialBuilding ? 5 : 0);
 }
 
 // ── Nearest Neighbor 순서 계산 (카카오 API fallback용) ──
@@ -6263,7 +6282,10 @@ function _calcEstimatedMinutes(orderIds, allPts) {
   }
   const orderObjs = orderIds.map(id => orders.find(o => o.id === id)).filter(Boolean);
   const stopMin = orderObjs.reduce((s, o) => s + _calcStopMinutes(o), 0);
-  return Math.round((km / 35) * 60) + stopMin;
+  // 직선거리(haversine)는 실제 도로거리보다 짧으므로 ETA_DISTANCE_FACTOR로 보정.
+  // (카카오 실시간 경로가 성공하는 _calcEstimatedMinutesAsync의 result.durationSec는
+  //  이미 실제 도로 기준이라 이 보정을 적용하지 않음 — 여기(순수 haversine 폴백)에만 적용)
+  return Math.round((km * ETA_DISTANCE_FACTOR / ETA_AVG_SPEED_KMH) * 60) + stopMin;
 }
 
 // ── 예상 소요시간 (비동기, 카카오 API 실시간 교통 반영 - 최종 표시용) ──
