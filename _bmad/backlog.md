@@ -223,6 +223,18 @@
 - **후속(이번 범위 밖, 아래 백로그에 별도 기록)**: `saveLearnedAddress()` 좌표 미설정 버그 수정 또는 기능 재설계, 영수증 원본 확대/줌/이동, 배송목록 compact layout 전면 재설계, 수기 출입정보 직접입력 필드, 아파트/빌라/건물명 detailAddress 자동 분리.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호/가상 주소). 검증 중 `confirmAdd()`로 생성된 테스트 orders 2건 전부 REST API로 삭제, 재조회로 잔존 없음(`null`) 확인. `learnedLocations` 신규 생성 없음(사전 코드 분석으로 예측한 대로 재확인). testmart 계정 비밀번호는 사용자가 세션 내에서 직접 전달했으며 이 문서/커밋/로그 어디에도 기록하지 않음.
 
+### TMS 수기 직접 입력 화면 — 상세주소/출입정보 필드 추가
+- **Status**: ✅ Deployed / Verified (Hosting만 배포, Functions/`database.rules.json`/`storage.rules` 미변경)
+- **Commits**: `90578cd`(핵심 변경), `ce26a18`(APP_VERSION 15 범프)
+- **배경**: 기사 피드백 — 수기 직접 입력 화면이 고객명/배송 주소/연락처 중심이라 공동현관 비밀번호나 문 앞 안내를 넣을 자리가 없었음. read-only 분석 라운드에서 저장/표시 인프라(`saveToFirebase()` 화이트리스트, localStorage, 배송카드 렌더링, 경로최적화 리스트)는 OCR 흐름을 위해 이미 `detailAddress`/`accessInfo`를 전부 지원하고 있었고, 수기 입력 화면과 `geocodeAndAdd()`만 이 두 필드를 전달하지 않고 있었다는 구조적 원인을 확인 후 구현.
+- **핵심 변경** (`saas/driver.html`만): 직접 입력 폼에 "상세주소 (동·호수, 층 등)"/"출입정보 / 공동현관" 입력칸 신규 추가, `addManual()`이 두 값을 읽어 `geocodeAndAdd()`로 전달(추가 후 입력칸도 함께 초기화), `geocodeAndAdd()`의 item 객체에 `detailAddress`/`accessInfo` 필드 추가 — 이 두 곳 외에는 기존 저장 파이프라인(`saveToFirebase`/`saveDeliveries`/`renderHome`)을 그대로 재사용해 신규 저장 로직을 만들지 않음. 배송완료 화면(`openCompleteScreen()`)에도 `accessInfo`가 있을 때만 주소 아래에 표시(없으면 생략)하는 신규 표시를 추가 — 이 표시는 OCR로 추가된 건에도 동일하게 적용됨(기존에는 완료 화면에 출입정보 표시 자체가 없었음).
+- **자동학습 영향 없음**: `autoSaveLearnedAddressIfSafe()`/`saveLearnedAddress()`는 OCR 흐름(`confirmAdd()`)에서만 호출되고 `geocodeAndAdd()`는 전혀 건드리지 않음 — 수기 입력 건은 기존과 동일하게 학습주소 대상이 아니며, 라이브 검증에서 `learnedLocations` 미생성으로 재확인.
+- **테스트**: `node --test "test/*.test.js"` **109/109 pass**(functions 미변경).
+- **Deploy**: `firebase deploy --only hosting --project hatdelivery-saas`. `DEPLOY_CHECKLIST.md` §4-1 절차대로 배포 전 `APP_VERSION` 14→15 범프, 배포 후 `settings/appVersion`도 "15"로 갱신.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-09 — 수기 직접 입력 상세주소/출입정보 배포 검증" 참고. testmart 실계정으로 실제 `addManual()`/`geocodeAndAdd()`를 호출해 생성한 합성 배송 건이 배송카드/경로최적화 리스트/완료 화면 전부에서 상세주소·출입정보·배지가 기존 OCR 건과 동일한 방식으로 표시됨을 확인, 빈 값 케이스 회귀 없음, 새로고침 후 유지, Firebase 저장 확인, OCR `confirmAdd()` 흐름 회귀 없음, 모바일 375px 3화면(직접입력 폼/배송카드/완료화면) 겹침 없음, 콘솔 에러 0건.
+- **남은 범위 밖**: 수정 모달(`openEditModal`/`saveEdit`)에서 상세주소/출입정보 편집은 이번 라운드에 포함하지 않음(이름/주소/전화만 편집 가능한 기존 동작 유지) — 필요 시 별도 라운드.
+- **Sensitive data policy**: 합성 데이터만 사용. 검증 중 `addManual()`로 생성된 테스트 orders 3건 전부 REST API로 삭제, 재조회로 잔존 없음(`null`) 확인. `learnedLocations` 신규 생성 없음(자동학습 미태움 재확인). testmart 계정 비밀번호는 이 문서/커밋/로그 어디에도 기록하지 않음.
+
 ---
 
 ## 진행 대기 (P1)
@@ -251,7 +263,8 @@
 - **`saveLearnedAddress()` 좌표 미설정 버그 수정 또는 기능 재설계** — "TMS 라이브 사용성 피드백 1차" 라운드(위 항목 참고)에서 발견. `saveLearnedAddress()`가 좌표를 `window._ocrLat`/`window._ocrLng`에서 읽는데, 이 두 변수는 도로명 변환 "적용" 경로(`applyConvertedAddr()`)에서만 설정되고 일반 OCR 스캔 흐름(`startOCR()`)에서는 설정되지 않음 — 버튼을 스캔 직후 바로 누르면 좌표 없이(`lat:null, lng:null`) 학습주소가 저장됨. 이번 라운드에서는 버튼을 UI에서 숨기는 것으로 우회했고 함수 자체는 미수정. 자동학습(`autoSaveLearnedAddressIfSafe()`)이 이미 대부분의 케이스를 커버하므로, 이 수동 버튼을 완전히 제거할지 좌표 버그를 고쳐 노랑/빨강 상태의 보조 수단으로 남길지 결정 필요.
 - **영수증 원본 확대/줌/이동(핀치줌·더블탭줌·드래그)** — "TMS 라이브 사용성 피드백 1차" 라운드 read-only 분석에서 확인: `.photo-viewer img`가 `object-fit:contain`만 있고 확대/이동 기능이 전혀 없어, 작은 영수증 글씨(주소/전화번호)를 화면에서 읽기 어렵다는 기사 피드백. `viewPhotoUrl()`/`viewOcrPhoto()`가 공용으로 쓰는 모달이라 개선 시 OCR 결과 대조/이전 배송사진 보기 두 기능에 동시 적용됨. 2차 UX 라운드로 분리.
 - **배송목록 카드 compact layout 전면 재설계** — "TMS 라이브 사용성 피드백 1차" 라운드에서 나온 "카드가 크고 왼쪽으로 치우쳐 한눈에 보기 어렵다"는 피드백. 이번 라운드는 패딩/정렬 소폭 조정(padding 16→14px, `.dl-top` flex-start)만 진행했고, 정보 밀도를 근본적으로 낮추는 재설계(배지를 아이콘 한 줄로 통합, 상세정보는 탭해야 펼치는 방식 등)는 별도 UX 설계가 필요해 2차 라운드로 분리.
-- **수기 출입정보 직접입력 필드** 및 **아파트/빌라/건물명 detailAddress 자동 분리 개선** — "TMS 라이브 사용성 피드백 1차" read-only 분석 과정에서 함께 식별된 별도 개선 후보. 각각 별도 라운드에서 범위/우선순위 재검토 필요.
+- ~~**수기 출입정보 직접입력 필드**~~ → **완료**: 위 "완료" 섹션의 "TMS 수기 직접 입력 화면 — 상세주소/출입정보 필드 추가" 항목 참고.
+- **아파트/빌라/건물명 detailAddress 자동 분리 개선** — "TMS 라이브 사용성 피드백 1차" read-only 분석 과정에서 식별된 별도 개선 후보. 별도 라운드에서 범위/우선순위 재검토 필요.
 
 ## 백로그 (P2, 장기)
 
