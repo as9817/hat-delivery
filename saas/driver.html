@@ -567,6 +567,10 @@
     <input class="form-input" id="inp-addr" type="text" placeholder="예) 경기도 남양주시 화도읍…">
     <label class="form-label">연락처</label>
     <input class="form-input" id="inp-phone" type="tel" placeholder="예) 010-1234-5678">
+    <label class="form-label">상세주소 (동·호수, 층 등)</label>
+    <input class="form-input" id="inp-detail" type="text" placeholder="예) 101동 202호">
+    <label class="form-label">출입정보 / 공동현관</label>
+    <input class="form-input" id="inp-access" type="text" placeholder="예) 공동현관 #1234, 경비실 호출">
     <button class="btn btn-orange" onclick="addManual()">+ 배송 목록에 추가</button>
 
     <hr class="divider">
@@ -648,6 +652,7 @@
         <span style="font-size:18px">📍</span>
         <div style="font-size:14px;font-weight:600;color:#222" id="complete-addr"></div>
       </div>
+      <div class="dl-access-info" id="complete-access" style="display:none"></div>
       <div style="font-size:13px;color:#888" id="complete-name"></div>
       <div id="prev-photo-link-wrap" style="display:none;margin-top:8px">
         <span style="font-size:12px;color:#1a237e;text-decoration:underline;cursor:pointer">🖼 이전 배송사진 보기</span>
@@ -1834,14 +1839,18 @@ function toggleDone(id) {
 // 직접 입력으로 추가
 // ══════════════════════════════════════════════════════
 function addManual() {
-  const name  = document.getElementById('inp-name').value.trim();
-  const addr  = document.getElementById('inp-addr').value.trim();
-  const phone = document.getElementById('inp-phone').value.trim();
+  const name   = document.getElementById('inp-name').value.trim();
+  const addr   = document.getElementById('inp-addr').value.trim();
+  const phone  = document.getElementById('inp-phone').value.trim();
+  const detail = document.getElementById('inp-detail').value.trim();
+  const access = document.getElementById('inp-access').value.trim();
   if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
-  geocodeAndAdd({ customerName: name, address: addr, phone: phone || '-' });
+  geocodeAndAdd({ customerName: name, address: addr, phone: phone || '-', detailAddress: detail, accessInfo: access });
   document.getElementById('inp-name').value = '';
   document.getElementById('inp-addr').value = '';
   document.getElementById('inp-phone').value = '';
+  document.getElementById('inp-detail').value = '';
+  document.getElementById('inp-access').value = '';
 }
 
 // ══════════════════════════════════════════════════════
@@ -2061,6 +2070,8 @@ async function geocodeAndAdd(info) {
     address: resolvedAddress || info.address || info.customerName,
     originalAddress: info.address, // 원본 OCR 주소 보존
     phone: info.phone || '-',
+    detailAddress: info.detailAddress || '',
+    accessInfo: info.accessInfo || '',
     lat, lng,
     status: 'pending',
     addedAt: Date.now()
@@ -2460,6 +2471,11 @@ function openCompleteScreen(id) {
   document.getElementById('complete-delivery-id').value = id;
   document.getElementById('complete-addr').textContent = d.address + (d.detailAddress ? ' ' + d.detailAddress : '');
   document.getElementById('complete-name').textContent = d.customerName + ' · ' + d.phone;
+  const completeAccessEl = document.getElementById('complete-access');
+  if (completeAccessEl) {
+    if (d.accessInfo) { completeAccessEl.textContent = '🔐 ' + d.accessInfo; completeAccessEl.style.display = 'inline-block'; }
+    else { completeAccessEl.style.display = 'none'; completeAccessEl.textContent = ''; }
+  }
   // 초기화 (기본값: 문 앞 배송, 완납됨)
   document.querySelectorAll('input[name=receive]').forEach(r => r.checked = r.value === 'door');
   document.querySelectorAll('input[name=payment]').forEach(r => r.checked = r.value === 'prepaid');
