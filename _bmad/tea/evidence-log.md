@@ -298,3 +298,28 @@
   11. 로컬스토리지 정리. Firebase에 생성된 합성 orders 4건(이전 라운드 잔존 1건 포함), `learnedLocations`(전화번호 키+이름 키, 테넌트 스코프), Storage 영수증 사진 3건 전부 REST/Storage API로 삭제 — 재조회로 orders/학습주소 전부 `null`, Storage 파일 삭제 응답 `HTTP 204` 확인
 - **Result**: `location.source` 3가지 값(`learned`/`standardized`/`raw_fallback`) 전부가 실제 배포본에서 정확한 신호등 상태로 이어지고, `showRetakePrompt` 팝업 없이 결과화면에 항상 진입하며, 성공 케이스에서도 조용한 자동 학습이 실제로 발생하고, 같은 전화번호를 쓰는 다른 주소 고객에게 절대 오적용되지 않음을 확인. 배송카드 배지가 추가 Firebase 조회 없이 정확히 렌더링됨을 확인.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름, 가짜 전화번호, 실제 존재하지만 개인과 무관한 공개 도로명 주소만 테스트 입력으로 사용 — 학습주소 자체는 합성 전화번호로만 저장). 실제 고객명/전화번호/주소/photoUrl 원문은 본 로그에도 대화 응답에도 기록하지 않음. 검증 종료 후 생성된 모든 합성 데이터(orders 4건, learnedLocations 2건, Storage 사진 3건) 전부 삭제 및 재조회로 잔존 없음 확인.
+
+## 2026-07-09 — 배송순번/나중에 배송 UX 배포 검증
+
+- **대상**: `saas/driver.html` — `syncDeliveriesOrderFromRoute()`(신규), `optimizeRoute()`/`renderRouteList()`(경로최적화·드래그 결과 반영 + 상세주소/출입정보 표시), `_renderDeliveryCard()`(카드 템플릿 분리), `postponeDelivery()`/`unpostponeDelivery()`(신규), `renderHome()`(배송중/나중에 배송 섹션 분리), `toggleDone()`(되돌리기 시 `_postponed` 초기화)
+- **커밋**: `55fe40d`(핵심), `6fc8257`(APP_VERSION 13 범프)
+- **배포 전 확인**: `git status` clean(`saas/driver.html` 1개 파일), `node --test "test/*.test.js"` **109/109 pass**(functions 미변경), `database.rules.json`/`firebase.json`/`storage.rules` 변경 없음 확인.
+- **로컬 사전 검증(배포 전)**: Playwright로 자동정렬/드래그 결과가 실제로 `deliveries` 순서에 반영되는지, 상세주소/출입정보 표시(없으면 생략), 나중/복귀 상태 전환, 모바일 375px 버튼 레이아웃을 확인 — 1회 반복 발견: "다시배송중"(5글자) 라벨이 375px에서 2줄로 줄바꿈되어 "복귀"(2글자, "나중"과 동일 폭)로 축약 후 재검증 통과.
+- **배포**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. 배포 직후 `settings/appVersion`을 "13"으로 갱신.
+- **배포 후 라이브 검증(testmart 실계정, 로컬스토리지 전용 합성 데이터 — Firebase orders/learnedLocations/Storage 쓰기 전혀 없음)**:
+  1. 하드 리로드 후 `APP_VERSION==='13'` 확인, testmart/test1 계정 실제 로그인 성공(세션 유지 상태)
+  2. 합성 배송 4건(좌표 없는 1건 포함) 로컬 생성 → `optimizeRoute()` 실제 호출 → 실제 최근접 알고리즘 결과(예: C→B→A→D)가 경로최적화 화면과 `deliveries` 배열 양쪽에 동일하게 반영됨을 확인
+  3. 경로최적화 리스트에 상세주소("101동 202호", "3층")/출입정보("🔐 공동현관 1234#", "🔐 비밀번호 5678")가 정확히 표시되고, 없는 항목은 빈 줄 없이 생략됨을 확인
+  4. `routeOrder`를 임의 순서(D,A,C,B)로 재배열(드래그 결과 시뮬레이션) → `syncDeliveriesOrderFromRoute()` 호출 → 배송목록 카드 순번이 정확히 같은 순서로 재배열됨을 확인, 각 카드의 ETA 배지도 새 순서 기준으로 누적 재계산됨을 확인("대략 오전 09:34/09:43/09:48" 식으로 순서대로 증가)
+  5. "나중" 클릭 → 상태는 `pending` 유지, `_postponed:true`로 전환 → "⏭ 나중에 배송 (1)" 구분선과 함께 별도 섹션에 독립 순번(①)으로 표시됨을 확인
+  6. 나중에 배송 섹션 카드에서 "완료" 클릭 → 기존 사진촬영 확인 화면(`complete`)으로 정상 진입, 이 시점까지 상태는 여전히 `pending`임을 확인(홈으로 복귀)
+  7. "복귀" 클릭 → `_postponed:false`, 구분선 소멸, 배송중 섹션 맨 뒤로 정상 복귀
+  8. 나중에 배송 상태로 만든 뒤 상태를 `done`으로 직접 전환(사진촬영/업로드 자체는 이전 라운드에서 이미 검증된 별개 플로우라 이번엔 재현하지 않음) → 진행률 "3건 남음 · 완료 1/4건", 완료 탭 카운트 "(1)"로 정상 갱신, 나중에 배송 섹션도 함께 소멸함을 확인
+  9. 완료 탭에서 "되돌리기" 클릭 → `status:'pending'`, `_postponed:false`로 동시에 초기화되어 나중에 배송 섹션이 아니라 배송중 섹션에 정상 복귀함을 확인
+  10. 모바일 375px 스크린샷 — 배송중/나중에 배송 두 섹션 전부 4버튼(길찾기/완료/나중 또는 복귀/✏️) 줄바꿈·겹침 없이 표시됨을 라이브 도메인에서 재확인
+  11. 배송지도(`mapzone`) 탭 진입 — `typeof kakao !== 'undefined'` true, 지도/마커(마트+배송지 번호)/줌/전체보기 정상 렌더링 확인. **로컬 정적 서버에서 봤던 `kakao is not defined` 에러가 라이브 도메인에서는 발생하지 않음**을 확인(Kakao SDK 도메인 제한이 원인이었다는 추정이 맞았음)
+  12. 다만 `mapzone` 진입 시 `kakaoWaypoints` Cloud Function 호출이 **403**으로 실패하는 것을 새로 발견 — `git show <commit> -- saas/driver.html`을 add/remove 라인만 필터링해 재확인한 결과 이번 커밋은 `mapzone`/`kakaoWaypoints`/`showRouteMode` 관련 실제 코드를 전혀 변경하지 않음(추가된 주석 1줄에서만 "mapzone" 단어 언급) — 이번 변경과 무관한 기존 이슈로 판단, 지도의 핵심 기능(마커/줌/전체보기)에는 영향 없음
+  13. 전 과정 콘솔 에러: `kakaoWaypoints` 403 1건 외 없음(위 12번 참고, 이번 라운드 원인 아님)
+  14. 정리: 이번 라운드는 전부 로컬스토리지 전용 데이터로 검증해 Firebase에 쓰기가 전혀 없었음 — `deliveries`/`routeOrder`를 비우고 `localStorage.removeItem`으로 로컬 정리, 하드 리로드 후 `todayCount:0`/`storageEmpty:null` 재확인
+- **Result**: 경로최적화(자동+드래그)가 배송목록 순서·순번·ETA에 실제로 반영되고, 경로최적화 화면에서 상세주소/출입정보가 정확히 보이며, "나중에 배송" 섹션 분리가 상태를 바꾸지 않고 UI 전용으로 정확히 동작하고, "완료" 버튼이 여전히 사진촬영 확인 화면만 여는 기존 동작을 그대로 유지함을 실제 배포본에서 확인. 배송지도 탭은 지도 자체가 라이브 도메인에서 정상 동작함을 확인했으나, 별개의 사전 이슈(`kakaoWaypoints` 403)를 발견해 후속 백로그로 분리 기록.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름, 가짜 전화번호, 실제 존재하지만 개인과 무관한 공개 도로명 주소). 실제 고객명/전화번호/주소는 본 로그에도 대화 응답에도 기록하지 않음. 이번 라운드는 로컬스토리지 전용 테스트라 Firebase 정리 대상 자체가 없었음(재확인 완료).
