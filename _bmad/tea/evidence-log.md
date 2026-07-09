@@ -249,7 +249,7 @@
   5. 세션 복원 경로(`checkSession()`, 새로고침 시 재로그인 없이 세션 유지) 확인 → 저장된 세션에서도 `mustChangePassword:true`면 동일하게 강제 화면이 뜨는 것을 확인(로그인 직후 경로와 별개로 검증됨)
   6. RTDB 직접 조회로 `mustChangePassword:false` 해제 및 `password` 필드가 `$2`로 시작하는 bcrypt 해시 형식임을 확인(평문 아님)
   7. 로그아웃 → 새 비밀번호로 재로그인 → 강제 화면이 다시 뜨지 않고 바로 메인 화면 진입 확인
-  8. 기존 일반 계정(`test1`/`test1234`, `mustChangePassword` 없음)으로 재로그인 → 강제 화면 없이 정상 진입, 배송목록 정상 표시(회귀 없음 확인)
+  8. 기존 일반 계정(`test1`/`[REDACTED]`, `mustChangePassword` 없음)으로 재로그인 → 강제 화면 없이 정상 진입, 배송목록 정상 표시(회귀 없음 확인)
   9. 업데이트 배너: `settings/appVersion`을 일시적으로 "11"로 바꿔 불일치 유발 → 배너 노출 확인 → "10"으로 원복 후 새로고침 → `APP_VERSION` 유지되며 배너 사라짐 확인
 - **Result**: `resetDriverPassword`가 계정 존재 유추를 방지하는 통일된 실패 메시지, 레이트리밋, PII 없는 감사 로그 요구사항을 전부 만족하며 실제 배포본에서 정상 동작함을 확인. `mustChangePassword` 강제 변경 흐름(로그인 직후/세션 복원 양쪽)이 정상 동작하고, 새 비밀번호 재로그인 시 강제 화면이 재노출되지 않으며, 기존 일반 로그인에는 회귀가 없음을 확인. 검증 과정에서 이번 작업과 무관하게 존재하던 두 건의 사전 버그(모달 z-index, bcryptjs CDN 경로)를 발견해 함께 수정하지 않았다면 방금 만든 기능 자체가 실제 사용자에게는 여전히 작동하지 않는 상태로 남았을 것.
 - **Sensitive data policy**: 합성 계정(`pwtest1`, `pwtest_inactive`, 가짜 전화번호 `010-5555-9999`/`010-5555-1111`)만 사용, 실제 운영 기사 계정/비밀번호는 전혀 접촉하지 않음. 임시 비밀번호/새 비밀번호 값은 스크린샷/스냅샷 텍스트에 일시적으로 노출됐으나 합성 계정의 값이며 검증 직후 계정 자체를 삭제. 검증 종료 후 합성 계정 2건과 관련 감사 로그 9건 전부 REST로 삭제, `curl`로 재조회해 `null`(잔존 없음) 확인. TMS 로컬스토리지 테스트 배송 데이터도 모두 정리.
@@ -323,3 +323,24 @@
   14. 정리: 이번 라운드는 전부 로컬스토리지 전용 데이터로 검증해 Firebase에 쓰기가 전혀 없었음 — `deliveries`/`routeOrder`를 비우고 `localStorage.removeItem`으로 로컬 정리, 하드 리로드 후 `todayCount:0`/`storageEmpty:null` 재확인
 - **Result**: 경로최적화(자동+드래그)가 배송목록 순서·순번·ETA에 실제로 반영되고, 경로최적화 화면에서 상세주소/출입정보가 정확히 보이며, "나중에 배송" 섹션 분리가 상태를 바꾸지 않고 UI 전용으로 정확히 동작하고, "완료" 버튼이 여전히 사진촬영 확인 화면만 여는 기존 동작을 그대로 유지함을 실제 배포본에서 확인. 배송지도 탭은 지도 자체가 라이브 도메인에서 정상 동작함을 확인했으나, 별개의 사전 이슈(`kakaoWaypoints` 403)를 발견해 후속 백로그로 분리 기록.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름, 가짜 전화번호, 실제 존재하지만 개인과 무관한 공개 도로명 주소). 실제 고객명/전화번호/주소는 본 로그에도 대화 응답에도 기록하지 않음. 이번 라운드는 로컬스토리지 전용 테스트라 Firebase 정리 대상 자체가 없었음(재확인 완료).
+
+## 2026-07-09 — TMS 라이브 사용성 피드백 1차 배포 검증
+
+- **대상**: `saas/driver.html` — `_renderCardInfoBadges()`/`computeResultStatus()`/`renderResultBadges()`("길찾기 가능" 배지 제거), `#save-learned-btn`(기본 숨김), `#regeo-btn`("주소 다시 찾기" 문구 변경 + 안내문 + `renderResultStatus()`의 상태별 톤다운), `#traffic-refresh-btn`(기본 숨김), `.delivery-item`/`.dl-top` CSS(패딩/정렬)
+- **커밋**: `eba07dc`(핵심), `c83ee41`(APP_VERSION 14 범프)
+- **배포 전 확인**: `git status` clean(`saas/driver.html` 1개 파일만 스코프), `node --test "test/*.test.js"` **109/109 pass**(functions 미변경). Node 샌드박스로 실제 커밋된 `computeResultStatus()` 8개 시나리오를 `badges.nav` 제거 후 재실행해 전부 통과 확인(회귀 없음).
+- **배포**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. `firebase database:set /settings/appVersion --data '"14"'`로 배포 직후 갱신.
+- **배포 후 라이브 검증(testmart/test1 실계정, Playwright로 라이브 도메인 직접 조작 — 합성 데이터만 사용)**:
+  1. 최초 접속 시 브라우저 HTTP 캐시(`Cache-Control: max-age=3600`)로 인해 `APP_VERSION`이 배포 전 값(13)으로 남아있는 것을 발견 → 캐시버스트 쿼리스트링으로 재접속해 `APP_VERSION==='14'` 확인, 업데이트 배너 정상 소멸 확인. `curl`로 오리진 응답 자체(`X-Cache: MISS`)에는 처음부터 `APP_VERSION='14'`가 정상 반영돼 있었음을 별도 확인 — 배포 자체는 문제 없었고 클라이언트측 HTTP 캐시가 원인.
+  2. testmart/test1 세션이 이미 인증된 상태였음을 `TENANT_ID`/`currentDriver` 직접 조회로 확인(`tenantId:'testmart'`, `driver.id:'test1'`)
+  3. OCR 결과화면을 `window._pendingOCR` + 실제 `renderResultStatus()`/`computeResultStatus()` 호출로 2가지 상태 재현: (a) 파랑(학습주소 적용) — `regeo-btn` 텍스트 "📍 주소 다시 찾기", `regeo-muted` 클래스 적용(톤다운), `save-learned-btn` computed `display:none`, 배지 3종(학습주소 적용/이전 배송사진 있음/출입정보 있음)에 "길찾기 가능" 미포함 확인. (b) 노랑(주소 확인 필요) — `regeo-muted` 미적용(강조 유지), 안내문 "주소가 이상하거나 지번주소일 때 눌러주세요" 노출 확인
+  4. 실제 `confirmAdd()`를 2회 호출해 합성 배송 2건 생성 — A(좌표/학습주소/이전사진/출입정보 전부 있음), B(좌표 없음) — 배송목록 카드에서 A는 배지 3종만 노출(길찾기 가능 없음), B는 ETA 배지 자리에 "좌표 없음" 정상 노출 확인
+  5. `getComputedStyle()`로 `.delivery-item` padding=14px, `.dl-top` align-items=flex-start 라이브 반영 확인
+  6. 경로최적화 화면에서 실제 `optimizeRoute()` 호출 → `#traffic-refresh-btn` computed `display:none` 확인. 이 과정에서 콘솔에 `kakaoWaypoints` **403** 에러가 실제로 발생하는 것을 확인(아래 "중요 발견" 참고), `#time-banner`가 실패 시 정상적으로 제거됨(기존 동작)도 함께 확인
+  7. 카드 A에서 실제 클릭으로 "나중" → "나중에 배송" 섹션 이동(구분선 "⏭ 나중에 배송 (1)") → "복귀" → 배송중 섹션 복귀 왕복 확인. `openCompleteScreen()` 호출 시 `complete` 화면 정상 진입(상태 미변경) 확인. `openEditModal()` 호출 시 수정 모달 정상 오픈 확인. 셋 다 에러 없음 — 이번 변경이 손대지 않은 플로우들의 회귀 없음 확인
+  8. 모바일 375×812 스크린샷 2장(배송목록 화면, OCR 결과화면) — 배지 줄바꿈, 버튼 4개 정렬, "주소 다시 찾기" 버튼+안내문 전부 겹침 없이 표시됨을 확인
+  9. 콘솔 에러 전체 조회: `kakaoWaypoints` 403 2건(6번 항목 원인), `favicon.ico` 404 1건(기존부터 있던 무관 이슈) 외 없음 — 이번 변경으로 새로 발생한 에러 없음
+  10. 정리: `confirmAdd()`로 생성된 orders 2건을 `firebase database:remove`로 삭제 후 재조회로 `null` 확인, `settings/learnedLocations`에 해당 전화번호/이름 키로 아무것도 생성되지 않았음을 재조회로 확인(사전 코드 분석 — `addrChanged=false`이고 A는 이미 `source==='learned'`, B는 좌표 없어 `autoSaveLearnedAddressIfSafe`가 저장을 스킵하는 경로였음 — 와 일치), 브라우저 `deliveries` 로컬 캐시도 필터링 후 재저장, 최종 하드 리로드로 "오늘 배송 건이 없습니다" 빈 상태 확인
+- **중요 발견**: 6번 단계에서 `kakaoWaypoints` Cloud Function 호출이 콘솔에 **`Failed to load resource: the server responded with a status of 403`**로 실제로 실패하는 것을 직접 확인. 지난 라운드("배송순번/나중에 배송 UX" 배포 검증)에서 배송지도(mapzone) 탭에서 발견했던 것과 동일한 Cloud Function·동일한 403. 이번 라운드에서 "소요시간 다시 확인" 버튼을 UI 피로도 문제로만 보고 숨겼는데, 실측 결과 애초에 눌러도 항상 실패하는 기능이었다는 것이 확인되어 숨김 결정이 실측으로 뒷받침됨. `_bmad/backlog.md`의 "배송지도(mapzone) 경로선 기능 대체 설계 필요" 항목에 교차 기록.
+- **Result**: 6개 사용성 피드백에 대응하는 1차 변경(배지 제거/버튼 숨김·문구 개선/CSS 소폭 조정) 전부가 실제 배포본에서 의도대로 동작함을 확인. 기존 플로우(나중/복귀/완료/수정) 회귀 없음, 신규 콘솔 에러 없음. 배포 검증 과정에서 `kakaoWaypoints` 403이 "소요시간 다시 확인" 기능에도 영향을 준다는 추가 근거를 확보.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름 "배포검증A"/"배포검증좌표없음", 가짜 전화번호 01000000001/01000000002, 가상 주소). 실제 고객명/전화번호/주소는 본 로그에도 대화 응답에도 기록하지 않음. testmart 계정 비밀번호는 사용자가 세션 중 직접 전달했으며 이 로그/커밋/대화 응답 어디에도 기록하지 않음. 검증 종료 후 생성된 orders 2건 전부 삭제 및 재조회로 잔존 없음(`null`) 확인, 로컬스토리지도 정리 완료.
