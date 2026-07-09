@@ -194,6 +194,10 @@
       border-radius: 8px; padding: 4px 9px; white-space: nowrap;
     }
     .dl-badges { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+    .section-divider {
+      font-size: 13px; font-weight: 800; color: #E65100; background: #FFF3E0;
+      padding: 8px 12px; border-radius: 10px; margin: 14px 0 8px;
+    }
     .field-status-green  { border-color: #a5d6a7 !important; background: #f4faf5; }
     .field-status-blue   { border-color: #90caf9 !important; background: #f2f8ff; }
     .field-status-yellow { border-color: #ffe082 !important; background: #fffdf5; }
@@ -283,6 +287,14 @@
     .route-info { flex: 1; }
     .route-name { font-size: 14px; font-weight: 700; }
     .route-addr { font-size: 12px; color: #777; }
+    .route-detail {
+      display: inline-block; font-size: 11px; color: #1a237e; background: #e8eaf6;
+      padding: 1px 6px; border-radius: 5px; font-weight: 700; margin-top: 2px;
+    }
+    .route-access {
+      display: inline-block; font-size: 11px; color: #b71c1c; background: #ffebee;
+      padding: 1px 6px; border-radius: 5px; font-weight: 700; margin-top: 2px; margin-left: 4px;
+    }
 
     /* ── 秀도 화면 ── */
     #mapzone {
@@ -1653,6 +1665,45 @@ function _renderCardInfoBadges(d, accessInfo) {
 // ══════════════════════════════════════════════════════
 // 홈 렌더링
 // ══════════════════════════════════════════════════════
+// 배송 카드 1개의 HTML. renderHome()의 "배송중"/"나중에 배송" 두 섹션이 각각
+// 자체 순번(i)으로 이 함수를 호출 — 섹션마다 독립적으로 1번부터 다시 매겨짐.
+function _renderDeliveryCard(d, i, etaMap) {
+  const isCancelled = d.status === 'cancelled';
+  const isDone = d.status === 'done';
+  const isPostponed = !isDone && !isCancelled && !!d._postponed;
+  // 필드명이 detailAddress가 아닌 다른 경로(detail_address, location.detail_address)로
+  // 저장된 과거 데이터도 표시되도록 fallback 체인 적용
+  const detailAddr = d.detailAddress || d.detail_address || d.location?.detail_address || '';
+  const accessInfo = d.accessInfo || d.access_info || d.location?.access_info || '';
+  const etaBadge = (!isDone && !isCancelled) ? _renderEtaBadge(d, etaMap[d.id]) : '';
+  return `
+    <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
+      <div class="dl-top">
+        <div class="dl-num">${i+1}</div>
+        <div style="flex:1">
+          <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
+          <div class="dl-addr">${d.address}</div>
+          ${detailAddr ? `<div class="dl-detail-addr">${detailAddr}</div>` : ''}
+          ${accessInfo ? `<div class="dl-access-info">🔐 ${accessInfo}</div>` : ''}
+          <div class="dl-phone">📞 ${d.phone}${d.totalAmount ? `<span style="margin-left:8px;font-size:12px;color:#e65100;font-weight:700">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
+          ${!isCancelled ? _renderCardInfoBadges(d, accessInfo) : ''}
+        </div>
+        ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : etaBadge}
+      </div>
+      ${isCancelled ? '' : `<div class="row-btns">
+        <button class="btn btn-blue" onclick="quickNav('${d.id}')">길찾기</button>
+        <button class="btn ${isDone?'btn-outline':'btn-green'}" onclick="${isDone ? `toggleDone('${d.id}')` : `openCompleteScreen('${d.id}')`}">
+          ${isDone ? '↩ 되돌리기' : '완료'}
+        </button>
+        ${!isDone ? (isPostponed
+          ? `<button class="btn" style="background:#E8F5E9;color:#2E7D32;width:auto;padding:14px 10px;font-size:13px" onclick="unpostponeDelivery('${d.id}')">복귀</button>`
+          : `<button class="btn" style="background:#FFF3E0;color:#E65100;width:auto;padding:14px 10px;font-size:13px" onclick="postponeDelivery('${d.id}')">나중</button>`
+        ) : ''}
+        <button class="btn" style="background:#F2F2F7;color:#555;width:auto;padding:14px 14px" onclick="openEditModal('${d.id}')">✏️</button>
+      </div>`}
+    </div>`;
+}
+
 function renderHome() {
   loadDeliveries();
   const list = document.getElementById('delivery-list');
@@ -1689,37 +1740,20 @@ function renderHome() {
   } else {
   // 배송중 탭에서만 카드별 ETA 배지 계산(완료/취소 건은 의미 없어 제외)
   const etaMap = _deliveryTab === 'done' ? {} : _buildEtaDisplayMap(filtered);
-  list.innerHTML = filtered.map((d, i) => {
-    const isCancelled = d.status === 'cancelled';
-    const isDone = d.status === 'done';
-    // 필드명이 detailAddress가 아닌 다른 경로(detail_address, location.detail_address)로
-    // 저장된 과거 데이터도 표시되도록 fallback 체인 적용
-    const detailAddr = d.detailAddress || d.detail_address || d.location?.detail_address || '';
-    const accessInfo = d.accessInfo || d.access_info || d.location?.access_info || '';
-    const etaBadge = (!isDone && !isCancelled) ? _renderEtaBadge(d, etaMap[d.id]) : '';
-    return `
-    <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
-      <div class="dl-top">
-        <div class="dl-num">${i+1}</div>
-        <div style="flex:1">
-          <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
-          <div class="dl-addr">${d.address}</div>
-          ${detailAddr ? `<div class="dl-detail-addr">${detailAddr}</div>` : ''}
-          ${accessInfo ? `<div class="dl-access-info">🔐 ${accessInfo}</div>` : ''}
-          <div class="dl-phone">📞 ${d.phone}${d.totalAmount ? `<span style="margin-left:8px;font-size:12px;color:#e65100;font-weight:700">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
-          ${!isCancelled ? _renderCardInfoBadges(d, accessInfo) : ''}
-        </div>
-        ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : etaBadge}
-      </div>
-      ${isCancelled ? '' : `<div class="row-btns">
-        <button class="btn btn-blue" onclick="quickNav('${d.id}')">🗺️ 길찾기</button>
-        <button class="btn ${isDone?'btn-outline':'btn-green'}" onclick="${isDone ? `toggleDone('${d.id}')` : `openCompleteScreen('${d.id}')`}">
-          ${isDone ? '↩ 되돌리기' : '완료 체크'}
-        </button>
-        <button class="btn" style="background:#F2F2F7;color:#555;width:auto;padding:14px 14px" onclick="openEditModal('${d.id}')">✏️</button>
-      </div>`}
-    </div>`;
-  }).join('');
+  if (_deliveryTab === 'done') {
+    list.innerHTML = filtered.map((d, i) => _renderDeliveryCard(d, i, etaMap)).join('');
+  } else {
+    // 배송중 탭: "배송중" / "나중에 배송" 두 섹션으로 분리. status는 그대로
+    // pending/delivering 유지 — _postponed는 UI 전용 로컬 구분값(Firebase 미기록).
+    const activeItems    = filtered.filter(d => !d._postponed);
+    const postponedItems = filtered.filter(d => d._postponed);
+    let html = activeItems.map((d, i) => _renderDeliveryCard(d, i, etaMap)).join('');
+    if (postponedItems.length) {
+      html += `<div class="section-divider">⏭ 나중에 배송 (${postponedItems.length})</div>`;
+      html += postponedItems.map((d, i) => _renderDeliveryCard(d, i, etaMap)).join('');
+    }
+    list.innerHTML = html;
+  }
   } // end filtered tab
 
   // 사진 썸네일 로드
@@ -1731,6 +1765,44 @@ function renderHome() {
   });
 }
 
+// "나중" — 배송중 화면 안에서 "나중에 배송" 섹션으로 이동. 상태(pending/delivering)는
+// 절대 바꾸지 않음 — _postponed는 UI 전용 로컬 구분값(localStorage에만 저장, Firebase
+// orders에는 기록하지 않음. database.rules.json/functions 변경 불필요).
+// 후번 배송을 먼저 처리하고 싶으면 그 카드의 "완료"를 그대로 누르면 됨 — 이 함수는
+// 완료 플로우(openCompleteScreen/toggleDone)를 전혀 거치지 않음.
+function postponeDelivery(id) {
+  loadDeliveries();
+  const idx = deliveries.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const [item] = deliveries.splice(idx, 1);
+  item._postponed = true;
+  deliveries.push(item);
+  saveDeliveries();
+  // 경로최적화에서 만든 순서(routeOrder)에도 같은 항목이 있으면 함께 뒤로 이동 —
+  // 배송지도(mapzone)의 route 모드가 routeOrder를 그대로 참조하므로, 여기서 미리
+  // 맞춰두면 배송지도 쪽 코드를 전혀 건드리지 않고도 최신 순서가 자연히 반영됨.
+  const rIdx = routeOrder.findIndex(x => x.id === id);
+  if (rIdx !== -1) {
+    const [r] = routeOrder.splice(rIdx, 1);
+    routeOrder.push(r);
+  }
+  renderHome(); // 순번/ETA는 기존 렌더링 로직이 배열 위치 기준으로 다시 계산
+  showToast('⏭ 나중에 배송 섹션으로 옮겼습니다');
+}
+
+// "복귀" — "나중에 배송" 섹션에서 "배송중" 섹션으로 복귀. 상태 변경 없음,
+// _postponed 플래그만 해제. 원래 있던 위치가 아니라 "배송중" 섹션 맨 뒤에 다시
+// 나타남(단순화를 위해 원래 순번 복원은 하지 않음).
+function unpostponeDelivery(id) {
+  loadDeliveries();
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  d._postponed = false;
+  saveDeliveries();
+  renderHome();
+  showToast('▶ 배송중 섹션으로 다시 옮겼습니다');
+}
+
 // ══════════════════════════════════════════════════════
 // 배달 완료 토글
 // ══════════════════════════════════════════════════════
@@ -1739,6 +1811,7 @@ function toggleDone(id) {
   if (!d) return;
   if (d.status === 'done') {
     d.status = 'pending';
+    d._postponed = false; // 되돌리면 "배송중" 섹션으로(나중에 배송 섹션에 남지 않게)
     saveDeliveries();
     renderHome();
     return;
@@ -2105,6 +2178,21 @@ function fetchTrafficTime(orderedList) {
 // ══════════════════════════════════════════════════════
 // 경로 최적화 (Nearest Neighbor TSP)
 // ══════════════════════════════════════════════════════
+// 경로최적화 화면(routeOrder)의 순서를 배송목록(deliveries) 카드 순서에도 반영.
+// routeOrder에 없는 항목(완료된 건, 최적화 대상이 아니었던 좌표없는 건 등)은 안정
+// 정렬 특성상 원래 상대 순서를 유지한 채 뒤로 밀림 — 화면(배송중 탭)에는 필터링되어
+// 안 보이는 완료 건이 섞여도 무해함. Firebase에는 순서 필드를 쓰지 않음(로컬 전용).
+function syncDeliveriesOrderFromRoute() {
+  if (!routeOrder.length) return;
+  const orderIndex = new Map(routeOrder.map((d, i) => [d.id, i]));
+  deliveries.sort((a, b) => {
+    const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Infinity;
+    const bi = orderIndex.has(b.id) ? orderIndex.get(b.id) : Infinity;
+    return ai - bi;
+  });
+  saveDeliveries();
+}
+
 async function optimizeRoute() {
   loadDeliveries();
   goTab('mapview');
@@ -2160,6 +2248,7 @@ async function optimizeRoute() {
   }
 
   routeOrder = [...ordered, ...noCoords];
+  syncDeliveriesOrderFromRoute(); // 자동정렬 결과를 배송목록 순서에도 반영
   renderRouteList(list, routeOrder);
   fetchTrafficTime(routeOrder);
 }
@@ -2169,6 +2258,9 @@ function renderRouteList(list, order) {
 <button id="traffic-refresh-btn" onclick="fetchTrafficTime(routeOrder)" style="width:100%;margin-bottom:12px;background:#f0f4ff;color:#1565c0;border:1.5px solid #90caf9;border-radius:10px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">🔄 소요시간 다시 확인</button>` +
     order.map((d, i) => {
       const hasCoord = d.lat && d.lng;
+      // 배송목록 카드와 동일한 fallback 체인 — 저장 경로가 다른 과거 데이터도 표시
+      const detailAddr = d.detailAddress || d.detail_address || d.location?.detail_address || '';
+      const accessInfo = d.accessInfo || d.access_info || d.location?.access_info || '';
       return `
     <div class="route-item" data-id="${d.id}" style="${!hasCoord ? 'opacity:.7;border-left:3px solid #ccc' : ''}">
       <div class="drag-handle">☰</div>
@@ -2176,6 +2268,8 @@ function renderRouteList(list, order) {
       <div class="route-info" style="flex:1">
         <div class="route-name">${d.customerName}${!hasCoord ? ' <span style="font-size:10px;color:#aaa">좌표없음</span>' : ''}</div>
         <div class="route-addr">${d.address}</div>
+        ${detailAddr ? `<span class="route-detail">${detailAddr}</span>` : ''}
+        ${accessInfo ? `<span class="route-access">🔐 ${accessInfo}</span>` : ''}
       </div>
       <button class="btn btn-blue" style="width:auto;padding:8px 12px;font-size:12px" onclick="launchNavSingle('${d.id}')">길찾기</button>
     </div>`;
@@ -2193,6 +2287,7 @@ function renderRouteList(list, order) {
         .map(el => routeOrder.find(d => d.id === el.dataset.id)).filter(Boolean);
       routeOrder = newOrder;
       list.querySelectorAll('.route-num').forEach((el, i) => el.textContent = i + 1);
+      syncDeliveriesOrderFromRoute(); // 드래그 결과를 배송목록 순서에도 반영
       showToast('순서가 변경됐습니다');
     }
   });
