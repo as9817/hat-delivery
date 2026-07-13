@@ -866,6 +866,10 @@
       <input id="edit-name" class="form-input" type="text" placeholder="고객명" style="margin-bottom:10px">
       <label style="font-size:12px;color:#888;margin-bottom:4px;display:block">배송 주소</label>
       <input id="edit-addr" class="form-input" type="text" placeholder="배송 주소" style="margin-bottom:10px">
+      <label style="font-size:12px;color:#888;margin-bottom:4px;display:block">상세주소 (동·호수, 층 등)</label>
+      <input id="edit-detail" class="form-input" type="text" placeholder="예) 101동 202호" style="margin-bottom:10px">
+      <label style="font-size:12px;color:#888;margin-bottom:4px;display:block">출입정보 / 공동현관</label>
+      <input id="edit-access" class="form-input" type="text" placeholder="예) 공동현관 #1234, 경비실 호출" style="margin-bottom:10px">
       <label style="font-size:12px;color:#888;margin-bottom:4px;display:block">연락처</label>
       <input id="edit-phone" class="form-input" type="tel" placeholder="연락처" style="margin-bottom:16px">
       <button class="btn btn-orange" onclick="saveEdit()">💾 저장</button>
@@ -2625,6 +2629,8 @@ function openEditModal(id) {
   document.getElementById('edit-id').value = id;
   document.getElementById('edit-name').value = d.customerName || '';
   document.getElementById('edit-addr').value = d.address || '';
+  document.getElementById('edit-detail').value = d.detailAddress || d.detail_address || '';
+  document.getElementById('edit-access').value = d.accessInfo || d.access_info || '';
   document.getElementById('edit-phone').value = d.phone || '';
   document.getElementById('edit-modal').classList.add('open');
 }
@@ -2633,21 +2639,80 @@ function closeEditModal() {
   document.getElementById('edit-modal').classList.remove('open');
 }
 
-function saveEdit() {
-  const id   = document.getElementById('edit-id').value;
-  const name = document.getElementById('edit-name').value.trim();
-  const addr = document.getElementById('edit-addr').value.trim();
-  const phone= document.getElementById('edit-phone').value.trim();
+async function saveEdit() {
+  const id     = document.getElementById('edit-id').value;
+  const name   = document.getElementById('edit-name').value.trim();
+  let   addr   = document.getElementById('edit-addr').value.trim();
+  const detail = document.getElementById('edit-detail').value.trim();
+  const access = document.getElementById('edit-access').value.trim();
+  const phone  = document.getElementById('edit-phone').value.trim();
   if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
   loadDeliveries();
   const d = deliveries.find(x => x.id === id);
   if (!d) return;
+
+  const addrChanged = addr !== (d.address || '');
+  let lat = d.lat || null;
+  let lng = d.lng || null;
+
+  // 주소가 바뀐 경우에만 좌표 재조회 — 실패 시 옛 좌표를 그대로 두고 조용히 저장하지
+  // 않고 저장 자체를 막음(confirmAdd()의 좌표 보강 블록과 동일한 정책).
+  if (addrChanged) {
+    try {
+      const authHeader = await _authHeader();
+      const geo = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/geocodeAddress', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
+        body: JSON.stringify({ address: addr })
+      });
+      const geoBody = geo.ok ? await geo.json().catch(() => null) : null;
+      if (geoBody?.status === 'success' && geoBody.data?.lat && geoBody.data?.lng) {
+        lat  = geoBody.data.lat;
+        lng  = geoBody.data.lng;
+        addr = geoBody.data.road_address || addr;
+      } else {
+        showToast('주소를 찾을 수 없습니다. 주소를 다시 확인해주세요.');
+        return;
+      }
+    } catch (e) {
+      showToast('주소를 찾을 수 없습니다. 주소를 다시 확인해주세요.');
+      return;
+    }
+  }
+
   d.customerName = name;
   d.address = addr;
+  d.detailAddress = detail;
+  d.accessInfo = access;
   d.phone = phone || '-';
+  d.lat = lat;
+  d.lng = lng;
+  if (addrChanged) d.addressSource = 'edited';
   saveDeliveries();
+
+  // routeOrder에도 같은 항목이 있으면 함께 갱신 — loadDeliveries()가 매번 새 객체를
+  // 만들어 deliveries/routeOrder의 참조 공유가 끊기므로(postponeDelivery()와 동일한
+  // 이유), 경로최적화 화면 캐시(_routeCacheKey는 id:status만 비교해 주소/좌표 변경을
+  // 감지하지 못함)가 옛 값을 계속 보여주지 않도록 직접 동기화.
+  const r = routeOrder.find(x => x.id === id);
+  if (r) {
+    r.customerName = name;
+    r.address = addr;
+    r.detailAddress = detail;
+    r.accessInfo = access;
+    r.phone = phone || '-';
+    r.lat = lat;
+    r.lng = lng;
+    if (addrChanged) r.addressSource = 'edited';
+  }
+
   // Firebase도 업데이트
-  if (_fbDb) tref('orders/' + id).update({ customerName: name, address: addr, phone: phone || '-' }).catch(()=>{});
+  if (_fbDb) {
+    tref('orders/' + id).update({
+      customerName: name, address: addr, detailAddress: detail, accessInfo: access,
+      phone: phone || '-', lat, lng,
+      ...(addrChanged ? { addressSource: 'edited' } : {})
+    }).catch(()=>{});
+  }
   closeEditModal();
   renderHome();
   showToast('✅ 수정 완료');
