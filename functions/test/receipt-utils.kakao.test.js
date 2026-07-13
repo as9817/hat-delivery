@@ -31,6 +31,7 @@ describe('kakaoAddrSearch (fetch mock)', () => {
     const result = await kakaoAddrSearch('가상 주소', 'fake-key', MART_LAT, MART_LNG, 5);
     assert.ok(result, '결과가 null이면 안 됨');
     assert.equal(result.road_address, '가상로1길 10', `가까운 후보(NEAR_DOC)가 선택되지 않음: ${JSON.stringify(result)}`);
+    assert.equal(result.confidence, 'high', '도로명/지번 직접검색은 신뢰도 high여야 함');
   });
 
   it('가장 가까운 후보도 martRadius 초과면 reject(null)', async () => {
@@ -114,6 +115,30 @@ describe('kakaoKeywordSearch (fetch mock)', () => {
     mockFetchOnce({ documents: [] });
     const result = await kakaoKeywordSearch('가상 검색어', 'fake-key', MART_LAT, MART_LNG, 5);
     assert.equal(result, null);
+  });
+
+  it('confidence는 항상 low(도로명/지번 직접검색이 아니므로 신뢰도 낮음으로 분류)', async () => {
+    mockFetchOnce({ documents: [CORRECT_PLACE] });
+    const result = await kakaoKeywordSearch('가상마을 대광로제비앙', 'fake-key', MART_LAT, MART_LNG, 5);
+    assert.equal(result.confidence, 'low');
+  });
+
+  it('candidates에 place_name 포함 최대 3개, 점수순 정렬(저신뢰 후보 선택 UX용)', async () => {
+    const p1 = { place_name: '무관후보1', road_address_name: '가상로1길 1', x: '127.10', y: '37.70' };
+    const p2 = { place_name: '가상마을대광로제비앙포레스트아파트', road_address_name: '가상로1길 10', x: '127.0588', y: '37.7475' }; // 최고점
+    const p3 = { place_name: '무관후보3', road_address_name: '가상로1길 3', x: '127.30', y: '37.30' };
+    const p4 = { place_name: '무관후보4', road_address_name: '가상로1길 4', x: '127.40', y: '37.40' };
+    mockFetchOnce({ documents: [p1, p2, p3, p4] });
+    const result = await kakaoKeywordSearch('가상마을 대광로제비앙', 'fake-key', MART_LAT, MART_LNG, 5);
+    assert.equal(result.candidates.length, 3, `5개 중 최대 3개만 반환해야 함: ${JSON.stringify(result.candidates)}`);
+    assert.equal(result.candidates[0].place_name, '가상마을대광로제비앙포레스트아파트', '최고점 후보가 1번째여야 함');
+    assert.ok('road_address' in result.candidates[0] && 'lat' in result.candidates[0] && 'lng' in result.candidates[0], 'candidates 항목에 road_address/lat/lng 있어야 함');
+  });
+
+  it('후보가 3개 미만이면 있는 만큼만 반환', async () => {
+    mockFetchOnce({ documents: [CORRECT_PLACE, WRONG_PLACE] });
+    const result = await kakaoKeywordSearch('가상마을 대광로제비앙', 'fake-key', MART_LAT, MART_LNG, 5);
+    assert.equal(result.candidates.length, 2);
   });
 });
 

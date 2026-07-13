@@ -1,7 +1,7 @@
 'use strict';
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { preprocessOcrText, parseAddressComponents, isSimilarAddress, buildLearnedLocationResponse, resolveLearnKey, splitDetailAndAccessInfo } = require('../lib/receipt-utils');
+const { preprocessOcrText, parseAddressComponents, isSimilarAddress, buildLearnedLocationResponse, buildAccessInfoSuggestion, resolveLearnKey, splitDetailAndAccessInfo } = require('../lib/receipt-utils');
 
 // 아래 테스트 데이터는 전부 합성(가상) 주소/영수증 텍스트입니다.
 // 실제 고객명/전화번호/영수증 원문은 포함하지 않습니다.
@@ -297,6 +297,47 @@ describe('학습주소 키 일치성(전화번호 우선 저장 → 조회 → a
     };
     const result = buildLearnedLocationResponse('서울 노원구 완전다른동네 999', learned);
     assert.equal(result, null, '주소가 유사하지 않으면 access_info만 남기지 않고 전체를 미적용해야 함');
+  });
+});
+
+describe('buildAccessInfoSuggestion (원칙 B — phone-key access_info 적극 활용)', () => {
+  it('phone 있음 + learned.access_info 있음 → 제안값 반환(accessInfoSource=phone_history, needsConfirm=true)', () => {
+    const phone = '010-0000-9001';
+    const learned = { road_address: '서울 강남구 가상로 1', access_info: '공동현관 9999', phone };
+    const result = buildAccessInfoSuggestion(phone, learned);
+    assert.deepEqual(result, { accessInfo: '공동현관 9999', accessInfoSource: 'phone_history', accessInfoNeedsConfirm: true });
+  });
+
+  it('phone 없으면(name-key만 있는 상황) 제안하지 않음', () => {
+    const learned = { road_address: '서울 강남구 가상로 1', access_info: '공동현관 9999' };
+    assert.equal(buildAccessInfoSuggestion(null, learned), null);
+    assert.equal(buildAccessInfoSuggestion('', learned), null);
+    assert.equal(buildAccessInfoSuggestion(undefined, learned), null);
+  });
+
+  it('learned 레코드 자체가 없으면 제안하지 않음', () => {
+    assert.equal(buildAccessInfoSuggestion('010-0000-9001', null), null);
+    assert.equal(buildAccessInfoSuggestion('010-0000-9001', undefined), null);
+  });
+
+  it('learned.access_info가 비어있으면 제안하지 않음', () => {
+    const learned = { road_address: '서울 강남구 가상로 1', access_info: '' };
+    assert.equal(buildAccessInfoSuggestion('010-0000-9001', learned), null);
+    const learnedNoField = { road_address: '서울 강남구 가상로 1' };
+    assert.equal(buildAccessInfoSuggestion('010-0000-9001', learnedNoField), null);
+  });
+
+  it('access_info가 너무 길면(40자 초과) 방어적으로 제외', () => {
+    const longText = '가'.repeat(41);
+    const learned = { road_address: '서울 강남구 가상로 1', access_info: longText };
+    assert.equal(buildAccessInfoSuggestion('010-0000-9001', learned), null);
+  });
+
+  it('주소 유사도와 무관하게 동작 — 주소가 다른 학습 레코드에서도 access_info만 제안', () => {
+    // 이 함수 자체는 주소 비교를 하지 않음(호출부가 이미 게이트 실패를 확인한 뒤에만 호출)
+    const learned = { road_address: '완전히 다른 지역 주소', access_info: '경비실 호출', phone: '010-0000-9001' };
+    const result = buildAccessInfoSuggestion('010-0000-9001', learned);
+    assert.equal(result.accessInfo, '경비실 호출');
   });
 });
 

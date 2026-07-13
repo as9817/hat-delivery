@@ -19,6 +19,7 @@ const {
   preprocessOcrText,
   parseAddressComponents,
   buildLearnedLocationResponse,
+  buildAccessInfoSuggestion,
   splitDetailAndAccessInfo,
   enrichDetailAddressWithBuildingName,
   maskForLog,
@@ -108,16 +109,24 @@ exports.processReceipt = functions
       // null을 반환해 아래 standardizeAddress()로 이번 영수증 기준 표준화가
       // 이어지도록 함 — 학습주소가 이번 결과를 무조건 덮어쓰지 않도록 하는 핵심 지점.
       const learnKey = resolveLearnKey(parsed.phone, parsed.name);
+      // 게이트(buildLearnedLocationResponse) 실패 시에도 원본 레코드(learned)는
+      // 버리지 않고 아래로 흘려보냄 — 주소는 자동 적용하지 않되 학습주소 후보 노출/
+      // phone-key access_info 활용(원칙 B)에 재사용하기 위해 스코프를 밖으로 뺌.
+      let learned = null;
       if (learnKey) {
         const learnedSnap = await db.ref((dbBase ? dbBase + '/' : '') + 'settings/learnedLocations/' + learnKey).once('value').catch(() => null);
-        const learned = learnedSnap?.val();
+        learned = learnedSnap?.val() || null;
         const learnedLocation = buildLearnedLocationResponse(parsed.address, learned);
         if (learnedLocation) {
           // PII(전화번호/성명/주소 원문)는 로그에 남기지 않음 — 적용 여부만 기록
           logger.info('학습주소 적용됨(주소 유사도 일치) / access_info 포함:', !!learnedLocation.access_info);
           res.status(200).json({ status: 'success', data: {
             customer: { name: parsed.name, phone: parsed.phone || '' },
-            location: { ...learnedLocation, source: 'learned' },
+            location: {
+              ...learnedLocation, source: 'learned',
+              confidence: 'high', candidates: [], learnedCandidate: null,
+              accessInfoSource: null, accessInfoNeedsConfirm: false,
+            },
             totalAmount: parsed.totalAmount || '',
           }});
           return;
@@ -158,6 +167,33 @@ exports.processReceipt = functions
       // 결과만 남은 경우는 'raw_fallback'(기사 확인 필요) — 클라이언트가 이 값으로
       // 신호등 상태(초록/노랑)를 판정하는 유일한 근거이므로 lat/lng 존재 여부로만 결정.
       const source = (location.lat && location.lng) ? 'standardized' : 'raw_fallback';
+      // kakaoAddrSearch(도로명/지번 직접검색) 경로는 confidence:'high', kakaoKeywordSearch
+      // (건물명/고객명 키워드검색) 경로는 confidence:'low' — 두 함수가 각자 반환값에 실어
+      // 나르므로 standardizeAddress()는 그대로 통과시키기만 하면 됨(수정 불필요).
+      const confidence = location.confidence || 'low';
+      const candidates = (confidence === 'low' && Array.isArray(location.candidates)) ? location.candidates : [];
+
+      // 학습주소 후보 — 주소 유사도 게이트를 통과 못했더라도(위에서 이미 걸러짐)
+      // 저신뢰 표준화 결과일 때만 노출(고신뢰 결과는 후보 UI 자체를 안 띄움).
+      // 자기 자신과 비교하면 항상 통과하므로 buildLearnedLocationResponse를 그대로 재사용.
+      const learnedCandidate = (confidence === 'low' && learned)
+        ? buildLearnedLocationResponse(learned.road_address, learned)
+        : null;
+
+      // access_info: 이번 영수증에서 직접 파싱된 값이 최우선. 없을 때만 phone-key
+      // 학습 이력(원칙 B)을 제안 — 주소는 절대 함께 덮어쓰지 않고 access_info만 사용.
+      let finalAccessInfo = splitResult.accessInfo;
+      let accessInfoSource = finalAccessInfo ? 'current' : null;
+      let accessInfoNeedsConfirm = false;
+      if (!finalAccessInfo) {
+        const suggestion = buildAccessInfoSuggestion(parsed.phone, learned);
+        if (suggestion) {
+          finalAccessInfo = suggestion.accessInfo;
+          accessInfoSource = suggestion.accessInfoSource;
+          accessInfoNeedsConfirm = suggestion.accessInfoNeedsConfirm;
+          logger.info('phone-history access_info 제안 적용됨(원칙 B)');
+        }
+      }
 
       res.status(200).json({
         status: 'success',
@@ -166,10 +202,15 @@ exports.processReceipt = functions
           location: {
             road_address:   location.road_address   || parsed.address || '',
             detail_address: enrichedDetailAddress,
-            access_info: splitResult.accessInfo, // OCR 괄호에서 자동 분리(학습값 없는 신규 주소)
+            access_info: finalAccessInfo,
             lat: location.lat || null,
             lng: location.lng || null,
             source,
+            confidence,
+            candidates,
+            learnedCandidate,
+            accessInfoSource,
+            accessInfoNeedsConfirm,
           },
           totalAmount: parsed.totalAmount || '',
         },

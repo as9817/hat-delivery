@@ -68,6 +68,9 @@ async function kakaoAddrSearch(query, kakaoKey, martLat, martLng, martRadius) {
     // 카카오 주소검색이 도로명주소에 등록된 건물명(주로 아파트 단지명)을 반환하는 경우 함께 실어 나름.
     // 검색어(query)와 무관하게 카카오 DB에 등록된 값이라 OCR 품질과 별개로 신뢰도가 높음.
     buildingName: doc.road_address?.building_name || null,
+    // 도로명/지번 주소 DB 직접 매칭 — 여러 장소가 경쟁하는 키워드검색과 달리 사실상
+    // 유일 후보에 가까워 신뢰도 높음으로 분류(저신뢰 후보 선택 UX 노출 기준).
+    confidence: 'high',
   };
 }
 
@@ -103,10 +106,16 @@ function scoreKakaoKeywordCandidate(query, doc, distKm) {
   return matchCount * 100 + categoryAdj - distKm * DIST_PENALTY_WEIGHT;
 }
 
+// 저신뢰 주소 후보 선택 UX에 노출할 최대 후보 수 — 너무 많으면 기사가 고르기
+// 번거로우므로 상위 3개로 제한.
+const MAX_KEYWORD_CANDIDATES = 3;
+
 /**
  * 카카오 키워드(건물명) 검색. 후보 중 쿼리 토큰 매치 수(scoreKeywordMatch) +
  * 카테고리(실거주 건물 가점/판촉·중개·출입구 감점) + 거리(가까울수록 가점,
- * 완화된 가중치)로 최적 후보를 선택.
+ * 완화된 가중치)로 최적 후보를 선택. 여러 장소가 경쟁하는 구조라 주소검색
+ * (kakaoAddrSearch)보다 신뢰도가 낮으므로 confidence:'low'와 함께, 기사가
+ * 직접 고를 수 있도록 상위 후보 목록(candidates)도 함께 반환한다.
  */
 async function kakaoKeywordSearch(query, kakaoKey, martLat, martLng, martRadius) {
   if (!query?.trim()) return null;
@@ -118,16 +127,24 @@ async function kakaoKeywordSearch(query, kakaoKey, martLat, martLng, martRadius)
   const data = await res.json();
   const docs = data.documents || [];
   if (!docs.length) return null;
-  let bestDoc = docs[0];
-  let bestScore = -Infinity;
-  docs.forEach(doc => {
+  const scored = docs.map(doc => {
     const dist = (martLat && martLng) ? haversineKm(martLat, martLng, parseFloat(doc.y), parseFloat(doc.x)) : 99;
-    const score = scoreKakaoKeywordCandidate(query, doc, dist);
-    if (score > bestScore) { bestScore = score; bestDoc = doc; }
-  });
+    return { doc, score: scoreKakaoKeywordCandidate(query, doc, dist) };
+  }).sort((a, b) => b.score - a.score);
+  const bestDoc = scored[0].doc;
+  const bestScore = scored[0].score;
   // 건물명/place_name은 로그에 남기지 않고 후보 수/점수만 남김 — PII 노출 방지
   logger.info('kakaoKeywordSearch: 후보', docs.length, '건 중 최고점 선택 (score:', bestScore, ')');
-  return { road_address: bestDoc.road_address_name || bestDoc.address_name || query, lat: parseFloat(bestDoc.y), lng: parseFloat(bestDoc.x) };
+  return {
+    road_address: bestDoc.road_address_name || bestDoc.address_name || query,
+    lat: parseFloat(bestDoc.y), lng: parseFloat(bestDoc.x),
+    confidence: 'low',
+    candidates: scored.slice(0, MAX_KEYWORD_CANDIDATES).map(({ doc }) => ({
+      road_address: doc.road_address_name || doc.address_name || query,
+      lat: parseFloat(doc.y), lng: parseFloat(doc.x),
+      place_name: doc.place_name || null, // 기사가 후보를 구분할 유일한 단서(카카오맵 공개 장소명, PII 아님)
+    })),
+  };
 }
 
 /**
@@ -275,6 +292,28 @@ function buildLearnedLocationResponse(currentAddress, learned) {
   };
 }
 
+// phone-history access_info 제안값이 이 길이를 넘으면 노출하지 않음 — 과거 메모성
+// 텍스트/오기입으로 보고 방어적으로 스킵(정상 출입정보는 이보다 훨씬 짧음).
+const ACCESS_INFO_SUGGESTION_MAX_LENGTH = 40;
+
+/**
+ * 주소 유사도 게이트(isSimilarAddress)를 통과하지 못해 학습주소 전체는 자동
+ * 적용되지 않더라도, access_info만은 phone-key로 조회된 경우에 한해 더 적극적으로
+ * 활용한다("원칙 B"). name-key로만 조회된 경우는 신원 신호가 약해 제외 — 이번
+ * 영수증에서 인식된 전화번호(phone)가 있어야만(즉 resolveLearnKey가 실제로
+ * phone을 키로 사용했을 것이 보장되는 경우에만) 제안한다.
+ * @param {string|null|undefined} phone - 이번 영수증에서 인식된 전화번호
+ * @param {object|null} learned - settings/learnedLocations/{key} 레코드(주소 불일치와 무관하게 존재하기만 하면 됨)
+ * @returns {{accessInfo:string, accessInfoSource:'phone_history', accessInfoNeedsConfirm:true}|null}
+ */
+function buildAccessInfoSuggestion(phone, learned) {
+  if (!phone || !learned) return null;
+  const accessInfo = String(learned.access_info || '').trim();
+  if (!accessInfo) return null;
+  if (accessInfo.length > ACCESS_INFO_SUGGESTION_MAX_LENGTH) return null;
+  return { accessInfo, accessInfoSource: 'phone_history', accessInfoNeedsConfirm: true };
+}
+
 // 괄호 안에 이 키워드 중 하나라도 있으면 출입정보로 판단 — 없으면 애매한 것으로
 // 보고 분리하지 않음(기존처럼 detailAddress에 그대로 둠). "#"/"*"는 실제
 // 비밀번호 표기("#1234", "2580*")에서 흔히 등장하는 짧은 표식이라 포함시킴.
@@ -362,6 +401,7 @@ module.exports = {
   parseAddressComponents,
   isSimilarAddress,
   buildLearnedLocationResponse,
+  buildAccessInfoSuggestion,
   splitDetailAndAccessInfo,
   enrichDetailAddressWithBuildingName,
   scoreKakaoKeywordCandidate,
