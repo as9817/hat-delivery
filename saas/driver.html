@@ -393,7 +393,10 @@
       z-index: 300; flex-direction: column;
     }
     .photo-viewer.open { display: flex; }
-    .photo-viewer img { flex: 1; width: 100%; object-fit: contain; }
+    .photo-viewer img {
+      flex: 1; width: 100%; object-fit: contain;
+      touch-action: none; transform-origin: center center;
+    }
     .photo-viewer-btns {
       display: flex; gap: 12px; padding: 16px;
       background: rgba(0,0,0,.7);
@@ -906,6 +909,12 @@
   <div class="photo-viewer" id="photo-viewer" onclick="if(event.target===this)closePhotoViewer()">
     <!-- X 닫기 버튼 (우상단) -->
     <button onclick="closePhotoViewer()" style="position:absolute;top:16px;right:16px;z-index:10;background:rgba(255,255,255,.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">×</button>
+    <!-- 확대/축소 컨트롤 (좌상단) -->
+    <div style="position:absolute;top:16px;left:16px;z-index:10;display:flex;gap:8px">
+      <button onclick="zoomPhotoBy(0.5)" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">+</button>
+      <button onclick="zoomPhotoBy(-0.5)" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">−</button>
+      <button onclick="resetPhotoZoom()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">⟲</button>
+    </div>
     <img id="photo-viewer-img" src="" alt="배송 완료 사진" onclick="event.stopPropagation()">
     <div class="photo-viewer-btns">
       <button class="btn btn-dark" style="flex:1" onclick="closePhotoViewer()">닫기</button>
@@ -3816,6 +3825,7 @@ async function viewPhoto(deliveryId) {
   currentPhotoId = deliveryId;
   const url = await getPhoto(deliveryId);
   if (!url) { showToast('사진이 없습니다'); return; }
+  resetPhotoZoom(); // 이전에 보던 사진의 확대/이동 상태가 새로 여는 사진에 남지 않게 함
   document.getElementById('photo-viewer-img').src = url;
   const delBtn = document.getElementById('btn-delete-photo');
   if (delBtn) delBtn.style.display = '';
@@ -3829,6 +3839,7 @@ async function viewPhoto(deliveryId) {
 function viewPhotoUrl(url) {
   if (!url) return;
   currentPhotoId = null;
+  resetPhotoZoom();
   document.getElementById('photo-viewer-img').src = url;
   const delBtn = document.getElementById('btn-delete-photo');
   if (delBtn) delBtn.style.display = 'none';
@@ -3838,12 +3849,94 @@ function viewPhotoUrl(url) {
 function closePhotoViewer() {
   document.getElementById('photo-viewer').classList.remove('open');
   document.getElementById('photo-viewer-img').src = '';
+  resetPhotoZoom();
 }
 
 // ESC 키로 사진 뷰어 닫기
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closePhotoViewer();
 });
+
+// ══════════════════════════════════════════════════════
+// 사진 뷰어 확대/축소/드래그 이동 (1차: 버튼 확대 + 드래그, 핀치줌은 2차)
+// OCR 영수증 보기/이전 배송사진 보기/완료사진 보기 3개 사용처가 #photo-viewer를
+// 공유하므로 여기서 한 번만 구현하면 셋 다 동일하게 적용됨.
+// ══════════════════════════════════════════════════════
+const PHOTO_ZOOM_MIN = 1;
+const PHOTO_ZOOM_MAX = 3;
+const PHOTO_ZOOM_STEP = 0.5;
+let _photoZoom = { scale: 1, tx: 0, ty: 0 };
+let _photoDrag = null;
+let _lastPhotoTapTime = 0;
+
+function _applyPhotoTransform() {
+  const img = document.getElementById('photo-viewer-img');
+  if (!img) return;
+  img.style.transform = `translate(${_photoZoom.tx}px, ${_photoZoom.ty}px) scale(${_photoZoom.scale})`;
+  img.style.cursor = _photoZoom.scale > PHOTO_ZOOM_MIN ? 'grab' : 'default';
+}
+
+// 다른 사진을 열거나 뷰어를 닫을 때 항상 호출 — 이전 사진의 확대/이동 상태가
+// 다음에 여는 사진(다른 배송 건일 수 있음)에 남아있지 않게 함.
+function resetPhotoZoom() {
+  _photoZoom = { scale: 1, tx: 0, ty: 0 };
+  _applyPhotoTransform();
+}
+
+function zoomPhotoBy(delta) {
+  let next = Math.round((_photoZoom.scale + delta) * 10) / 10;
+  next = Math.min(PHOTO_ZOOM_MAX, Math.max(PHOTO_ZOOM_MIN, next));
+  _photoZoom.scale = next;
+  if (next === PHOTO_ZOOM_MIN) { _photoZoom.tx = 0; _photoZoom.ty = 0; } // 1배로 돌아오면 이동값도 초기화
+  _applyPhotoTransform();
+}
+
+function _photoDoubleTapToggle() {
+  if (_photoZoom.scale === PHOTO_ZOOM_MIN) {
+    _photoZoom.scale = 2;
+  } else {
+    _photoZoom.scale = PHOTO_ZOOM_MIN;
+    _photoZoom.tx = 0;
+    _photoZoom.ty = 0;
+  }
+  _applyPhotoTransform();
+}
+
+(function initPhotoViewerGestures() {
+  const img = document.getElementById('photo-viewer-img');
+  if (!img) return;
+  img.addEventListener('pointerdown', (e) => {
+    _photoDrag = {
+      startX: e.clientX, startY: e.clientY,
+      startTx: _photoZoom.tx, startTy: _photoZoom.ty,
+      moved: false, pointerId: e.pointerId
+    };
+    try { img.setPointerCapture(e.pointerId); } catch(err) {}
+  });
+  img.addEventListener('pointermove', (e) => {
+    if (!_photoDrag || _photoZoom.scale <= PHOTO_ZOOM_MIN) return; // 1배에서는 드래그 이동 안 함
+    const dx = e.clientX - _photoDrag.startX;
+    const dy = e.clientY - _photoDrag.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) _photoDrag.moved = true;
+    _photoZoom.tx = _photoDrag.startTx + dx;
+    _photoZoom.ty = _photoDrag.startTy + dy;
+    _applyPhotoTransform();
+  });
+  img.addEventListener('pointerup', (e) => {
+    const wasDrag = !!(_photoDrag && _photoDrag.moved);
+    if (_photoDrag) { try { img.releasePointerCapture(_photoDrag.pointerId); } catch(err) {} }
+    _photoDrag = null;
+    if (wasDrag) return; // 드래그였으면 탭/더블탭 판정 안 함
+    const now = Date.now();
+    if (now - _lastPhotoTapTime < 300) {
+      _photoDoubleTapToggle();
+      _lastPhotoTapTime = 0;
+    } else {
+      _lastPhotoTapTime = now;
+    }
+  });
+  img.addEventListener('pointercancel', () => { _photoDrag = null; });
+})();
 
 async function deletePhotoConfirm() {
   if (!confirm('사진을 삭제하시겠습니까?')) return;
