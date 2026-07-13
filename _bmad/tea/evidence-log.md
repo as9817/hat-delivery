@@ -401,3 +401,25 @@
 - **Result**: 실사고를 유발한 정확한 지리적 조건과 실제 사고 테넌트·실제 계정·실제 파이프라인 전체로 재검증한 결과, 카테고리 기반 채점식 개선이 실사고 케이스를 정확히 해결함을 확인. 신규 Functions 에러 없음, DB에 부작용 없음.
 - **후속**: 카테고리 키워드 목록은 이번 실사고 1건의 실측을 기준으로 정한 것이라, 다른 지역/다른 카테고리 표기 패턴에 대한 일반화는 추가 검증이 필요. 저신뢰 경로에 대한 주소 후보 선택 UX(2차 안전장치)는 `_bmad/backlog.md`에 별도 기록.
 - **Sensitive data policy**: 검증에 사용한 아파트 단지명·도로명·마트 소재지는 카카오맵/사업자 등록에 공개된 정보이며 특정 개인과 무관. 합성 이름/전화번호만 사용, 실제 고객명/전화번호/실거주 상세주소는 본 로그에도 대화 응답에도 기록하지 않음. testmart 계정 비밀번호 및 실사고 테넌트의 테스트용 기사 계정 비밀번호는 이 로그/커밋/대화 응답 어디에도 기록하지 않음. `processReceipt`가 읽기 전용이라 정리 대상 데이터 자체가 없었음을 재확인.
+
+## 2026-07-13 — 학습주소 후보/Kakao 후보 선택 UX 배포 검증
+
+- **대상**: `functions/lib/receipt-utils.js`(`kakaoKeywordSearch()` candidates/confidence, 신규 `buildAccessInfoSuggestion()`), `functions/index.js`(`processReceipt` 응답에 confidence/candidates/learnedCandidate/accessInfoSource/accessInfoNeedsConfirm 추가), `saas/driver.html`(`computeResultStatus()`/`renderResultStatus()`/`renderAddrCandidates()`, 공용 `applyAddressCandidate()`, `applyConvertedAddr()` 좌표 갱신 버그 수정)
+- **커밋**: `392f886`(핵심), `71816c0`(APP_VERSION 16 범프)
+- **배포 전 확인**: `git status` clean(5개 파일만 스코프), `node --test "test/*.test.js"` **142/142 pass**(기존 133 + 신규 9).
+- **배포**: `firebase deploy --only functions,hosting --project hatdelivery-saas` 실행. `database.rules.json`/`storage.rules` 배포 안 함. 배포 직후 `firebase database:set /settings/appVersion --data '"16"'`로 갱신.
+- **배포 후 라이브 검증(테스트용 기사 계정 세션으로 실제 Firebase ID 토큰 확보, Playwright로 라이브 도메인에서 실제 `processReceipt` 호출 + 결과화면 DOM 조작 — 합성 데이터만 사용)**:
+  1. **APP_VERSION 확인**: 라이브 접속 시 `APP_VERSION==='16'` 확인.
+  2. **High confidence 직접 주소검색**: 순수 도로명+동/호수 합성 영수증 호출 → 응답 `confidence:'high'`, `candidates:[]` 확인. 결과화면 반영 후 상태바 "🟢 바로 추가 가능", 후보 UI `display:none` 확인.
+  3. **Low confidence Kakao 후보**: 건물명으로 시작하는 합성 영수증 호출 → `confidence:'low'`, 후보 3개(1등이 정확히 정답 건물 — 지난 라운드 채점식 개선이 여전히 유효함을 재확인) 확인. 결과화면 노랑 "🟡 주소 후보 확인 필요" + Kakao 후보 카드 3개(place_name 포함) 노출 확인. 2번째 후보(의도적으로 오답에 해당하는 후보) 클릭 → `res-addr`/`window._pendingOCR.lat`/`lng`가 정확히 그 후보 값으로 갱신되고, 상태가 즉시 초록 "바로 추가 가능"으로 전환되며 후보 UI가 사라짐을 확인.
+  4. **learnedCandidate**: 합성 전화번호로 주소가 다른 학습 레코드를 직접 시드한 뒤 같은 전화번호+다른(이번 영수증) 주소로 재스캔 → 응답에 `learnedCandidate` 포함, `road_address`는 이번 표준화 결과 그대로 유지(자동 적용 안 됨) 확인. 결과화면에 "📚 이전에 확인한 주소" 카드가 Kakao 후보보다 먼저(DOM 순서상 항상 위) 표시됨을 확인. "학습주소 사용" 클릭 → `road_address`/`detail_address`/`access_info`/`lat`/`lng` 전부 학습 레코드 값으로 정확히 적용되고 초록 전환됨을 확인.
+  5. **phone-history access_info**: 위 3번 시드 레코드에 `access_info`도 포함시켜 재검증 — 주소는 자동 미적용 상태에서도 `access_info`만 자동 입력(`accessInfoSource:'phone_history'`, `accessInfoNeedsConfirm:true`) 확인. 결과화면에 "📌 이전 출입정보가 자동 입력됐습니다..." 안내문 노출, 해당 입력 필드가 `readOnly=false`(즉시 편집 가능) 상태임을 확인.
+  6. **주소 다시 찾기 좌표 갱신(버그 수정 확인)**: `window._pendingOCR.lat/lng`를 의도적으로 `null`로 초기화한 뒤 실제 `regeocodeAddr()` → "이 주소 적용" 클릭 → 적용 전 `null`이던 `window._pendingOCR.lat/lng`가 적용 후 정확한 좌표로 갱신됨을 확인(수정 전에는 이 값이 갱신되지 않아 저장 시 틀린 좌표가 들어가는 버그가 있었음).
+  7. **같은 전화번호 다른 주소 오적용 방지**: 4번 시나리오 자체가 이 케이스 — 학습 레코드의 주소가 이번 영수증과 명백히 다른 상태에서 자동 적용되지 않고 후보로만 노출됨을 재확인(회귀 없음).
+  8. **모바일 375px**: 노랑 상태에서 학습주소 후보 카드 + Kakao 후보 3개(place_name 포함) + 안내문 전부 겹침 없이 표시됨을 스크린샷 2장(상단/스크롤)으로 확인.
+  9. **기존 OCR confirmAdd 흐름 회귀**: high confidence 케이스 결과를 실제 `confirmAdd()`로 호출 → 배송카드에 이름/주소/좌표/상태 정상 저장 확인.
+  10. **콘솔 에러**: 뷰포트 리사이즈 과정에서 favicon 404 1건 + Firebase RTDB WebSocket 재연결 실패 2건 확인 — 전부 이번 변경과 무관한 기존/환경적 이슈(리사이즈 시 일시적 네트워크 재연결)로 판단, 신규 코드 관련 에러 없음.
+  11. **Functions ERROR 로그**: `firebase functions:log`로 `processReceipt` 최근 로그 조회 — **ERROR 0건**.
+  12. **정리**: 실제 `confirmAdd()`로 생성된 order 1건, 시드한 합성 학습 레코드 1건, `confirmAdd()`의 기존 자동학습 로직으로 부수 생성된 레코드 1건 — 총 3건 전부 `firebase database:remove`로 삭제 후 재조회로 `null` 확인.
+- **Result**: 학습주소 후보 우선순위(학습 후보 → Kakao 후보), 주소/좌표 자동 적용 게이트 무변경(오적용 방지 유지), access_info의 phone-key 기반 적극 활용, 신뢰도 기반 초록/노랑 판정, 기존 좌표 미반영 버그 수정까지 설계한 그대로 실제 배포본에서 전부 동작함을 확인. 신규 Functions/코드 관련 콘솔 에러 없음.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호). 검증 중 생성된 order 1건, 시드한 학습 레코드 1건, 자동학습 부수 레코드 1건 전부 삭제 및 재조회로 잔존 없음(`null`) 확인. 실제 고객명/전화번호/실거주 주소, 테스트 계정 비밀번호는 본 로그에도 대화 응답에도 기록하지 않음.

@@ -264,6 +264,23 @@
 - **후속(이번 범위 밖, 아래 백로그에 별도 기록)**: 저신뢰(신뢰도 낮음) 경로에서의 주소 후보 선택 UX(2차 안전장치), 카테고리 키워드 목록은 이번 실사고 1건 기준이라 다른 지역/카테고리 표기 패턴에 대한 추가 검증 필요.
 - **Sensitive data policy**: 검증에 사용한 아파트 단지명·도로명은 카카오맵에 등록된 공개 장소 정보(특정 개인과 무관). 합성 이름/전화번호만 사용. 실제 고객명/전화번호/실거주 상세주소는 본 문서/커밋/로그 어디에도 기록하지 않음. wamartmillak 테넌트 계정(테스트용, 채팅으로 직접 전달받음)의 비밀번호는 이 문서/커밋/로그 어디에도 기록하지 않음. `processReceipt`는 코드상 DB 쓰기가 없는 순수 조회 함수라 신규 orders/learnedLocations 생성 자체가 없음을 재확인.
 
+### 학습주소 후보 표시 + 이전 출입정보 분리 적용 + Kakao 후보 선택 UX (2차 안전장치)
+- **Status**: ✅ Deployed / Verified (Functions + Hosting 배포, `database.rules.json`/`storage.rules` 미변경)
+- **Commits**: `392f886`(핵심 구현), `71816c0`(APP_VERSION 16 범프)
+- **배경**: "Kakao 키워드검색 채점식 개선" 라운드(위 항목 참고)에서 남겨둔 2차 안전장치. 채점식 개선만으로는 100% 정확을 보장할 수 없고, 학습주소 게이트(`isSimilarAddress`)가 raw OCR 텍스트와 공식 도로명을 비교하는 구조상 아파트/건물명 스타일 주소에서는 구조적으로 잘 안 맞는다는 점을 read-only 설계 라운드에서 확인 — "주소/좌표는 자동 적용 게이트를 절대 안 건드리고 사람이 후보 중 선택", "출입정보(access_info)만 phone-key 신뢰도로 더 적극 활용"이라는 두 원칙으로 설계 후 구현.
+- **핵심 변경** (`functions/lib/receipt-utils.js`, `functions/index.js`, `saas/driver.html`):
+  - `kakaoKeywordSearch()`가 `confidence:'low'`와 상위 후보 최대 3개(`candidates`, `place_name` 포함)를 함께 반환, `kakaoAddrSearch()`는 `confidence:'high'` — 두 함수 반환값을 그대로 통과시키기만 하면 되므로 `standardizeAddress()` 자체는 무변경.
+  - 신규 순수함수 `buildAccessInfoSuggestion(phone, learned)` — 주소 유사도 게이트를 통과 못해도, **phone-key로 조회된 경우에 한해** 학습 레코드의 `access_info`를 제안(`accessInfoSource:'phone_history'`, `accessInfoNeedsConfirm:true`). name-key만 있는 경우와 40자 초과 값은 제외.
+  - `processReceipt`가 학습 레코드를 게이트 실패 시에도 버리지 않고 `learnedCandidate`(자기 자신과 비교하는 방식으로 `buildLearnedLocationResponse` 재사용)로 응답에 포함. 주소/좌표 자동 적용 게이트(`isSimilarAddress`)는 **전혀 수정하지 않음**.
+  - `computeResultStatus()`가 `confidence==='low'`일 때 좌표가 있어도 초록이 아니라 노랑 "주소 후보 확인 필요"로 판정. 결과화면에 학습주소 후보(있으면 항상 Kakao 후보보다 위) + Kakao 후보(최대 3개) 카드 신규, "이 주소/학습주소 사용" 클릭 시에만 적용.
+  - 공용 함수 `applyAddressCandidate()`로 후보 적용 로직을 통합 — 적용 시 `window._pendingOCR.lat/lng`를 직접 갱신하고 `confidence`를 `'high'`로 격상(그렇지 않으면 재렌더링 시 다시 노랑+후보로 돌아가는 문제를 자체 리뷰에서 발견해 수정).
+  - **부수 버그 수정**: 기존 `applyConvertedAddr()`("주소 다시 찾기 → 적용")가 `window._ocrLat`/`_ocrLng`만 세팅하고 `confirmAdd()`가 실제로 읽는 `window._pendingOCR.lat/lng`는 갱신하지 않아, 좌표를 바로잡아도 저장 시 원래(틀린) 좌표가 들어가던 버그를 이번에 공용 함수로 함께 수정.
+- **테스트**: `node --test "test/*.test.js"` **142/142 pass**(기존 133 + 신규 9 — `buildAccessInfoSuggestion` 6건, `kakaoKeywordSearch` candidates/confidence 3건).
+- **Deploy**: `firebase deploy --only functions,hosting --project hatdelivery-saas`. `DEPLOY_CHECKLIST.md` §4-1 절차대로 배포 전 `APP_VERSION` 15→16 범프, 배포 후 `settings/appVersion`도 "16"으로 갱신.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-13 — 학습주소 후보/Kakao 후보 선택 UX 배포 검증" 참고. 실제 `processReceipt` 전체 파이프라인 + 결과화면 UI로 high/low confidence, learnedCandidate, phone-history access_info, 주소 다시 찾기 좌표 갱신, 오적용 방지, 모바일 375px, 기존 OCR 흐름 회귀 전부 확인.
+- **후속(이번 범위 밖)**: 카테고리 키워드 목록 일반화 검증(계속 진행 중인 후속 과제), 학습 레코드 자체에 `building_name` 저장해 매칭 신뢰도 추가 향상, name-key access_info 활용 여부 재검토.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호). 검증 중 시드한 합성 학습 레코드 1건, 실제 `confirmAdd()`로 생성된 order 1건, 자동학습으로 부수 생성된 레코드 1건 전부 삭제 및 재조회로 잔존 없음(`null`) 확인. 실제 고객명/전화번호/실거주 주소는 본 문서/커밋/로그 어디에도 기록하지 않음.
+
 ---
 
 ## 진행 대기 (P1)
@@ -295,9 +312,9 @@
 - **배송목록 카드 compact layout 전면 재설계** — "TMS 라이브 사용성 피드백 1차" 라운드에서 나온 "카드가 크고 왼쪽으로 치우쳐 한눈에 보기 어렵다"는 피드백. 이번 라운드는 패딩/정렬 소폭 조정(padding 16→14px, `.dl-top` flex-start)만 진행했고, 정보 밀도를 근본적으로 낮추는 재설계(배지를 아이콘 한 줄로 통합, 상세정보는 탭해야 펼치는 방식 등)는 별도 UX 설계가 필요해 2차 라운드로 분리.
 - ~~**수기 출입정보 직접입력 필드**~~ → **완료**: 위 "완료" 섹션의 "TMS 수기 직접 입력 화면 — 상세주소/출입정보 필드 추가" 항목 참고.
 - ~~**아파트/빌라/건물명 detailAddress 자동 분리 개선**~~ → **1차 완료**: 위 "완료" 섹션의 "아파트/빌라명 상세주소 자동 보강 1차 (OCR/processReceipt 경로)" 항목 참고. 학습주소/수기입력 경로 보강은 후속으로 남음.
-- **저신뢰 주소 후보 선택 UX (2차 안전장치)** — "Kakao 키워드검색 채점식 개선"(위 항목 참고) read-only 분석 단계에서 설계했으나 1차 범위에서 제외. 카테고리/거리 채점식을 개선해도 100% 정확을 보장할 수 없으므로, 신뢰도 낮은 경로(건물명 키워드검색·고객명 fallback으로 좌표를 확정한 경우)에서는 Kakao 후보 최대 3개(place_name 포함)를 결과화면에 노출하고 기사가 "이 주소 사용"을 눌러야만 적용되는 UX. 신뢰도 높은 경로(원본 주소/지번 직접검색, 주변동 병렬검색)는 기존처럼 초록 "바로 추가 가능" 유지. 필요 파일: `functions/index.js`(candidates 응답 필드 추가), `saas/driver.html`(후보 목록 UI 신규).
-- **학습주소 존재하지만 유사도 불일치 시 "학습주소 후보 있음" 버튼** — 위 후보 선택 UX와 함께 설계된 항목. `buildLearnedLocationResponse()`가 `isSimilarAddress()` 실패로 학습 레코드를 그냥 버리는 대신, 후보 목록 맨 앞에 "📚 이전에 확인한 주소" 형태로 얹어 기사가 선택할 수 있게 함(자동 적용 게이트 자체는 무변경 — 같은 전화번호 다른 주소 오적용 방지 원칙 유지, 클릭이라는 사람의 판단이 개입해야만 적용).
-- **고객명 fallback/키워드검색 경로의 장기 신뢰도 연동** — `computeResultStatus()`(driver.html)가 현재 "좌표 존재 여부"만으로 초록/노랑을 가르는데, 실제로는 어떤 검색 경로(원본 주소검색 vs 키워드검색 vs 고객명 fallback)로 좌표를 확정했는지에 따라 신뢰도가 다름. 위 두 항목과 함께, 저신뢰 경로는 노랑 "주소 후보 확인 필요"로 강등시키는 신뢰도 신호(`confidence` 필드 등)를 `processReceipt` 응답에 추가하는 설계가 필요.
+- ~~**저신뢰 주소 후보 선택 UX (2차 안전장치)**~~ → **완료**: 위 "완료" 섹션의 "학습주소 후보 표시 + 이전 출입정보 분리 적용 + Kakao 후보 선택 UX (2차 안전장치)" 항목 참고.
+- ~~**학습주소 존재하지만 유사도 불일치 시 "학습주소 후보 있음" 버튼**~~ → **완료**: 동일 항목 참고.
+- ~~**고객명 fallback/키워드검색 경로의 장기 신뢰도 연동**~~ → **완료**: 동일 항목 참고. `confidence` 필드 추가로 해결.
 
 ## 백로그 (P2, 장기)
 
