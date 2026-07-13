@@ -367,3 +367,21 @@
   12. 정리: `addManual()`로 생성된 orders 3건을 `firebase database:remove`로 삭제 후 재조회로 `null` 확인, `settings/learnedLocations`에 해당 전화번호 키로 아무것도 생성되지 않았음을 재조회로 확인(자동학습 미태움 — `geocodeAndAdd()`가 학습 저장을 전혀 호출하지 않는다는 사전 코드 분석과 일치), 브라우저 `deliveries` 로컬 캐시도 필터링 후 재저장
 - **Result**: 수기 직접 입력 화면에서 상세주소/출입정보를 입력하면 기존 OCR 흐름과 동일한 저장·표시 파이프라인(배송카드/경로최적화 리스트/완료 화면)을 통해 정확히 반영되고, 값이 없을 때는 기존 동작과 동일하게 생략됨을 실제 배포본에서 확인. 자동학습에 전혀 영향을 주지 않음을 확인. 기존 OCR 흐름 및 지난 라운드 변경사항(배지 제거, 버튼 숨김/톤다운) 회귀 없음.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/가짜 전화번호/가상 주소, 구체 값은 본 로그에 기록하지 않음). 실제 고객명/전화번호/주소는 본 로그에도 대화 응답에도 기록하지 않음. testmart 계정 비밀번호는 이 로그/커밋/대화 응답 어디에도 기록하지 않음. 검증 종료 후 생성된 orders 총 7건(로컬 사전검증 4건 + 라이브 검증 3건) 전부 삭제 및 재조회로 잔존 없음(`null`) 확인, 로컬스토리지도 정리 완료.
+
+## 2026-07-13 — 아파트/빌라명 상세주소 자동 보강 1차 배포 검증
+
+- **대상**: `functions/lib/receipt-utils.js`(`enrichDetailAddressWithBuildingName()` 신규, `kakaoAddrSearch()`가 `buildingName` 추가 반환), `functions/index.js`(`standardizeAddress()`의 건물명 키워드 분기, `processReceipt` 응답 조립부)
+- **커밋**: `4349e0d`
+- **배포 전 확인**: `git status` clean(3개 파일만 스코프: `functions/index.js`, `functions/lib/receipt-utils.js`, `functions/test/receipt-utils.building-name.test.js`), `node --test "test/*.test.js"` **127/127 pass**(기존 109 + 신규 18).
+- **배포**: `firebase deploy --only functions --project hatdelivery-saas`만 실행. Hosting/`database.rules.json`/`storage.rules` 배포 안 함.
+- **배포 후 라이브 검증(testmart/test1 실계정 세션으로 실제 Firebase ID 토큰 확보, Playwright로 라이브 도메인에서 직접 `fetch` 호출 — 합성 데이터만 사용)**:
+  1. **사전 리스크 실측**: read-only 분석 단계에서 남겨뒀던 리스크 — "카카오 주소검색 응답의 `road_address.building_name`이 실제 라이브에서 채워지는지 불확실" — 를 배포 후 `geocodeAddress` 엔드포인트로 마트 반경 내 공개 지명(아파트 단지명 1건, 그 도로명주소)을 조회해 확인. 도로명 주소로 조회 시 `buildingName` 필드에 해당 단지명이 정확히 채워짐을 실측 확인, 인근의 다른 도로명(정확한 지번을 모르고 추측한 값)은 `null`로 나와 "실제 카카오 DB에 등록된 주소만 채워진다"는 필드의 정상 동작도 함께 확인 — **리스크 해소**.
+  2. **OCR 원문 건물명 우선 확인**: 캔버스로 렌더링한 합성 영수증("주소: {건물명} {가상 동}동 {가상 호}호" 패턴)을 실제 `processReceipt`로 호출 → 응답 `detail_address`가 "{동/호} ({건물명})" 형태로 정확히 보강됨을 확인. `road_address`는 카카오가 반환한 도로명 그대로 유지(변경 없음).
+  3. **Kakao building_name만으로 보강 확인**: OCR 원문에 건물명 텍스트를 전혀 포함하지 않고 순수 도로명+동/호수만 있는 합성 영수증으로 호출 → 카카오 주소검색이 1차에서 바로 성공하며 함께 반환된 `building_name`만으로 동일하게 "{동/호} ({건물명})" 보강됨을 확인 — OCR 텍스트 품질과 무관하게 동작함을 실측으로 증명.
+  4. **일반어 미보강 확인**: 건물명 자리에 "아파트" 같은 종류명만 오는 패턴으로 호출 → 결과 `detail_address`에 "(아파트)" 형태의 괄호가 전혀 붙지 않음을 확인(테스트 문구 어순 문제로 `road_address` 자체가 다른 곳으로 매칭됐으나, 일반어 미보강이라는 핵심 동작 자체는 재확인됨 — 정밀한 문자열 단위 검증은 순수함수 테스트 9·10번이 더 정확히 커버).
+  5. **출입정보와 건물명 분리 확인**: "{건물명} {동/호} (공동현관 {가상번호})" 패턴으로 호출 → `detail_address`="{동/호} ({건물명})", `access_info`="공동현관 {가상번호}"로 정확히 분리됨을 확인 — 건물명과 출입정보가 절대 섞이지 않음(split → enrich 순서가 실제 배포본에서도 지켜짐).
+  6. **학습주소 경로 미보강 확인**: `settings/learnedLocations`에 건물명이 없는 상태의 합성 학습 레코드(도로명만 저장)를 직접 시드한 뒤, 그 도로명을 포함하는 유사 주소로 재스캔 → 응답 `source`="learned", `detail_address`가 학습 레코드에 저장된 값 그대로(건물명 보강 전혀 없이) 반환됨을 확인 — 학습 경로가 이번 변경의 영향을 받지 않음을 실측 확인.
+  7. **Functions ERROR 로그**: `firebase functions:log`로 `processReceipt` 최근 로그 조회 — **ERROR 0건**. 신설한 정보 로그("건물명 보강 적용 여부: true/false")도 불리언만 남기고 실제 건물명/주소는 기록하지 않음을 확인(기존 PII 마스킹 원칙 준수).
+  8. **정리**: 시드한 합성 학습주소 레코드 1건을 `firebase database:remove`로 삭제 후 재조회로 `null` 확인. 이번 검증은 `processReceipt`를 직접 `fetch`로 호출했을 뿐 driver.html의 `confirmAdd()` UI 흐름을 타지 않아 `orders`/`learnedLocations`에 부수적으로 생성된 데이터가 없음을 재조회로 확인(정리 대상이 시드 레코드 1건뿐이었음).
+- **Result**: 건물명 후보 우선순위(OCR 원문 우선 → Kakao `building_name` → 미보강)와 안전장치(일반어 제외, accessInfo 분리 유지, 학습주소/수기입력 경로 무영향)가 전부 실제 배포본에서 설계대로 동작함을 확인. 신규 콘솔/Functions 에러 없음.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름 "건물검증A~E" 패턴, 가짜 전화번호 01099990001~05 패턴). 검증에 사용한 도로명·건물명은 실존하는 공개 지명이지만 특정 개인과 무관하며, 실제 고객명/전화번호/실거주 상세주소는 본 로그에도 대화 응답에도 기록하지 않음. testmart 계정 비밀번호는 이 로그/커밋/대화 응답 어디에도 기록하지 않음. 검증 종료 후 시드한 합성 학습 레코드 1건 삭제 및 재조회로 잔존 없음(`null`) 확인.

@@ -235,6 +235,23 @@
 - **남은 범위 밖**: 수정 모달(`openEditModal`/`saveEdit`)에서 상세주소/출입정보 편집은 이번 라운드에 포함하지 않음(이름/주소/전화만 편집 가능한 기존 동작 유지) — 필요 시 별도 라운드.
 - **Sensitive data policy**: 합성 데이터만 사용. 검증 중 `addManual()`로 생성된 테스트 orders 3건 전부 REST API로 삭제, 재조회로 잔존 없음(`null`) 확인. `learnedLocations` 신규 생성 없음(자동학습 미태움 재확인). testmart 계정 비밀번호는 이 문서/커밋/로그 어디에도 기록하지 않음.
 
+### 아파트/빌라명 상세주소 자동 보강 1차 (OCR/processReceipt 경로)
+- **Status**: ✅ Deployed / Verified (Functions만 배포, Hosting/`database.rules.json`/`storage.rules` 미변경)
+- **Commit**: `4349e0d`
+- **배경**: 기사 피드백 — 배송카드/경로최적화/완료화면에 이미 `detailAddress`가 표시되지만, 아파트/빌라/오피스텔 등 건물명이 이 값에 들어가지 않아 동/호수만으로는 건물을 특정하기 어려운 경우가 있었음. read-only 분석 라운드에서 `standardizeAddress()`가 건물명 후보(OCR 원문에서 추출한 검색어, 카카오 주소검색의 `building_name`)를 이미 내부적으로 얻고 있으면서도 최종 응답에서는 버리고 있었다는 구조적 원인을 확인 후, 새 UI 없이 기존 `detailAddress` 표시 흐름만으로 보강하는 방식으로 구현.
+- **핵심 변경** (`functions/lib/receipt-utils.js`, `functions/index.js`만):
+  - `enrichDetailAddressWithBuildingName(detailAddress, buildingName)` 순수함수 신규 — 건물명이 detailAddress 앞에 붙어있으면 떼어내 "{나머지} ({건물명})" 형태로 정리, 이미 포함/이미 괄호 있음/일반 종류명(아파트·빌라·오피스텔·맨션·주택·건물·공동주택·연립·다세대·주공) 단독/출입정보성 문자열/12자 초과/떼어내고 남는 게 없는 경우는 전부 원문 그대로 반환(보수적 미보강).
+  - `kakaoAddrSearch()` 반환값에 `buildingName`(카카오 주소검색의 `road_address.building_name`) 추가.
+  - `standardizeAddress()`의 "주소가 건물명으로 시작" 분기에서 카카오 키워드검색이 성공한 검색어(`qClean`)를 OCR 우선 건물명 후보로 실어 나름 — 상호명 키워드검색(`kakaoKeywordSearch`의 `place_name`), 지번 뒤 임의 텍스트 분기, 고객명 fallback 분기는 전부 후보에서 제외(오탐 위험).
+  - `processReceipt`에서 `splitDetailAndAccessInfo`(출입정보 분리) 직후에만 보강을 적용해 accessInfo와 절대 섞이지 않도록 순서 고정.
+  - 학습주소 경로(`buildLearnedLocationResponse`)와 수기 입력 경로(`geocodeAndAdd`, `saas/driver.html`)는 전혀 손대지 않음.
+- **테스트**: `node --test "test/*.test.js"` **127/127 pass**(기존 109 + 신규 18, `functions/test/receipt-utils.building-name.test.js`).
+- **Deploy**: `firebase deploy --only functions --project hatdelivery-saas`만 실행. Hosting/`database.rules.json`/`storage.rules`는 코드 변경 자체가 없어 배포 대상 아님.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-13 — 아파트/빌라명 상세주소 자동 보강 1차 배포 검증" 참고. 실제 `processReceipt` 엔드포인트를 합성 영수증 5회로 호출해 OCR 원문 건물명 우선 보강, 카카오 `building_name`만으로도 보강, 일반어 미보강, 출입정보와 건물명 분리, 학습주소 경로 미보강 전부 확인.
+- **이전 리스크 해소**: read-only 분석 단계에서 "카카오 주소검색 응답에 `building_name`이 실제로 채워지는지는 라이브 확인이 필요하다"고 남겨둔 리스크를, 배포 후 `geocodeAddress` 엔드포인트로 실제 공개 지명(아파트 단지명, 도로명)을 조회해 `buildingName` 필드가 정상적으로 채워짐을 실측 확인 — 리스크 해소.
+- **후속(이번 범위 밖)**: 학습주소 경로 보강, 수기 입력 자동 보강, `kakaoKeywordSearch`의 `place_name` 활용 방식, 지번 뒤 trailing-text 분기를 안전하게 승격시키는 추가 판별 로직.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름, 가짜 전화번호). 검증 목적으로 조회한 도로명/건물명은 실존하는 공개 지명이지만 특정 개인과 무관. 검증 중 시드한 합성 학습주소 레코드 1건 삭제 및 재조회로 잔존 없음(`null`) 확인, `processReceipt` 직접 호출만 사용해 orders 신규 생성 없음. Functions ERROR 로그 0건.
+
 ---
 
 ## 진행 대기 (P1)
@@ -264,7 +281,7 @@
 - **영수증 원본 확대/줌/이동(핀치줌·더블탭줌·드래그)** — "TMS 라이브 사용성 피드백 1차" 라운드 read-only 분석에서 확인: `.photo-viewer img`가 `object-fit:contain`만 있고 확대/이동 기능이 전혀 없어, 작은 영수증 글씨(주소/전화번호)를 화면에서 읽기 어렵다는 기사 피드백. `viewPhotoUrl()`/`viewOcrPhoto()`가 공용으로 쓰는 모달이라 개선 시 OCR 결과 대조/이전 배송사진 보기 두 기능에 동시 적용됨. 2차 UX 라운드로 분리.
 - **배송목록 카드 compact layout 전면 재설계** — "TMS 라이브 사용성 피드백 1차" 라운드에서 나온 "카드가 크고 왼쪽으로 치우쳐 한눈에 보기 어렵다"는 피드백. 이번 라운드는 패딩/정렬 소폭 조정(padding 16→14px, `.dl-top` flex-start)만 진행했고, 정보 밀도를 근본적으로 낮추는 재설계(배지를 아이콘 한 줄로 통합, 상세정보는 탭해야 펼치는 방식 등)는 별도 UX 설계가 필요해 2차 라운드로 분리.
 - ~~**수기 출입정보 직접입력 필드**~~ → **완료**: 위 "완료" 섹션의 "TMS 수기 직접 입력 화면 — 상세주소/출입정보 필드 추가" 항목 참고.
-- **아파트/빌라/건물명 detailAddress 자동 분리 개선** — "TMS 라이브 사용성 피드백 1차" read-only 분석 과정에서 식별된 별도 개선 후보. 별도 라운드에서 범위/우선순위 재검토 필요.
+- ~~**아파트/빌라/건물명 detailAddress 자동 분리 개선**~~ → **1차 완료**: 위 "완료" 섹션의 "아파트/빌라명 상세주소 자동 보강 1차 (OCR/processReceipt 경로)" 항목 참고. 학습주소/수기입력 경로 보강은 후속으로 남음.
 
 ## 백로그 (P2, 장기)
 
