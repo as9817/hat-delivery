@@ -2848,11 +2848,14 @@ function setStep(id, state) {
 async function startOCR(file) {
   if (!file) return;
   const CLOUD_FN = 'https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/processReceipt';
+  // try 블록 밖으로 끌어올림 — catch에서도 사진 확보 여부(null이면 이미지 로드 자체가
+  // 실패한 것)를 판단하고, 확보됐다면 result 화면에 그대로 넘겨주기 위함.
+  let base64 = null;
 
   try {
     // 1단계: 이미지 로드 & 압축
     setStep('step-load', 'active');
-    const base64 = await new Promise((resolve, reject) => {
+    base64 = await new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
@@ -2903,7 +2906,9 @@ async function startOCR(file) {
     // (기존엔 !response.ok면 바로 "서버 오류: {코드}"만 던지고 message를 버렸음)
     const result = await response.json().catch(() => null);
     if (!response.ok || !result || result.status !== 'success') {
-      throw new Error(friendlyErrorMessage(response.status, result?.message, 'ocr'));
+      // status를 에러 객체에 함께 실어서 catch에서 401/403(재로그인/권한 문제)과
+      // 그 외(사진은 확보됐으니 수기 입력으로 안내 가능)를 구분할 수 있게 함.
+      throw Object.assign(new Error(friendlyErrorMessage(response.status, result?.message, 'ocr')), { status: response.status });
     }
     setStep('step-ocr', 'done');
 
@@ -2978,11 +2983,44 @@ async function startOCR(file) {
 
   } catch(e) {
     console.error('OCR 오류:', e.message);
-    // e.message가 이미 완결된 안내 문장이면(예: 세션 만료, 상태코드별 안내) 그대로 표시,
-    // 아니면 기존처럼 "영수증 인식 실패: " 접두어를 붙임
     const msg = e.message || '알 수 없는 오류가 발생했습니다.';
-    alert(/해주세요[.!]?$|바랍니다[.!]?$/.test(msg) ? msg : ('영수증 인식 실패: ' + msg));
-    goTab('scan');
+    // 인증/권한 문제(401/403)는 수기 입력으로 보내도 저장 시 동일한 이유로 막힐
+    // 가능성이 높고, 이미지 로드 자체가 실패했으면(base64 없음) 보여줄 사진도 없음 —
+    // 이 두 경우만 기존처럼 alert + 스캔 탭 복귀.
+    const isAuthOrPermissionError = e.status === 401 || e.status === 403;
+    if (isAuthOrPermissionError || !base64) {
+      alert(/해주세요[.!]?$|바랍니다[.!]?$/.test(msg) ? msg : ('영수증 인식 실패: ' + msg));
+      goTab('scan');
+      return;
+    }
+
+    // Vision/Gemini/500/네트워크 오류 등 — 촬영한 사진은 이미 확보돼 있으므로
+    // 버리지 않고 result 화면(빨강 "주소 입력 필요" 상태)으로 자연스럽게 전환해
+    // 사진을 보며 바로 직접 입력할 수 있게 함. 기존 신호등/사진뷰어/재촬영 링크를
+    // 그대로 재사용 — 새 UI 없음.
+    document.getElementById('res-name').value = '';
+    document.getElementById('res-phone').value = '';
+    document.getElementById('res-addr').value = '';
+    const detailBadgeEl = document.getElementById('res-detail-badge');
+    const accessInputEl = document.getElementById('res-access-info');
+    if (detailBadgeEl) detailBadgeEl.value = '';
+    if (accessInputEl) accessInputEl.value = '';
+    document.getElementById('res-detail-wrap').style.display = 'block';
+    const amountWrapEl = document.getElementById('res-amount-wrap');
+    const amountInputEl = document.getElementById('res-amount');
+    if (amountInputEl) amountInputEl.value = '';
+    if (amountWrapEl) amountWrapEl.style.display = 'none';
+
+    window._pendingOCR = {
+      lat: null, lng: null, detailAddress: '', accessInfo: '', totalAmount: '',
+      source: 'raw_fallback', confidence: 'low', candidates: [], learnedCandidate: null,
+      accessInfoSource: null, accessInfoNeedsConfirm: false,
+      hasPreviousPhoto: false, ocrName: '', ocrAddress: '',
+      receiptDataUrl: 'data:image/jpeg;base64,' + base64,
+    };
+    renderResultStatus();
+    showToast('영수증 인식이 어려웠습니다. 아래에 직접 입력해주세요.');
+    goTab('result');
   }
 }
 
@@ -3434,7 +3472,7 @@ async function autoSaveLearnedAddressIfSafe(phone, name, addr, detailAddr, acces
 
 async function confirmAdd() {
   const name  = document.getElementById('res-name').value.trim();
-  const addr  = document.getElementById('res-addr').value.trim();
+  let   addr  = document.getElementById('res-addr').value.trim();
   const phone = document.getElementById('res-phone').value.trim();
   if (!name || !addr) { showToast('이름과 주소를 입력하세요'); return; }
 
@@ -3449,10 +3487,39 @@ async function confirmAdd() {
   const hasPreviousPhoto = !!ocrData.hasPreviousPhoto;
   const totalAmount = (document.getElementById('res-amount')?.value || ocrData.totalAmount || '').trim();
   const receiptDataUrl = ocrData.receiptDataUrl || null;
-  window._pendingOCR = null;
 
   // 주소가 OCR 결과와 다르게 수정됐으면 → 좌표 재획득 + Firebase 학습 저장
   const addrChanged = addr && ocrAddress && addr !== ocrAddress;
+
+  // 좌표 보강 — OCR 실패(수기 입력) 또는 raw_fallback처럼 애초에 좌표를 못 받은
+  // 상태에서 사용자가 주소를 입력/유지한 경우(addrChanged 분기와는 별개 케이스).
+  // window._pendingOCR을 아직 비우기 전에 처리해, 실패 시 화면 상태를 그대로
+  // 유지한 채 안내만 하고 재시도할 수 있게 함. addrChanged 분기(주소 수정 케이스)의
+  // 기존 관대한 동작(재지오코딩 실패해도 저장 진행)은 그대로 둬서 회귀를 만들지 않음.
+  if (!addrChanged && (!lat || !lng)) {
+    try {
+      const authHeader = await _authHeader();
+      const geo = await fetch('https://asia-northeast3-hatdelivery-saas.cloudfunctions.net/geocodeAddress', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': FUNCTION_API_KEY, ...authHeader },
+        body: JSON.stringify({ address: addr })
+      });
+      const geoBody = geo.ok ? await geo.json().catch(() => null) : null;
+      if (geoBody?.status === 'success' && geoBody.data?.lat && geoBody.data?.lng) {
+        lat  = geoBody.data.lat;
+        lng  = geoBody.data.lng;
+        addr = geoBody.data.road_address || addr;
+      } else {
+        showToast('주소를 찾을 수 없습니다. 주소를 다시 확인해주세요.');
+        return;
+      }
+    } catch (e) {
+      showToast('주소를 찾을 수 없습니다. 주소를 다시 확인해주세요.');
+      return;
+    }
+  }
+
+  window._pendingOCR = null;
+
   if (addrChanged) {
     try {
       // 수정된 주소로 좌표 재획득 (geocodeAddress Cloud Function 사용)
