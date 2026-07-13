@@ -20,6 +20,7 @@ const {
   parseAddressComponents,
   buildLearnedLocationResponse,
   splitDetailAndAccessInfo,
+  enrichDetailAddressWithBuildingName,
   maskForLog,
 } = require('./lib/receipt-utils');
 
@@ -145,6 +146,14 @@ exports.processReceipt = functions
       // 최종 응답 직전에 한 번만 분리한다(학습주소 없는 신규 주소라 기존 access_info
       // 값과 충돌할 여지가 없음).
       const splitResult = splitDetailAndAccessInfo(location.detail_address || '');
+      // 아파트/빌라명 자동 보강 — accessInfo 분리가 끝난 뒤의 detailAddress에만 적용해
+      // 출입정보와 절대 섞이지 않도록 순서를 고정. 건물명 후보(location.buildingName)는
+      // standardizeAddress()가 OCR 원문(qClean, "건물명으로 시작하는 주소" 분기)이나
+      // 카카오 주소검색의 road_address.building_name에서만 채워 넣음 — 상호명 키워드검색
+      // (kakaoKeywordSearch의 place_name)이나 고객명 fallback, 지번 뒤 임의 텍스트는
+      // 후보로 쓰지 않음(오탐 위험). 학습주소 경로/수기 입력 경로는 이 로직을 타지 않음.
+      const enrichedDetailAddress = enrichDetailAddressWithBuildingName(splitResult.detailAddress, location.buildingName || null);
+      logger.info('건물명 보강 적용 여부:', enrichedDetailAddress !== splitResult.detailAddress);
       // 카카오가 좌표까지 확정한 경우만 'standardized'(확신), 좌표 없이 원문/파싱
       // 결과만 남은 경우는 'raw_fallback'(기사 확인 필요) — 클라이언트가 이 값으로
       // 신호등 상태(초록/노랑)를 판정하는 유일한 근거이므로 lat/lng 존재 여부로만 결정.
@@ -156,7 +165,7 @@ exports.processReceipt = functions
           customer: { name: parsed.name || '', phone: parsed.phone || '' },
           location: {
             road_address:   location.road_address   || parsed.address || '',
-            detail_address: splitResult.detailAddress,
+            detail_address: enrichedDetailAddress,
             access_info: splitResult.accessInfo, // OCR 괄호에서 자동 분리(학습값 없는 신규 주소)
             lat: location.lat || null,
             lng: location.lng || null,
@@ -585,7 +594,9 @@ async function standardizeAddress(rawAddress, kakaoKey, nearbyDongs = [], martLa
     const qClean = searchQ.replace(/\(.*?\)/g, '').replace(/\bAPT\b/gi, '아파트').replace(/@/g, '아파트').trim();
     logger.info('건물명 키워드 검색:', maskForLog(qClean));
     const rk = await kakaoKeywordSearch(qClean, kakaoKey, martLat, martLng, martRadius);
-    if (rk) { logger.info('키워드 검색 성공:', maskForLog(rk.road_address)); return { ...rk, detail_address: finalDa }; }
+    // 주소 전체가 이 이름으로 시작해 카카오가 실제로 찾아낸 경우이므로, qClean을
+    // OCR 우선 건물명 후보로 실어 나름(최종 필터링은 enrichDetailAddressWithBuildingName에서).
+    if (rk) { logger.info('키워드 검색 성공:', maskForLog(rk.road_address)); return { ...rk, detail_address: finalDa, buildingName: qClean }; }
 
     // 주소 검색 실패 시 고객명(상호명)으로 2차 시도
     // 지하/층 등 위치 설명어 제거 후 순수 상호명만 사용

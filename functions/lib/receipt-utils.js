@@ -62,7 +62,13 @@ async function kakaoAddrSearch(query, kakaoKey, martLat, martLng, martRadius) {
     }
   }
   const doc = pool[0];
-  return { road_address: doc.road_address?.address_name || doc.address?.address_name || query, lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+  return {
+    road_address: doc.road_address?.address_name || doc.address?.address_name || query,
+    lat: parseFloat(doc.y), lng: parseFloat(doc.x),
+    // 카카오 주소검색이 도로명주소에 등록된 건물명(주로 아파트 단지명)을 반환하는 경우 함께 실어 나름.
+    // 검색어(query)와 무관하게 카카오 DB에 등록된 값이라 OCR 품질과 별개로 신뢰도가 높음.
+    buildingName: doc.road_address?.building_name || null,
+  };
 }
 
 /**
@@ -270,6 +276,54 @@ function splitDetailAndAccessInfo(detailText) {
   return { detailAddress: before, accessInfo: inside };
 }
 
+// 건물명으로 보기엔 "종류명"일 뿐 고유명사가 아닌 단어들 — 이 단어와 완전히
+// 일치하는 후보는 건물명으로 보강하지 않는다(예: "아파트" 단독).
+const GENERIC_BUILDING_WORDS = [
+  '아파트', '빌라', '오피스텔', '맨션', '주택', '건물', '공동주택', '연립', '다세대', '주공',
+];
+
+// 건물명 후보가 이 길이를 넘으면 보강하지 않음 — 정상적인 단지명보다 훨씬 길면
+// 파싱 실수(다른 문장이 섞였을 가능성)로 보고 보수적으로 스킵.
+const BUILDING_NAME_MAX_LENGTH = 12;
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 확인된 건물명(buildingName)을 detailAddress에 안전하게 보강한다.
+ * - buildingName/detailAddress 둘 중 하나라도 없으면 원문 그대로 반환(1차: 보강 안 함)
+ * - detailAddress 앞부분이 buildingName으로 시작하면 그 부분을 떼어내고
+ *   "{나머지} ({건물명})" 형태로 정리
+ * - detailAddress에 이미 buildingName이 포함돼 있으면 중복 삽입하지 않음
+ * - detailAddress에 이미 괄호가 있으면(무엇이 들어있든) 1차에서는 보수적으로 스킵
+ * - buildingName이 일반 종류명 단독/출입정보성 문자열/과도하게 긴 경우 스킵
+ * - 건물명을 떼어내고 남은 부분이 비면(=동/호수 등 세부정보가 없으면) 보강하지 않음
+ * @param {string} detailAddress
+ * @param {string|null|undefined} buildingName
+ * @returns {string} 보강되었거나 원문 그대로인 detailAddress
+ */
+function enrichDetailAddressWithBuildingName(detailAddress, buildingName) {
+  const original = detailAddress || '';
+  const bn = (buildingName || '').trim();
+  const da = original.trim();
+  if (!bn || !da) return original;
+  if (GENERIC_BUILDING_WORDS.includes(bn)) return original;
+  if (ACCESS_INFO_KEYWORDS.some(kw => bn.includes(kw))) return original;
+  if (bn.length > BUILDING_NAME_MAX_LENGTH) return original;
+  if (/\([^)]*\)/.test(da)) return original; // 이미 괄호가 있으면 1차는 보수적으로 스킵
+
+  let core = da;
+  const prefixRe = new RegExp('^' + escapeRegExp(bn) + '\\s*');
+  if (prefixRe.test(core)) core = core.replace(prefixRe, '').trim();
+
+  const norm = s => s.replace(/\s+/g, '').toLowerCase();
+  if (norm(core).includes(norm(bn))) return original; // 이미 어딘가에 포함됨 → 중복 방지
+  if (!core) return original; // 건물명을 떼어내니 세부정보가 남지 않음 → 보강하지 않음
+
+  return `${core} (${bn})`;
+}
+
 module.exports = {
   resolveLearnKey,
   kakaoAddrSearch,
@@ -279,5 +333,6 @@ module.exports = {
   isSimilarAddress,
   buildLearnedLocationResponse,
   splitDetailAndAccessInfo,
+  enrichDetailAddressWithBuildingName,
   maskForLog,
 };
