@@ -71,9 +71,42 @@ async function kakaoAddrSearch(query, kakaoKey, martLat, martLng, martRadius) {
   };
 }
 
+// 카테고리 기반 가점/감점 — 실거주 건물(아파트/공동주택 등)은 가점, 실거주지가
+// 아닌 부동산 판촉/중개 시설이나 단지 출입구(게이트)는 감점. "탑석자이" 실사고
+// 실측(2026-07-13)에서, 분양홍보관이 실제 아파트 동보다 마트에 더 가깝다는
+// 이유만으로 거리 페널티에 밀려 오선택된 것을 확인 — 카테고리 신호를 반영해
+// 이런 역전을 막는다. category_name이 없는 후보는 조정 없음(0).
+const CATEGORY_BONUS_KEYWORDS = ['주거시설', '공동주택'];
+const CATEGORY_PENALTY_KEYWORDS = ['분양사무소', '분양', '중개업', '입출구'];
+const CATEGORY_BONUS = 30;
+const CATEGORY_PENALTY = -50;
+// 거리 페널티 가중치 — 기존 "거리(km) 그대로 차감" 방식은 실거주 건물과
+// 판촉/중개 시설이 1~2km 차이로 근접해 있을 때 손쉽게 순위를 뒤집었음
+// (탑석자이 실사고: 1.4km 차이로 분양홍보관이 아파트보다 위로 올라감).
+// 가중치를 낮춰 카테고리/토큰매치 신호가 거리보다 우선하도록 완화.
+const DIST_PENALTY_WEIGHT = 0.3;
+
+/**
+ * 카카오 키워드검색 후보 1건의 점수를 계산하는 순수함수 — 실측 회귀 테스트 및
+ * kakaoKeywordSearch() 내부에서 공용으로 사용.
+ * @param {string} query
+ * @param {{place_name?:string, category_name?:string}} doc
+ * @param {number} distKm
+ * @returns {number}
+ */
+function scoreKakaoKeywordCandidate(query, doc, distKm) {
+  const matchCount = scoreKeywordMatch(query, doc.place_name || '');
+  const category = doc.category_name || '';
+  let categoryAdj = 0;
+  if (CATEGORY_PENALTY_KEYWORDS.some(kw => category.includes(kw))) categoryAdj = CATEGORY_PENALTY;
+  else if (CATEGORY_BONUS_KEYWORDS.some(kw => category.includes(kw))) categoryAdj = CATEGORY_BONUS;
+  return matchCount * 100 + categoryAdj - distKm * DIST_PENALTY_WEIGHT;
+}
+
 /**
  * 카카오 키워드(건물명) 검색. 후보 중 쿼리 토큰 매치 수(scoreKeywordMatch) +
- * 거리(가까울수록 가점)로 최적 후보를 선택.
+ * 카테고리(실거주 건물 가점/판촉·중개·출입구 감점) + 거리(가까울수록 가점,
+ * 완화된 가중치)로 최적 후보를 선택.
  */
 async function kakaoKeywordSearch(query, kakaoKey, martLat, martLng, martRadius) {
   if (!query?.trim()) return null;
@@ -85,14 +118,11 @@ async function kakaoKeywordSearch(query, kakaoKey, martLat, martLng, martRadius)
   const data = await res.json();
   const docs = data.documents || [];
   if (!docs.length) return null;
-  // 쿼리 토큰(2자 이상 한글)이 place_name에 많이 포함될수록 우선 선택
-  // 동점이면 마트와의 거리가 가까운 쪽 선택
   let bestDoc = docs[0];
   let bestScore = -Infinity;
   docs.forEach(doc => {
-    const matchCount = scoreKeywordMatch(query, doc.place_name || '');
     const dist = (martLat && martLng) ? haversineKm(martLat, martLng, parseFloat(doc.y), parseFloat(doc.x)) : 99;
-    const score = matchCount * 100 - dist;
+    const score = scoreKakaoKeywordCandidate(query, doc, dist);
     if (score > bestScore) { bestScore = score; bestDoc = doc; }
   });
   // 건물명/place_name은 로그에 남기지 않고 후보 수/점수만 남김 — PII 노출 방지
@@ -334,5 +364,6 @@ module.exports = {
   buildLearnedLocationResponse,
   splitDetailAndAccessInfo,
   enrichDetailAddressWithBuildingName,
+  scoreKakaoKeywordCandidate,
   maskForLog,
 };
