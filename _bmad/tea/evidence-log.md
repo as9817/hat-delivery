@@ -471,3 +471,30 @@
   15. **합성 데이터 삭제**: 검증에 사용한 합성 배송 1건을 `tref('orders/'+id).remove()`로 삭제 후 재조회로 `null` 확인, `deliveries`/`routeOrder`/`localStorage` 전부 정리.
 - **Result**: 수정 모달에서 상세주소/출입정보를 함께 확인·수정할 수 있게 됐고, 주소를 바꾸면 기존 `geocodeAddress` Function을 재사용해 좌표가 함께 갱신되며 실패 시 저장이 안전하게 차단됨을 확인. `deliveries`/`routeOrder`/`localStorage`/Firebase 4곳이 항상 같은 값을 유지하고, 배송지도는 코드 변경 없이도 재진입 시 새 좌표를 정확히 표시함을 실제 배포본에서 확인. 기존 수정 흐름(이름/연락처만 변경) 회귀 없음.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름 "수정검증A" 패턴, 가짜 전화번호). 검증에 사용한 도로명은 실존하는 공개 지명이지만 특정 개인과 무관. 검증 중 생성된 합성 배송 1건 전부 삭제 및 재조회로 잔존 없음(`null`) 확인. wamartmillak 테스트용 기사 계정 비밀번호는 이 로그/커밋/대화 응답 어디에도 기록하지 않음.
+
+## 2026-07-13 — TMS 영수증 원본 확대/줌 기능 배포 검증
+
+- **대상**: `saas/driver.html` — `#photo-viewer`(확대/축소/원래대로 버튼 신규), `zoomPhotoBy()`/`resetPhotoZoom()`/`_photoDoubleTapToggle()`(신규), `initPhotoViewerGestures()`(Pointer Events 드래그, 신규), `viewPhoto()`/`viewPhotoUrl()`/`closePhotoViewer()`(각각 `resetPhotoZoom()` 호출 추가)
+- **커밋**: `d857aad`(핵심 구현), `7143ca0`(APP_VERSION 19 범프)
+- **배포 전 확인**: `git status` clean(`saas/driver.html` 1개 파일만 스코프, `functions/`·`database.rules.json`·`firebase.json`·`storage.rules` 변경 없음, 세션 시작부터 있던 무관한 `.docx` 파일은 스테이징에서 제외), `node --test "test/*.test.js"` **142/142 pass**(functions 미변경).
+- **배포**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. `firebase database:set /settings/appVersion --data '"19"'`로 배포 직후 갱신(재조회로 `"19"` 확인). `curl`로 라이브 소스 조회해 `const APP_VERSION = '19'` 반영 확인.
+- **배포 후 라이브 검증(wamartmillak 테스트용 기사 계정, Playwright로 라이브 도메인에서 실제 `PointerEvent`/`KeyboardEvent` 디스패치 — 합성 데이터만 사용)**:
+  1. **로그인/버전 확인**: 라이브 접속 시 세션 자동 복원, `APP_VERSION==='19'` 확인.
+  2. **OCR 결과화면 확대/축소/원래대로**: 합성 영수증 이미지로 `viewOcrPhoto()` 호출 → `zoomPhotoBy(0.5)` 2회로 2배, `zoomPhotoBy(-0.5)`로 1.5배, `resetPhotoZoom()`으로 1배까지 전부 `transform` 값으로 확인, 스크린샷으로 좌상단 컨트롤 3개(+/−/⟲) 정상 노출 확인.
+  3. **OCR 원본 삭제 버튼 숨김 유지**: `btn-delete-photo`의 `display:none`, `currentPhotoId===null` 확인.
+  4. **이전 배송사진 보기 확대/드래그**: `viewPhotoUrl()`로 별도 합성 이미지 오픈 → 2배 확대 후 실제 `PointerEvent`(pointerdown/move/up) 디스패치로 드래그 → 지정한 이동량만큼 `tx`/`ty`가 정확히 반영됨을 확인.
+  5. **이전 배송사진 삭제 버튼 숨김 유지**: 동일 케이스에서 `display:none`, `currentPhotoId===null` 확인.
+  6. **완료사진 보기 확대/드래그**: 실제 `addManual()`로 생성한 합성 배송 건에 `savePhoto()`로 IndexedDB 사진을 첨부한 뒤 `viewPhoto(id)` 호출 → 2배 확대 후 드래그로 이동량 정확히 반영됨을 확인(실사진 데이터 경로로 검증, `viewPhotoUrl()` 목업이 아님).
+  7. **완료사진 삭제 버튼 표시 유지**: `btn-delete-photo`의 `display:block`, `currentPhotoId`가 해당 배송 id로 정확히 설정됨을 확인.
+  8. **확대 상태 드래그 이동**: 2/4/6번 전부 지정한 (dx, dy)만큼 `tx`/`ty`가 정확히 일치함을 재확인.
+  9. **1배 상태 드래그 이동 없음**: `resetPhotoZoom()` 직후(1배) 동일한 드래그 시퀀스를 재현해도 `tx`/`ty`가 `0`으로 유지됨을 확인.
+  10. **더블탭 1배↔2배 토글**: 300ms 이내 연속 `pointerdown`/`pointerup` 2회(탭)를 두 번 반복 디스패치 → 1배→2배→1배로 정확히 토글됨을 확인.
+  11. **닫기 후 재오픈 초기화**: 확대된 상태에서 `closePhotoViewer()` 호출 → `scale/tx/ty`가 `1/0/0`으로 초기화됨을 확인.
+  12. **ESC 닫기 후 초기화**: `viewOcrPhoto()`로 재오픈 후 확대(2배) → `KeyboardEvent('keydown', {key:'Escape'})` 디스패치 → 동일하게 `1/0/0`으로 초기화 및 모달 닫힘 확인.
+  13. **확대 배율 1~3 클램프**: `zoomPhotoBy(0.5)`를 8회 연속 호출해도 `3`에서 멈추고, `zoomPhotoBy(-0.5)`를 8회 연속 호출해도 `1`에서 멈춤을 확인.
+  14. **모바일 375px**: 375×812 리사이즈 후 완료사진(삭제 버튼 표시 케이스)을 열어 좌상단 확대 컨트롤(+/−/⟲), 우상단 닫기, 하단 닫기/삭제 버튼 전부 겹침 없이 표시됨을 스크린샷으로 확인.
+  15. **기존 사진 보기/닫기 흐름 회귀**: 세 사용처(OCR/이전 배송사진/완료사진) 오픈·삭제 버튼 조건·닫기 전부 정상 동작, 홈 탭 복귀 등 기존 흐름에 영향 없음을 확인.
+  16. **콘솔 에러**: 라이브 페이지 기준(내비게이션 이후) 신규 에러 **0건**.
+  17. **합성 데이터 삭제**: 검증에 사용한 합성 배송 1건을 `tref('orders/'+id).remove()` + `removePhoto(id)`(IndexedDB)로 삭제 후 재조회로 Firebase/IndexedDB 양쪽 `null` 확인, `deliveries`/`localStorage` 전부 정리.
+- **Result**: 확대(+/−/⟲ 버튼, 1~3배 클램프)·드래그(scale>1 조건부)·더블탭 토글이 OCR 원본/이전 배송사진/완료사진 3개 사용처 전부에서 동일하게 동작하고, 닫기·ESC·다른 사진 열기 시 상태가 항상 초기화되어 사진 간 교차 오염이 없음을 확인. 삭제 버튼 노출 조건과 `currentPhotoId` 로직은 기존 그대로 유지됨을 재확인. 신규 콘솔 에러 없음.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름 "줌테스트A" 패턴, 가짜 전화번호, 캔버스로 생성한 합성 이미지만 사용). 검증 중 실제 `addManual()`+`savePhoto()`로 생성된 합성 배송 1건(Firebase orders + IndexedDB 사진)을 전부 삭제 및 재조회로 잔존 없음(`null`) 확인. wamartmillak 테스트용 기사 계정 비밀번호는 이 로그/커밋/대화 응답 어디에도 기록하지 않음.
