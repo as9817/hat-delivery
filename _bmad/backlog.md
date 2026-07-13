@@ -294,6 +294,21 @@
 - **참고(이번 라운드와 무관, 검증 중 발견)**: 검증을 위해 로그인했을 때 이전 라운드("학습주소 후보 표시" 배포 검증)에서 정리되지 않고 남아있던 합성 배송 건 1건(`후보검증A`)을 실제 배송목록에서 발견해 이번 정리에 함께 포함해 삭제. 실제 고객 데이터는 아니었음. 향후 검증 라운드 종료 시 이전 라운드의 정리 여부도 한 번 더 재확인하는 것을 권장.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/가짜 전화번호). 검증 중 생성된 합성 배송 2건과 위에서 발견한 이전 라운드 잔존 1건, 총 3건 전부 Firebase RTDB에서 삭제 및 재조회로 잔존 없음(`null`) 확인, `learnedLocations` 신규 생성 없음, Storage 사진 미업로드 확인. wamartmillak 테스트용 기사 계정 비밀번호는 이 문서/커밋/로그 어디에도 기록하지 않음.
 
+### TMS 배송정보 수정 모달 개선 + 주소 수정 시 좌표/지도 핀 갱신
+- **Status**: ✅ Deployed / Verified (Hosting만 배포, Functions/`database.rules.json`/`storage.rules` 미변경)
+- **Commits**: `9437606`(핵심 구현), `3569906`(APP_VERSION 18 범프)
+- **배경**: 기사 피드백 2건 — (1) 배송 주소를 수정해도 배송지도 핀 위치가 최초 위치 그대로 유지됨, (2) 수정 모달에 상세주소/출입정보가 보이지 않아 카드에는 표시되는 정보를 수정할 방법이 없음. read-only 분석 라운드에서 배송지도(`mapZone.loadData()`)는 매번 localStorage를 새로 읽어오므로 자체 캐싱 문제가 아니라, `saveEdit()`가 주소만 바꾸고 `lat`/`lng`를 전혀 재계산하지 않아 애초에 저장되는 좌표 자체가 옛 값이라는 것이 근본 원인임을 확인. `openEditModal()`/`saveEdit()`가 고객명/주소/연락처 3개 필드만 다루는 것도 함께 확인.
+- **핵심 변경** (`saas/driver.html`만):
+  - `#edit-modal`에 "상세주소 (동·호수, 층 등)"/"출입정보 / 공동현관" 입력칸 신규 추가, `openEditModal()`이 두 값도 함께 채우도록 확장.
+  - `saveEdit()`를 `async`로 전환 — 원래 주소와 새 주소를 비교(`addrChanged`)해, **주소가 바뀐 경우에만** 기존 `geocodeAddress` Cloud Function을 호출(`confirmAdd()`의 좌표 보강 블록과 동일한 패턴 재사용, 신규 서버 코드 없음). 성공하면 표준화된 도로명/좌표로 갱신하고 `addressSource:'edited'` 반영, 실패하면 토스트 "주소를 찾을 수 없습니다. 주소를 다시 확인해주세요." 후 **저장 자체를 차단**(기존 좌표를 그대로 유지한 채 조용히 넘어가지 않음). 주소가 그대로이고 상세주소/출입정보만 바뀐 경우는 지오코딩을 호출하지 않고 바로 저장.
+  - 저장 시 `deliveries` 배열 + `routeOrder`(같은 id가 있으면 동일 필드로 함께 갱신 — `loadDeliveries()`가 매번 새 객체를 만들어 `deliveries`/`routeOrder`의 참조 공유가 끊기므로, `postponeDelivery()`가 이미 쓰던 것과 동일한 "id로 찾아 별도로 동기화" 패턴을 재사용) + `localStorage` + Firebase `orders/{id}` 4곳을 함께 갱신.
+  - 배송지도(mapzone) 코드는 **전혀 수정하지 않음** — 위 4곳 갱신만으로 재진입 시 자동으로 새 핀이 표시됨을 라이브에서 확인.
+- **테스트**: `node --test "test/*.test.js"` **142/142 pass**(functions 미변경). 구현 단계에서는 실제 커밋 대상 코드를 로컬 정적 서버로 서빙해 `fetch`(geocodeAddress만 국한)/`tref`/`_authHeader`를 스텁으로 교체한 뒤 `openEditModal`/`saveEdit`를 직접 호출하는 방식으로 로그인 없이 검증(주소만 수정/geocode 실패 차단/상세주소만 수정/출입정보만 수정/routeOrder 동기화/`_postponed` 유지/모바일 375px 전부 확인).
+- **Deploy**: `firebase deploy --only hosting --project hatdelivery-saas`. `DEPLOY_CHECKLIST.md` §4-1 절차대로 배포 전 `APP_VERSION` 17→18 범프, 배포 후 `settings/appVersion`도 "18"로 갱신.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-13 — TMS 배송정보 수정 모달 개선 배포 검증" 참고. wamartmillak 테스트용 기사 계정으로 실제 `addManual()`로 생성한 합성 배송 건을 대상으로 상세주소/출입정보만 수정 시 geocode 미호출, 주소 수정 시 실제 Kakao 지오코딩 호출 및 새 좌표 저장, 좌표를 못 찾는 실제 주소로 재현한 실패 케이스에서 저장 완전 차단(기존 값 유지), Firebase/localStorage 저장, 경로최적화 리스트 반영, 배송지도 재진입 시 새 좌표 핀 표시(스크린샷 확인), `addressSource='edited'` 반영, 모바일 375px 겹침 없음, 신규 콘솔 에러 없음 전부 확인.
+- **참고(이번 라운드와 무관)**: 라이브 검증 중 `kakaoWaypoints` 403 콘솔 에러 1건이 재확인됐으나, 이는 이번 변경과 무관한 기존 이슈로 이미 위 "배송지도(mapzone) 경로선 기능 대체 설계 필요" 백로그 항목에 기록되어 있음.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/가짜 전화번호, 검증에 사용한 도로명은 실존하는 공개 지명이지만 특정 개인과 무관). 검증 중 실제 `addManual()`로 생성된 합성 배송 1건을 Firebase RTDB에서 삭제 및 재조회로 잔존 없음(`null`) 확인. wamartmillak 테스트용 기사 계정 비밀번호는 이 문서/커밋/로그 어디에도 기록하지 않음.
+
 ---
 
 ## 진행 대기 (P1)

@@ -446,3 +446,28 @@
 - **참고(이번 라운드와 무관, 검증 중 발견)**: 검증을 위해 로그인했을 때 이전 라운드("학습주소 후보 표시" 배포 검증)에서 정리되지 않고 남아있던 합성 배송 건 1건을 실제 배송목록에서 발견 — 이번 정리에 함께 포함해 삭제, 재조회로 `null` 확인. 실제 고객 데이터는 아니었으나, 향후 검증 라운드 종료 시 이전 라운드의 정리 여부를 한 번 더 재확인하는 것을 권장(`_bmad/backlog.md`에 교차 기록).
 - **Result**: OCR이 완전히 실패해도 촬영한 사진과 기존 결과 화면 인프라(신호등/사진뷰어/재촬영)를 그대로 재사용해 손실 없이 수기 입력으로 이어지고, 401/403은 기존 alert 흐름을 그대로 유지함을 확인. `confirmAdd()`의 좌표 보강이 실패를 조용히 넘기지 않고 명확히 차단하며, 차단 시에도 재시도 가능한 상태가 보존됨을 확인. 기존 정상 OCR 흐름·주소 수정 흐름 회귀 없음.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름 "합성고객C"/"합성고객D" 패턴, 가짜 전화번호). 검증에 사용한 도로명은 실존하는 공개 지명이지만 특정 개인과 무관. 검증 중 생성된 합성 배송 2건과 이전 라운드 잔존 1건, 총 3건 전부 삭제 및 재조회로 잔존 없음(`null`) 확인. `learnedLocations` 신규 생성 없음, Storage 사진 미업로드 확인. wamartmillak 테스트용 기사 계정 비밀번호는 이 로그/커밋/대화 응답 어디에도 기록하지 않음.
+
+## 2026-07-13 — TMS 배송정보 수정 모달 개선 배포 검증
+
+- **대상**: `saas/driver.html` — `#edit-modal`(상세주소/출입정보 필드 신규), `openEditModal()`(신규 필드 채우기), `saveEdit()`(`async` 전환, 주소 변경 시 `geocodeAddress` 호출/실패 시 저장 차단, `deliveries`/`routeOrder`/`localStorage`/Firebase `orders/{id}` 동기화)
+- **커밋**: `9437606`(핵심 구현), `3569906`(APP_VERSION 18 범프)
+- **배포 전 확인**: `git status` clean(`saas/driver.html` 1개 파일만 스코프, `functions/`·`database.rules.json`·`firebase.json`·`storage.rules` 변경 없음, 세션 시작부터 있던 무관한 `.docx` 파일은 스테이징에서 제외), `node --test "test/*.test.js"` **142/142 pass**(functions 미변경).
+- **배포**: `firebase deploy --only hosting --project hatdelivery-saas`만 실행. `firebase database:set /settings/appVersion --data '"18"'`로 배포 직후 갱신(재조회로 `"18"` 확인). `curl`로 라이브 소스 조회해 `const APP_VERSION = '18'` 반영 확인.
+- **배포 후 라이브 검증(wamartmillak 테스트용 기사 계정, Playwright로 라이브 도메인 직접 조작 — 합성 데이터만 사용)**:
+  1. **로그인/버전 확인**: 라이브 접속 시 세션 자동 복원, `APP_VERSION==='18'`, `TENANT_ID==='wamartmillak'` 확인.
+  2. **수정 모달 5개 필드**: 실제 `addManual()`로 생성한 합성 배송 건에 대해 `openEditModal()` 호출 → 고객명/배송주소/상세주소/출입정보/연락처 5개 필드 전부 정확히 채워짐을 스크린샷으로 확인.
+  3. **상세주소만 수정**: 네트워크 요청 로그를 조회해 `geocodeAddress` 호출이 0건임을 확인, 저장은 정상 반영.
+  4. **출입정보만 수정**: 이어서 동일하게 `geocodeAddress` 호출 0건, 저장 정상 반영.
+  5. **주소 수정 → geocode 성공**: 마트 인근 실존 공개 도로명으로 수정 → 실제 Kakao 지오코딩 호출(200) → 새 `address`/`lat`/`lng`로 갱신됨을 `deliveries` 직접 조회로 확인.
+  6. **주소 수정 실패 케이스**: 좌표를 찾지 못하는 실제 도로명(같은 지역이지만 Kakao가 좌표를 못 주는 케이스)으로 재현 — 응답이 `status:'success'`이지만 `lat`/`lng`가 `null`인 경우까지 포함해 저장이 완전히 차단되고, 토스트 "주소를 찾을 수 없습니다. 주소를 다시 확인해주세요."가 뜨며, `address`/`lat`/`lng`/`detailAddress`/`accessInfo` 전부 수정 이전 값 그대로 유지되고 모달도 닫히지 않음을 확인.
+  7. **Firebase `orders/{id}` 저장**: 5번 성공 케이스 이후 `orders/{id}`를 직접 조회 — `address`/`detailAddress`/`accessInfo`/`lat`/`lng`/`addressSource` 전부 정확히 저장됨을 확인.
+  8. **localStorage 반영**: 동일 시점 `localStorage` 조회 — Firebase와 완전히 동일한 값 확인.
+  9. **경로최적화 리스트 반영**: 실제 `optimizeRoute()` 호출 후 `routeOrder`와 렌더링된 리스트 HTML 양쪽에서 수정된 주소가 반영되고 수정 전 주소 문자열은 더 이상 존재하지 않음을 확인.
+  10. **배송지도 핀 반영**: `mapzone` 탭 재진입 후 `mapZone.showMode('route')` 호출 → 마커가 수정된 새 좌표 위치(수정 전과 다른 지점)에 정상 표시됨을 스크린샷으로 확인. 코드 변경 없이(설계 단계 분석대로) 자동 반영됨.
+  11. **`addressSource='edited'`**: 주소를 실제로 바꾼 5번 케이스에서만 `'edited'`로 반영, 상세주소/출입정보만 바꾼 3/4번 케이스에서는 기존 값(빈 문자열) 그대로 유지됨을 확인.
+  12. **`_postponed` 유지**: 라이브 검증 대상 건이 `_postponed` 상태가 아니었던 관계로, 구현 단계의 로컬 샌드박스 검증(스텁 기반, 실제 커밋 코드 직접 호출) 결과로 대체 — 상세주소/출입정보만 수정한 두 차례의 저장에서 `_postponed:true`가 계속 유지됨을 확인.
+  13. **모바일 375px**: 375×812 리사이즈 후 수정 모달 5개 필드+3개 버튼이 겹침 없이 전부 표시됨을 스크린샷으로 확인.
+  14. **콘솔 에러**: 전체 콘솔 에러 조회 — `kakaoWaypoints` 403 1건만 확인(9번 `optimizeRoute()` 호출 시 발생하는 기존 이슈, `_bmad/backlog.md`의 "배송지도(mapzone) 경로선 기능 대체 설계 필요" 항목에 이미 기록됨, 이번 변경과 무관), 신규 코드 관련 에러 없음.
+  15. **합성 데이터 삭제**: 검증에 사용한 합성 배송 1건을 `tref('orders/'+id).remove()`로 삭제 후 재조회로 `null` 확인, `deliveries`/`routeOrder`/`localStorage` 전부 정리.
+- **Result**: 수정 모달에서 상세주소/출입정보를 함께 확인·수정할 수 있게 됐고, 주소를 바꾸면 기존 `geocodeAddress` Function을 재사용해 좌표가 함께 갱신되며 실패 시 저장이 안전하게 차단됨을 확인. `deliveries`/`routeOrder`/`localStorage`/Firebase 4곳이 항상 같은 값을 유지하고, 배송지도는 코드 변경 없이도 재진입 시 새 좌표를 정확히 표시함을 실제 배포본에서 확인. 기존 수정 흐름(이름/연락처만 변경) 회귀 없음.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름 "수정검증A" 패턴, 가짜 전화번호). 검증에 사용한 도로명은 실존하는 공개 지명이지만 특정 개인과 무관. 검증 중 생성된 합성 배송 1건 전부 삭제 및 재조회로 잔존 없음(`null`) 확인. wamartmillak 테스트용 기사 계정 비밀번호는 이 로그/커밋/대화 응답 어디에도 기록하지 않음.
