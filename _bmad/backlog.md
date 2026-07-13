@@ -281,6 +281,19 @@
 - **후속(이번 범위 밖)**: 카테고리 키워드 목록 일반화 검증(계속 진행 중인 후속 과제), 학습 레코드 자체에 `building_name` 저장해 매칭 신뢰도 추가 향상, name-key access_info 활용 여부 재검토.
 - **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/전화번호). 검증 중 시드한 합성 학습 레코드 1건, 실제 `confirmAdd()`로 생성된 order 1건, 자동학습으로 부수 생성된 레코드 1건 전부 삭제 및 재조회로 잔존 없음(`null`) 확인. 실제 고객명/전화번호/실거주 주소는 본 문서/커밋/로그 어디에도 기록하지 않음.
 
+### OCR 실패 후 수기 입력 흐름 개선
+- **Status**: ✅ Deployed / Verified (Hosting만 배포, Functions/`database.rules.json`/`storage.rules` 미변경)
+- **Commits**: `efbb2cc`(핵심 구현), `a1a4de8`(APP_VERSION 17 범프)
+- **배경**: 기존에는 OCR이 완전히 실패하면(`startOCR()`의 `catch`) `alert()`로 사용자에게 안내만 하고 곧장 스캔 탭으로 돌려보내, 촬영한 영수증 사진과 이미 인식된 부분 정보가 전부 유실됐음. read-only 분석 라운드에서 결과 화면(`computeResultStatus()`/`renderResultStatus()`)이 이미 빨강("주소 입력 필요") 상태와 사진 썸네일/"사진 크게 보기"/"다시 촬영하기" 링크 인프라를 전부 갖추고 있음을 확인해, 새 UI를 만들지 않고 이 화면으로 라우팅만 추가하는 방식으로 범위를 좁힘. 설계 과정에서 `confirmAdd()`의 `addrChanged` 판정이 OCR 완전 실패 시(`ocrAddress=''`) 항상 `false`가 되어, 수기로 주소를 입력해도 좌표 재조회 자체가 시도되지 않고 `lat:null, lng:null`로 저장되는 잠재 버그도 함께 발견해 이번 범위에 포함.
+- **핵심 변경** (`saas/driver.html`만):
+  - `startOCR()`: `base64`를 `try` 밖으로 끌어올려 `catch`에서도 사진 확보 여부를 판단할 수 있게 함. OCR 실패 에러에 `status`(401/403 등)를 함께 실어 던지도록 변경. `catch` 블록을 분기 — **401/403(인증/권한) 또는 사진 자체 미확보**는 기존과 동일하게 `alert()` + `goTab('scan')` 유지, **그 외(Vision/Gemini/500/network)**는 입력 필드를 비우고 `window._pendingOCR`을 `source:'raw_fallback', confidence:'low'` + 촬영한 사진(`receiptDataUrl`)만 채워 구성한 뒤 `renderResultStatus()` → 토스트 "영수증 인식이 어려웠습니다. 아래에 직접 입력해주세요." → `goTab('result')`로 전환. 새 UI 요소는 추가하지 않고 기존 신호등/사진뷰어/재촬영 링크를 그대로 재사용.
+  - `confirmAdd()`: `addrChanged`가 아니면서 `lat`/`lng`가 없는 경우(OCR 실패/raw_fallback로 애초에 좌표가 없던 케이스)에 한해 `geocodeAddress`를 호출해 좌표를 보강 — 성공하면 `lat`/`lng`/`addr`(표준화된 도로명)를 갱신하고 계속 진행, 실패하면 토스트 "주소를 찾을 수 없습니다. 주소를 다시 확인해주세요."를 띄우고 저장을 차단(`return`). 이 새 체크를 기존 `window._pendingOCR = null;` 대입보다 **앞으로** 옮겨, 저장이 막혀도 `_pendingOCR`(사진 등)이 사라지지 않고 재시도할 수 있게 함. 기존 `addrChanged` 분기(주소 수정 시 재지오코딩 실패해도 진행하는 관대한 동작)와 정상 OCR 흐름(좌표 이미 있으면 이 체크 자체를 스킵)은 전혀 변경하지 않음.
+- **테스트**: `node --test "test/*.test.js"` **142/142 pass**(functions 미변경, 회귀 없음 확인용). driver.html 인라인 스크립트 구문 검사(정규식 추출 + `new Function` 실행) 에러 없음. 클라이언트 DOM 동작은 배포 후 라이브 검증으로 확인(아래).
+- **Deploy**: `firebase deploy --only hosting --project hatdelivery-saas`. `DEPLOY_CHECKLIST.md` §4-1 절차대로 배포 전 `APP_VERSION` 16→17 범프, 배포 후 `settings/appVersion`도 "17"로 갱신.
+- **배포 후 라이브 검증**: `_bmad/tea/evidence-log.md`의 "2026-07-13 — OCR 실패 후 수기 입력 흐름 개선 배포 검증" 참고. wamartmillak 테스트용 기사 계정으로 `fetch` 모킹을 통해 401/403/Vision/Gemini/500 각 실패 유형과 정상 OCR 흐름을 재현해 라우팅 분기, 사진 유지/확대보기/재촬영, 직접 입력 후 좌표 보강 저장, geocode 실패 시 저장 차단(및 `_pendingOCR` 보존으로 재시도 가능), 상세주소/출입정보/결제수단 저장, 모바일 375px, 콘솔 에러 0건 전부 확인.
+- **참고(이번 라운드와 무관, 검증 중 발견)**: 검증을 위해 로그인했을 때 이전 라운드("학습주소 후보 표시" 배포 검증)에서 정리되지 않고 남아있던 합성 배송 건 1건(`후보검증A`)을 실제 배송목록에서 발견해 이번 정리에 함께 포함해 삭제. 실제 고객 데이터는 아니었음. 향후 검증 라운드 종료 시 이전 라운드의 정리 여부도 한 번 더 재확인하는 것을 권장.
+- **Sensitive data policy**: 합성 데이터만 사용(가짜 이름/가짜 전화번호). 검증 중 생성된 합성 배송 2건과 위에서 발견한 이전 라운드 잔존 1건, 총 3건 전부 Firebase RTDB에서 삭제 및 재조회로 잔존 없음(`null`) 확인, `learnedLocations` 신규 생성 없음, Storage 사진 미업로드 확인. wamartmillak 테스트용 기사 계정 비밀번호는 이 문서/커밋/로그 어디에도 기록하지 않음.
+
 ---
 
 ## 진행 대기 (P1)
