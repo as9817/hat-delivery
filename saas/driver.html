@@ -128,9 +128,23 @@
     .delivery-item.done .dl-num { background: #4CAF50; }
     .dl-name { font-size: 16px; font-weight: 700; }
     .dl-addr { font-size: 13px; color: #555; margin-bottom: 4px; }
-    /* 상세주소 + 출입정보 병합 줄 — 둘 다 짧은 배지형 텍스트라 세로로 쌓지 않고
-       한 줄에 나란히 배치, 길면 자연스럽게 줄바꿈(flex-wrap) */
-    .dl-info-line { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+    /* 반복배송 정보 배지 — 고객명 줄에 인라인으로 붙이면 우측 컬럼(사진 썸네일 등)이
+       넓은 카드에서 좌측 컬럼 폭이 좁아(실측 93px) 이름+배지 2개가 도저히 안 들어가
+       줄바꿈으로 카드가 오히려 커지는 회귀를 실측으로 확인 → .dl-top의 형제 요소인
+       전체 폭 slim 줄로 이동(순번/우측 컬럼과 폭을 다투지 않음, .dl-info-line과 동일한
+       정렬 방식). 텍스트 라벨은 유지해 의미 전달, 높이는 낮게(padding 최소화). */
+    .dl-badge-line { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 1px 38px; }
+    .dl-badge-slim {
+      font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 4px;
+      white-space: nowrap; line-height: 1.2;
+    }
+    .dl-badge-learned   { color: #1565C0; background: #e3f2fd; }
+    .dl-badge-prevphoto { color: #6a1b9a; background: #f3e5f5; }
+    /* 상세주소 + 출입정보 병합 줄 — .dl-top의 형제 요소로 분리해 순번(.dl-num)/
+       우측 컬럼(.dl-right)과 폭을 다투지 않고 카드 전체 폭을 사용. margin-left로
+       이름/주소 컬럼과 좌측 정렬만 맞춤(순번 원 폭 28px + gap 10px). 길면 자연스럽게
+       줄바꿈(flex-wrap) — 좁은 컬럼에 갇혀있을 때보다 줄바꿈 빈도가 줄어듦. */
+    .dl-info-line { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 4px 38px; }
     .dl-detail-addr {
       display: inline-block; font-size: 12px; color: #1a237e; background: #e8eaf6;
       padding: 2px 8px; border-radius: 6px; font-weight: 700;
@@ -159,24 +173,22 @@
     }
     .dl-contact { font-size: 11px; color: #888; white-space: nowrap; }
     .dl-amount { font-size: 12px; color: #e65100; font-weight: 700; white-space: nowrap; margin-left: 4px; }
-    /* 반복배송 정보 아이콘 배지 — 배송카드 전용(OCR 결과화면의 .info-badge-pill과
-       완전히 분리된 클래스). 텍스트 pill 대신 이모지만 남겨 세로 공간 절감,
-       의미는 title/aria-label로 유지. 좌측 컬럼(이름/주소 아래)에 배치 — 우측
-       컬럼(사진/ETA+전화·금액)에 붙이면 사진 썸네일 카드에서 우측이 좌측보다
-       길어지는 역전이 실측으로 확인돼 좌측 슬림 아이콘 줄로 대체함. */
-    .dl-badge-icons { display: flex; gap: 3px; margin-top: 2px; }
-    .dl-badge-icon { font-size: 13px; line-height: 1; cursor: default; }
     /* 배송카드 버튼 행 전용(다른 화면의 .row-btns에는 영향 없음) — 길찾기/완료는
-       기존 크기 유지, 나중/복귀/수정은 아이콘 전용 소형 버튼(.dl-btn-sm)으로 축소.
-       flex 컨테이너 stretch로 행 안의 모든 버튼 높이는 자동으로 맞춰짐 — .dl-btn-sm의
-       자체 높이(padding+font)가 큰 버튼보다 작아야 큰 버튼 기준으로 행 높이가 줄어듦
-       (아이콘 font-size를 크게 잡으면 오히려 .dl-btn-sm이 가장 큰 요소가 되어 버튼
-       패딩을 줄인 효과가 상쇄되는 것을 실측으로 확인, 이를 피하려 작게 유지).
-       소형 버튼의 실제 클릭 영역은 stretch로 행 전체 높이를 그대로 가지므로 44px
-       터치 기준은 유지됨. */
+       기존 크기 유지. 수정(✏️)은 아이콘 전용 고정폭(.dl-btn-sm), 나중/복귀는 텍스트를
+       유지하되 auto-width 소형 버튼(.dl-btn-text-sm)으로 축소(아이콘 단독은 의미가
+       약하다는 피드백으로 텍스트 복원). flex 컨테이너 stretch로 행 안의 모든 버튼
+       높이는 자동으로 맞춰짐 — 소형 버튼들의 자체 높이(padding+font)가 큰 버튼보다
+       작아야 큰 버튼 기준으로 행 높이가 줄어듦(font-size를 크게 잡으면 오히려 소형
+       버튼이 가장 큰 요소가 되어 패딩 축소 효과가 상쇄되는 것을 실측으로 확인, 이를
+       피하려 작게 유지). 소형 버튼의 실제 클릭 영역은 stretch로 행 전체 높이를
+       그대로 가지므로 44px 터치 기준은 유지됨. */
     .dl-row-btns { gap: 6px; }
     .dl-row-btns .btn { padding: 12px 8px; font-size: 14px; }
     .dl-row-btns .dl-btn-sm { flex: 0 0 44px; padding: 10px 0; font-size: 15px; }
+    /* width:auto 필수 — 기본 .btn{width:100%}가 남아있으면 flex-basis:auto가
+       100%로 풀려 이 버튼이 행 전체 폭을 요구하는 값으로 계산되고, 그 결과
+       길찾기/완료가 거의 0폭으로 짜부라지는 문제를 실측으로 발견해 수정함. */
+    .dl-row-btns .dl-btn-text-sm { flex: 0 1 auto; width: auto; padding: 10px 12px; font-size: 13px; white-space: nowrap; }
 
     /* ── 탭바 ── */
     .tab-bar {
@@ -1714,14 +1726,15 @@ function _renderEtaBadge(d, etaInfo) {
 // 배송카드용 반복배송 정보 배지 — 전부 이미 저장된 필드만 사용(카드 렌더링 시
 // Firebase 추가 조회 없음). hasPreviousPhoto/addressSource는 confirmAdd() 시점에
 // 1회만 조회해 주문 객체에 저장해 둔 값을 그대로 재사용.
-// 아이콘 전용(.dl-badge-icon) — OCR 결과화면의 .info-badge-pill(renderResultBadges)과
-// 완전히 분리된 배송카드 전용 클래스라 서로 영향 없음. 의미는 title/aria-label로 유지.
+// 카드 전체 폭을 쓰는 slim 배지 줄(.dl-badge-slim) — OCR 결과화면의
+// .info-badge-pill(renderResultBadges)과 완전히 분리된 배송카드 전용 클래스라 서로
+// 영향 없음. 아이콘만으로는 의미가 불명확하다는 피드백으로 짧은 텍스트를 함께 표기.
 function _renderCardInfoBadges(d) {
   const items = [];
-  if (d.addressSource === 'learned') items.push({ icon: '📚', label: '학습주소 적용' });
-  if (d.hasPreviousPhoto) items.push({ icon: '🖼', label: '이전 배송사진 있음' });
+  if (d.addressSource === 'learned') items.push({ cls: 'dl-badge-learned', text: '📚학습', title: '학습주소 적용' });
+  if (d.hasPreviousPhoto) items.push({ cls: 'dl-badge-prevphoto', text: '🖼사진', title: '이전 배송사진 있음' });
   if (!items.length) return '';
-  return items.map(b => `<span class="dl-badge-icon" title="${b.label}" aria-label="${b.label}">${b.icon}</span>`).join('');
+  return items.map(b => `<span class="dl-badge-slim ${b.cls}" title="${b.title}">${b.text}</span>`).join('');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1738,7 +1751,7 @@ function _renderDeliveryCard(d, i, etaMap) {
   const detailAddr = d.detailAddress || d.detail_address || d.location?.detail_address || '';
   const accessInfo = d.accessInfo || d.access_info || d.location?.access_info || '';
   const etaBadge = (!isDone && !isCancelled) ? _renderEtaBadge(d, etaMap[d.id]) : '';
-  const badgeIcons = !isCancelled ? _renderCardInfoBadges(d) : '';
+  const badgePills = !isCancelled ? _renderCardInfoBadges(d) : '';
   return `
     <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
       <div class="dl-top">
@@ -1746,25 +1759,25 @@ function _renderDeliveryCard(d, i, etaMap) {
         <div style="flex:1">
           <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
           <div class="dl-addr">${d.address}</div>
-          ${(detailAddr || accessInfo) ? `<div class="dl-info-line">
-            ${detailAddr ? `<span class="dl-detail-addr">${detailAddr}</span>` : ''}
-            ${accessInfo ? `<span class="dl-access-info">🔐 ${accessInfo}</span>` : ''}
-          </div>` : ''}
-          ${badgeIcons ? `<div class="dl-badge-icons">${badgeIcons}</div>` : ''}
         </div>
         <div class="dl-right">
           ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : etaBadge}
           <div class="dl-contact">📞 ${d.phone}${d.totalAmount ? ` <span class="dl-amount">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
         </div>
       </div>
+      ${badgePills ? `<div class="dl-badge-line">${badgePills}</div>` : ''}
+      ${(detailAddr || accessInfo) ? `<div class="dl-info-line">
+        ${detailAddr ? `<span class="dl-detail-addr">${detailAddr}</span>` : ''}
+        ${accessInfo ? `<span class="dl-access-info">🔐 ${accessInfo}</span>` : ''}
+      </div>` : ''}
       ${isCancelled ? '' : `<div class="row-btns dl-row-btns">
         <button class="btn btn-blue" onclick="quickNav('${d.id}')">길찾기</button>
         <button class="btn ${isDone?'btn-outline':'btn-green'}" onclick="${isDone ? `toggleDone('${d.id}')` : `openCompleteScreen('${d.id}')`}">
           ${isDone ? '↩ 되돌리기' : '완료'}
         </button>
         ${!isDone ? (isPostponed
-          ? `<button class="btn dl-btn-sm" style="background:#E8F5E9;color:#2E7D32" onclick="unpostponeDelivery('${d.id}')" title="배송중으로 복귀" aria-label="배송중으로 복귀">↩</button>`
-          : `<button class="btn dl-btn-sm" style="background:#FFF3E0;color:#E65100" onclick="postponeDelivery('${d.id}')" title="나중에 배송" aria-label="나중에 배송">⏭</button>`
+          ? `<button class="btn dl-btn-text-sm" style="background:#E8F5E9;color:#2E7D32" onclick="unpostponeDelivery('${d.id}')">복귀</button>`
+          : `<button class="btn dl-btn-text-sm" style="background:#FFF3E0;color:#E65100" onclick="postponeDelivery('${d.id}')">나중</button>`
         ) : ''}
         <button class="btn dl-btn-sm" style="background:#F2F2F7;color:#555" onclick="openEditModal('${d.id}')" title="배송 정보 수정" aria-label="배송 정보 수정">✏️</button>
       </div>`}
