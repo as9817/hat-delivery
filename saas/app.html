@@ -2820,6 +2820,7 @@ function renderOrderList() {
       ${itemStr?`<div class="oc-items">🛍️ ${itemStr}</div>`:''}
       <div class="oc-bottom">
         <span class="badge badge-${o.status}">${STATUS_LABELS[o.status]||o.status}</span>
+        ${(!o.lat || !o.lng)?`<span style="font-size:11px;font-weight:700;background:#ffebee;color:#c62828;padding:1px 6px;border-radius:4px">⚠️ 좌표 없음</span>`:''}
         ${o.assignedDriverName ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0f4ff;border-radius:12px;padding:2px 8px 2px 4px">
           <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${getDriverColor(o.assignedDriverId)};color:#fff;font-size:9px;font-weight:800">${esc(o.assignedDriverName.charAt(0))}</span>
           <span style="font-size:11px;font-weight:700;color:${getDriverColor(o.assignedDriverId)}">${esc(o.assignedDriverName)}</span>
@@ -6170,6 +6171,13 @@ function calcOrderDistance(o) {
   return haversineKm(m.lat, m.lng, parseFloat(o.lat), parseFloat(o.lng));
 }
 
+// 자동배정 대상에서 좌표가 없어 조용히 제외되는 미배정 주문 수 — 상단 요약/미리보기/
+// 실행결과 3곳에서 동일한 기준으로 재사용(운영자가 누락을 인지할 수 있게 표시하는 용도,
+// 자동배정 알고리즘 자체는 건드리지 않음).
+function _countUnassignedNoCoord() {
+  return orders.filter(o => !o.assignedDriverId && (!o.lat || !o.lng) && ['pending','confirmed'].includes(o.status)).length;
+}
+
 // ══════════════════════════════════════════
 // K-means 자동 배정
 // ══════════════════════════════════════════
@@ -6180,8 +6188,10 @@ function toggleAutoAssignBar() {
     const activeDrivers = Object.entries(driverAccountsList).filter(([,d])=>d.active);
     const unassigned = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status));
     const farOrders = unassigned.filter(o => calcOrderDistance(o) >= 3);
+    const noCoordCount = _countUnassignedNoCoord();
     document.getElementById('auto-assign-desc').textContent =
-      `활성 기사 ${activeDrivers.length}명 · 미배정 주문 ${unassigned.length}건 (장거리 ${farOrders.length}건은 수동 배정 필요)`;
+      `활성 기사 ${activeDrivers.length}명 · 미배정 주문 ${unassigned.length}건 (장거리 ${farOrders.length}건은 수동 배정 필요)` +
+      (noCoordCount ? ` · ⚠️ 좌표 없음 ${noCoordCount}건 제외` : '');
   }
 }
 
@@ -6426,12 +6436,15 @@ function previewAutoAssign() {
   if (!activeDrivers.length) { showToast('⚠️ 활성 기사가 없습니다'); return; }
 
   const unassigned = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status) && calcOrderDistance(o) < 3);
-  if (!unassigned.length) { document.getElementById('auto-assign-result').textContent = '배정 가능한 주문이 없습니다 (좌표 필요, 장거리 제외)'; return; }
+  const farOrders = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status) && calcOrderDistance(o) >= 3);
+  const noCoordCount = _countUnassignedNoCoord();
+  const summaryLine = `자동배정 대상 ${unassigned.length}건 / 장거리 ${farOrders.length}건` + (noCoordCount ? ` / 좌표 없음 ${noCoordCount}건 제외` : '');
+  if (!unassigned.length) { document.getElementById('auto-assign-result').textContent = `배정 가능한 주문이 없습니다 (${summaryLine})`; return; }
 
   const previewPts = unassigned.map(o => ({ lat: parseFloat(o.lat), lng: parseFloat(o.lng), id: o.id }));
   const clusters = kMeansClusters(previewPts, activeDrivers.length);
 
-  let html = '<div style="font-weight:700;margin-bottom:6px">미리보기 결과:</div>';
+  let html = `<div style="font-weight:700;margin-bottom:6px">미리보기 결과 (${summaryLine}):</div>`;
   clusters.forEach((cl, ci) => {
     const [dId, d] = activeDrivers[ci] || [];
     const names = cl.ids.map(id => { const o = orders.find(x=>x.id===id); return o ? o.customerName : id; });
@@ -6448,9 +6461,12 @@ async function runAutoAssign() {
 
   const unassigned = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status) && calcOrderDistance(o) < 3);
   const farOrders  = orders.filter(o => !o.assignedDriverId && o.lat && o.lng && ['pending','confirmed'].includes(o.status) && calcOrderDistance(o) >= 3);
+  const noCoordCount = _countUnassignedNoCoord();
 
   if (!unassigned.length) {
-    document.getElementById('auto-assign-result').textContent = farOrders.length ? `장거리 ${farOrders.length}건은 수동 배정이 필요합니다` : '배정 가능한 주문이 없습니다';
+    let noneMsg = farOrders.length ? `장거리 ${farOrders.length}건은 수동 배정이 필요합니다` : '배정 가능한 주문이 없습니다';
+    if (noCoordCount) noneMsg += ` (⚠️ 좌표 없음 ${noCoordCount}건 제외)`;
+    document.getElementById('auto-assign-result').textContent = noneMsg;
     return;
   }
 
@@ -6481,6 +6497,7 @@ async function runAutoAssign() {
 
   let msg = `✅ ${count}건 배정 완료`;
   if (farOrders.length) msg += ` (🔴 장거리 ${farOrders.length}건 수동 배정 필요)`;
+  if (noCoordCount) msg += ` (⚠️ 좌표 없음 ${noCoordCount}건 제외)`;
   resultEl.textContent = msg + (driverSummary ? `\n${driverSummary}` : '');
   showToast(msg);
 }
