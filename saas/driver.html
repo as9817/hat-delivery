@@ -110,8 +110,8 @@
     /* ── 배달 목록 ── */
     #none { padding: 16px 0; }
     .delivery-item {
-      background: #fff; border-radius: 16px; padding: 14px;
-      margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      background: #fff; border-radius: 16px; padding: 12px;
+      margin-bottom: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
     }
     .delivery-item.done { opacity: .55; }
     .dl-tab-bar { display:flex; gap:8px; margin-bottom:12px; }
@@ -119,7 +119,7 @@
               background:#fff; font-size:13px; font-weight:700; color:#888;
               cursor:pointer; transition:all .2s; }
     .dl-tab.active { background:#FF6B00; border-color:#FF6B00; color:#fff; }
-    .dl-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .dl-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
     .dl-num {
       background: #FF6B00; color: #fff; border-radius: 50%;
       width: 28px; height: 28px; display: flex; align-items: center;
@@ -128,27 +128,37 @@
     .delivery-item.done .dl-num { background: #4CAF50; }
     .dl-name { font-size: 16px; font-weight: 700; }
     .dl-addr { font-size: 13px; color: #555; margin-bottom: 4px; }
+    /* 상세주소 + 출입정보 병합 줄 — 둘 다 짧은 배지형 텍스트라 세로로 쌓지 않고
+       한 줄에 나란히 배치, 길면 자연스럽게 줄바꿈(flex-wrap) */
+    .dl-info-line { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
     .dl-detail-addr {
       display: inline-block; font-size: 12px; color: #1a237e; background: #e8eaf6;
-      padding: 2px 8px; border-radius: 6px; font-weight: 700; margin-bottom: 4px;
+      padding: 2px 8px; border-radius: 6px; font-weight: 700;
     }
     .dl-access-info {
       display: inline-block; font-size: 12px; color: #b71c1c; background: #ffebee;
-      padding: 2px 8px; border-radius: 6px; font-weight: 700; margin-bottom: 4px;
+      padding: 2px 8px; border-radius: 6px; font-weight: 700;
     }
-    .dl-phone { font-size: 12px; color: #888; }
     .dl-photo-thumb {
       width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
-      cursor: pointer; margin-left: auto; border: 1.5px solid #eee;
+      cursor: pointer; border: 1.5px solid #eee;
     }
     /* 자체 계산 ETA 배지 — 확정정보(상세주소/출입정보)와 톤을 다르게 해 "추정치"임을
-       구분. 카드 상단 우측(사진 썸네일과 같은 자리)에 배치, 좌측 정보/버튼과 안 겹침 */
+       구분. 우측 컬럼(.dl-right) 최상단에 배치, 좌측 정보/버튼과 안 겹침 */
     .dl-eta-badge {
       font-size: 11px; color: #6a1b9a; background: #f3e5f5;
       padding: 3px 8px; border-radius: 8px; font-weight: 700;
-      margin-left: auto; white-space: nowrap; align-self: flex-start;
+      white-space: nowrap;
     }
     .dl-eta-badge.dl-eta-muted { color: #999; background: #f2f2f2; font-weight: 500; }
+    /* 우측 컬럼 — 사진썸네일 또는 ETA 배지(상호 배타, 기존 동작 유지) 아래에
+       전화번호/금액을 세로로 쌓아 우측 공간을 활용 */
+    .dl-right {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+      margin-left: auto; flex-shrink: 0;
+    }
+    .dl-contact { font-size: 11px; color: #888; white-space: nowrap; }
+    .dl-amount { font-size: 12px; color: #e65100; font-weight: 700; white-space: nowrap; margin-left: 4px; }
 
     /* ── 탭바 ── */
     .tab-bar {
@@ -1686,11 +1696,10 @@ function _renderEtaBadge(d, etaInfo) {
 // 배송카드용 반복배송 정보 배지 — 전부 이미 저장된 필드만 사용(카드 렌더링 시
 // Firebase 추가 조회 없음). hasPreviousPhoto/addressSource는 confirmAdd() 시점에
 // 1회만 조회해 주문 객체에 저장해 둔 값을 그대로 재사용.
-function _renderCardInfoBadges(d, accessInfo) {
+function _renderCardInfoBadges(d) {
   const items = [];
   if (d.addressSource === 'learned') items.push('📚 학습주소 적용');
   if (d.hasPreviousPhoto) items.push('🖼 이전 배송사진 있음');
-  if (accessInfo) items.push('🔐 출입정보 있음');
   if (!items.length) return '';
   return `<div class="dl-badges">${items.map(t => `<span class="info-badge-pill">${t}</span>`).join('')}</div>`;
 }
@@ -1716,12 +1725,16 @@ function _renderDeliveryCard(d, i, etaMap) {
         <div style="flex:1">
           <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
           <div class="dl-addr">${d.address}</div>
-          ${detailAddr ? `<div class="dl-detail-addr">${detailAddr}</div>` : ''}
-          ${accessInfo ? `<div class="dl-access-info">🔐 ${accessInfo}</div>` : ''}
-          <div class="dl-phone">📞 ${d.phone}${d.totalAmount ? `<span style="margin-left:8px;font-size:12px;color:#e65100;font-weight:700">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
-          ${!isCancelled ? _renderCardInfoBadges(d, accessInfo) : ''}
+          ${(detailAddr || accessInfo) ? `<div class="dl-info-line">
+            ${detailAddr ? `<span class="dl-detail-addr">${detailAddr}</span>` : ''}
+            ${accessInfo ? `<span class="dl-access-info">🔐 ${accessInfo}</span>` : ''}
+          </div>` : ''}
+          ${!isCancelled ? _renderCardInfoBadges(d) : ''}
         </div>
-        ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : etaBadge}
+        <div class="dl-right">
+          ${d.photoId ? `<img class="dl-photo-thumb" id="thumb-${d.id}" onclick="viewPhoto('${d.id}')" src="" alt="완료 사진">` : etaBadge}
+          <div class="dl-contact">📞 ${d.phone}${d.totalAmount ? ` <span class="dl-amount">💰 ${Number(d.totalAmount).toLocaleString()}원</span>` : ''}</div>
+        </div>
       </div>
       ${isCancelled ? '' : `<div class="row-btns">
         <button class="btn btn-blue" onclick="quickNav('${d.id}')">길찾기</button>
