@@ -126,6 +126,14 @@
       justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;
     }
     .delivery-item.done .dl-num { background: #4CAF50; }
+    /* 배송목록 드래그 정렬 핸들 — 순번 원(.dl-num) 자체를 핸들로 재사용(새 버튼/아이콘
+       추가 없음). Sortable의 handle 옵션이 이 클래스로만 드래그를 제한하므로 카드의
+       나머지 영역(길찾기/완료/나중/복귀/수정 버튼, 이름, 주소 등)을 눌러도 드래그가
+       시작되지 않음 — 기존 클릭 동작과 충돌 없음. */
+    .dl-drag-handle { cursor: grab; }
+    .dl-drag-handle:active { cursor: grabbing; }
+    .delivery-item.sortable-ghost { opacity: 0.4; background: #fff7f0; }
+    .delivery-item.sortable-chosen { box-shadow: 0 4px 14px rgba(255,107,0,.25); }
     .dl-name { font-size: 16px; font-weight: 700; }
     .dl-addr { font-size: 13px; color: #555; margin-bottom: 4px; }
     /* 반복배송 정보 배지 — 고객명 줄에 인라인으로 붙이면 우측 컬럼(사진 썸네일 등)이
@@ -1752,10 +1760,13 @@ function _renderDeliveryCard(d, i, etaMap) {
   const accessInfo = d.accessInfo || d.access_info || d.location?.access_info || '';
   const etaBadge = (!isDone && !isCancelled) ? _renderEtaBadge(d, etaMap[d.id]) : '';
   const badgePills = !isCancelled ? _renderCardInfoBadges(d) : '';
+  // 배송중/나중에 배송 섹션의 카드만 드래그 정렬 대상(완료/취소 건은 순번 자체가
+  // 의미 없어 핸들을 붙이지 않음 — _initDeliverySortable()도 이 두 섹션에만 적용됨).
+  const canDrag = !isDone && !isCancelled;
   return `
-    <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
+    <div class="delivery-item ${isDone ? 'done' : ''}" id="item-${d.id}" data-id="${d.id}" style="${isCancelled ? 'opacity:0.5;border-left:4px solid #f44336;' : ''}">
       <div class="dl-top">
-        <div class="dl-num">${i+1}</div>
+        <div class="dl-num${canDrag ? ' dl-drag-handle' : ''}" ${canDrag ? 'title="눌러서 순서 변경"' : ''}>${i+1}</div>
         <div style="flex:1">
           <div class="dl-name">${d.customerName} ${isCancelled ? '<span style="font-size:11px;color:#f44336;font-weight:700;background:#fff0f0;padding:2px 6px;border-radius:4px">❌ 취소됨</span>' : ''}${d.fromOms && d.status==='delivering'? '<span style="font-size:11px;color:#1565C0;font-weight:700;background:#e3f2fd;padding:2px 6px;border-radius:4px">📋 OMS배정</span>' : ''}</div>
           <div class="dl-addr">${d.address}</div>
@@ -1786,6 +1797,7 @@ function _renderDeliveryCard(d, i, etaMap) {
 
 function renderHome() {
   loadDeliveries();
+  _destroyDeliverySortables(); // 재렌더링 전에 이전 Sortable 인스턴스 정리(재생성 대비, 아래 참고)
   const list = document.getElementById('delivery-list');
   const none = document.getElementById('none');
   const done = deliveries.filter(d => d.status === 'done').length;
@@ -1825,14 +1837,19 @@ function renderHome() {
   } else {
     // 배송중 탭: "배송중" / "나중에 배송" 두 섹션으로 분리. status는 그대로
     // pending/delivering 유지 — _postponed는 UI 전용 로컬 구분값(Firebase 미기록).
+    // 두 섹션을 별도 컨테이너(#dl-active-list/#dl-postponed-list)로 감싸 Sortable
+    // 인스턴스를 컨테이너 단위로 완전히 분리 — 배송중 카드가 나중에 배송 섹션으로
+    // (또는 그 반대로) 드래그되어 섞이는 일이 구조적으로 불가능해짐.
     const activeItems    = filtered.filter(d => !d._postponed);
     const postponedItems = filtered.filter(d => d._postponed);
-    let html = activeItems.map((d, i) => _renderDeliveryCard(d, i, etaMap)).join('');
+    let html = `<div id="dl-active-list">` + activeItems.map((d, i) => _renderDeliveryCard(d, i, etaMap)).join('') + `</div>`;
     if (postponedItems.length) {
       html += `<div class="section-divider">⏭ 나중에 배송 (${postponedItems.length})</div>`;
-      html += postponedItems.map((d, i) => _renderDeliveryCard(d, i, etaMap)).join('');
+      html += `<div id="dl-postponed-list">` + postponedItems.map((d, i) => _renderDeliveryCard(d, i, etaMap)).join('') + `</div>`;
     }
     list.innerHTML = html;
+    _initDeliverySortable('dl-active-list');
+    if (postponedItems.length) _initDeliverySortable('dl-postponed-list');
   }
   } // end filtered tab
 
@@ -1843,6 +1860,60 @@ function renderHome() {
       if (img && url) img.src = url;
     });
   });
+}
+
+// ══════════════════════════════════════════════════════
+// 배송목록 드래그 정렬 (섹션 내부 전용, 로컬 저장만 — Firebase sortIndex 없음)
+// ══════════════════════════════════════════════════════
+let _dlSortableActive = null, _dlSortablePostponed = null;
+
+function _destroyDeliverySortables() {
+  if (_dlSortableActive)    { _dlSortableActive.destroy();    _dlSortableActive = null; }
+  if (_dlSortablePostponed) { _dlSortablePostponed.destroy(); _dlSortablePostponed = null; }
+}
+
+// 드래그 결과(newIdOrder)를 deliveries 배열에 반영. syncDeliveriesOrderFromRoute()와
+// 동일한 안정정렬 기법 — newIdOrder에 있는 항목만 그 순서대로 앞에 모이고, 그 외
+// 항목(다른 섹션/완료 등)은 서로의 기존 상대 순서를 유지한 채 뒤로 밀림. 화면은 항상
+// status/_postponed 기준 필터로 섹션을 다시 나눠 표시하므로 전체 배열 내 상대 위치
+// 자체는 화면에 드러나지 않음 — routeOrder는 건드리지 않음(1차 범위 밖, 아래 참고).
+function _reorderSectionFromDom(newIdOrder) {
+  const posMap = new Map(newIdOrder.map((id, i) => [id, i]));
+  deliveries.sort((a, b) => {
+    const ai = posMap.has(a.id) ? posMap.get(a.id) : Infinity;
+    const bi = posMap.has(b.id) ? posMap.get(b.id) : Infinity;
+    return ai - bi;
+  });
+  saveDeliveries();
+}
+
+// 배송중/나중에 배송 섹션을 각각 독립 Sortable로 구성. handle을 순번 원(.dl-drag-handle)
+// 으로 제한해 카드의 나머지 영역(길찾기/완료/나중/복귀/수정 버튼 등)을 눌러도 드래그가
+// 시작되지 않음. delay+delayOnTouchOnly는 경로최적화 화면의 기존 드래그(renderRouteList)
+// 와 동일한 값 재사용 — 모바일에서 스크롤과 드래그를 구분하기 위한 검증된 설정.
+// ⚠️ 여기서 조정한 순서는 routeOrder(경로최적화 화면)에는 반영되지 않음 — 경로최적화를
+// 다시 열면 그 화면은 기존 routeOrder(또는 재계산 결과)를 그대로 보여줘 배송목록과
+// 순서가 달라질 수 있음(1차 범위에서 의도적으로 미동기화, syncDeliveriesOrderFromRoute()
+// 는 이 함수와 반대 방향이라 서로 건드리지 않음).
+function _initDeliverySortable(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const sortable = Sortable.create(el, {
+    handle: '.dl-drag-handle',
+    animation: 150,
+    delay: 150,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 5,
+    onEnd() {
+      const newIdOrder = Array.from(el.querySelectorAll('.delivery-item')).map(x => x.dataset.id);
+      _reorderSectionFromDom(newIdOrder);
+      // renderHome()이 이 Sortable 인스턴스 자신을 destroy()하므로(재생성 대비)
+      // 같은 이벤트 틱 안에서 바로 호출하지 않고 다음 틱으로 미룸.
+      setTimeout(renderHome, 0);
+    }
+  });
+  if (containerId === 'dl-active-list') _dlSortableActive = sortable;
+  else _dlSortablePostponed = sortable;
 }
 
 // "나중" — 배송중 화면 안에서 "나중에 배송" 섹션으로 이동. 상태(pending/delivering)는
