@@ -1958,15 +1958,13 @@ function postponeDelivery(id) {
   item._postponed = true;
   deliveries.push(item);
   saveDeliveries();
-  // 경로최적화에서 만든 순서(routeOrder)에도 같은 항목이 있으면 함께 뒤로 이동 —
-  // 배송지도(mapzone)의 route 모드가 routeOrder를 그대로 참조하므로, 여기서 미리
-  // 맞춰두면 배송지도 쪽 코드를 전혀 건드리지 않고도 최신 순서가 자연히 반영됨.
-  const rIdx = routeOrder.findIndex(x => x.id === id);
-  if (rIdx !== -1) {
-    const [r] = routeOrder.splice(rIdx, 1);
-    routeOrder.push(r);
-  }
-  renderHome(); // 순번/ETA는 기존 렌더링 로직이 배열 위치 기준으로 다시 계산
+  // routeOrder는 여기서 항목 하나만 부분적으로 옮기지 않고 항상 deliveries 기준으로
+  // 통째로 재조립 — "배송중이 나중에 배송보다 항상 앞" 원칙(_syncRouteOrderFromDeliveries
+  // 참고)이 드래그 정렬 이후에도 깨지지 않도록 함(과거엔 이 함수가 routeOrder에서 해당
+  // 항목만 찾아 맨 뒤로 옮겼는데, 드래그로 만든 routeOrder와 겹치면 순서가 꼬이는
+  // 버그가 있었음).
+  _syncRouteOrderFromDeliveries();
+  renderHome();
   showToast('⏭ 나중에 배송 섹션으로 옮겼습니다');
 }
 
@@ -1979,6 +1977,7 @@ function unpostponeDelivery(id) {
   if (!d) return;
   d._postponed = false;
   saveDeliveries();
+  _syncRouteOrderFromDeliveries(); // postponeDelivery()와 동일한 이유로 routeOrder 통째로 재조립
   renderHome();
   showToast('▶ 배송중 섹션으로 다시 옮겼습니다');
 }
