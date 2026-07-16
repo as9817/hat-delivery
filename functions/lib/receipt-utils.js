@@ -41,6 +41,9 @@ async function kakaoAddrSearch(query, kakaoKey, martLat, martLng, martRadius) {
   // 신주소(road_address) 있는 후보 우선, 없으면 전체
   const candidates = docs.filter(d => d.road_address?.address_name);
   const pool = candidates.length ? candidates : docs;
+  // 카카오는 같은 건물의 구/신 도로명이 여럿일 때 최신 도로명을 마지막에 반환함.
+  // reverse() 후 stable sort하면 동거리 후보 중 마지막(최신) 도로명이 pool[0]에 유지됨.
+  pool.reverse();
   // 마트 좌표가 있으면 거리 계산 후 가장 가까운 결과 선택
   if (martLat && martLng) {
     pool.sort((a, b) => {
