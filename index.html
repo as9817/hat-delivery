@@ -2064,7 +2064,7 @@ async function startOCR(file) {
     const response = await fetch(CLOUD_FN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(_idToken ? { 'Authorization': 'Bearer ' + _idToken } : {}) },
-      body: JSON.stringify({ imageBase64: base64, martLat: mart?.lat || null, martLng: mart?.lng || null })
+      body: JSON.stringify({ imageBase64: base64, tenantId: null, martLat: mart?.lat || null, martLng: mart?.lng || null })
     });
     setStep('step-init', 'done');
 
