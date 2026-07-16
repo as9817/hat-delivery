@@ -2059,9 +2059,11 @@ async function startOCR(file) {
     // 2단계: Cloud Function 호출 (마트 위치 Firebase에서 최신값 읽어서 전달)
     setStep('step-init', 'active');
     const mart = await loadMartLocationFromFirebase().catch(() => null);
+    const _user = firebase.auth().currentUser;
+    const _idToken = _user ? await _user.getIdToken().catch(() => null) : null;
     const response = await fetch(CLOUD_FN, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(_idToken ? { 'Authorization': 'Bearer ' + _idToken } : {}) },
       body: JSON.stringify({ imageBase64: base64, martLat: mart?.lat || null, martLng: mart?.lng || null })
     });
     setStep('step-init', 'done');
